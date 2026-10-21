@@ -1,0 +1,17 @@
+<!-- Supabase → Authentication → Emails → "Reset password"
+     Asunto sugerido: Restablece tu contraseña de ENQORA -->
+<div style="background:#0A1220;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:480px;margin:0 auto;background:#101B2D;border:1px solid #24354F;border-top:2px solid #C6A66B;border-radius:12px;padding:32px 28px;color:#D9E0EA;">
+    <p style="margin:0 0 4px;font-size:12px;letter-spacing:4px;color:#C6A66B;">ENQORA</p>
+    <h1 style="margin:0 0 16px;font-size:20px;color:#F4F0E8;">Restablece tu contraseña</h1>
+    <p style="margin:0 0 24px;line-height:1.6;">Recibimos una solicitud para restablecer la contraseña de tu cuenta. El enlace expira pronto y funciona una sola vez.</p>
+    <p style="margin:0 0 28px;">
+      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery"
+         style="display:inline-block;background:#C6A66B;color:#0A1220;text-decoration:none;font-weight:bold;padding:13px 22px;border-radius:8px;">
+        Crear nueva contraseña
+      </a>
+    </p>
+    <p style="margin:0 0 8px;font-size:13px;color:#9AA6B8;line-height:1.6;">Si no solicitaste este cambio, ignora este correo: tu contraseña actual sigue vigente. Si se repite, cambia tu contraseña y cierra todas las sesiones desde Seguridad.</p>
+    <p style="margin:0;font-size:13px;color:#9AA6B8;line-height:1.6;">ENQORA nunca te pedirá tu ClaveÚnica ni tu clave del SII.</p>
+  </div>
+</div>
