@@ -41,6 +41,17 @@ export default async function PanelPage({
         .order("updated_at", { ascending: false })
         .limit(20)
     : { data: [] };
+  // Autorizaciones que esperan la decisión de la empresa (RLS: solo miembros de la empresa y equipo asignado).
+  const { data: authRows } = active
+    ? await supabase
+        .from("client_authorizations")
+        .select("id, case_id, title, valid_until")
+        .eq("company_id", active.id)
+        .eq("status", "pendiente")
+        .order("requested_at")
+    : { data: [] };
+  const pendingAuth = (authRows ?? []) as { id: string; case_id: string; title: string; valid_until: string | null }[];
+  const canAuthorize = !!active && ["owner", "admin"].includes(active.role);
   const openCases = ((caseRows ?? []) as CaseRow[]).filter((c) => !CLOSED.includes(c.status));
   const waiting = openCases.filter((c) => ["esperando_cliente", "autorizacion_cliente"].includes(c.status));
 
@@ -67,6 +78,25 @@ export default async function PanelPage({
               <input type="hidden" name="next" value="/panel" />
               <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Fui yo</SubmitButton>
             </form>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingAuth.length ? (
+        <div className="alert alert-warn alert-row" role="status">
+          <IconShield size={22} />
+          <div>
+            <b>{pendingAuth.length === 1 ? "Una autorización espera tu decisión" : `${pendingAuth.length} autorizaciones esperan tu decisión`}</b>
+            <p>
+              {canAuthorize
+                ? "ENQORA solo actuará dentro de lo que autorices, y puedes revocarlo cuando quieras."
+                : "Solo el Propietario o un Administrador de la empresa puede decidirlas."}
+            </p>
+            <ul className="auth-panel-list">
+              {pendingAuth.slice(0, 4).map((a) => (
+                <li key={a.id}><Link href={`/casos/${a.case_id}#autorizaciones`}>{a.title}</Link></li>
+              ))}
+            </ul>
           </div>
         </div>
       ) : null}
