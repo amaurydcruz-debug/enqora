@@ -34,6 +34,9 @@ import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 import { EnqoraMirror } from "@/components/mirror/enqora-mirror";
 import type { MirrorStep } from "@/lib/mirror";
+import type { Approval, ClientAuthorization } from "@/lib/approvals";
+import { Approvals } from "./approvals";
+import { Authorizations } from "./authorizations";
 import { CommentForm } from "./comment-form";
 import { MirrorConsole } from "./mirror-console";
 import { UploadDocument } from "./upload";
@@ -60,6 +63,31 @@ const AVISOS: Record<string, string> = {
   retirado: "Persona retirada del caso.",
   tarea: "Tareas actualizadas.",
   analisis: "Avance del análisis registrado en ENQORA MIRROR.",
+  aprobacion_solicitada: "Solicitud de aprobación enviada.",
+  aprobacion_aprobar: "Aprobación registrada.",
+  aprobacion_rechazar: "Solicitud rechazada con observaciones.",
+  aprobacion_devolver: "Solicitud devuelta con observaciones.",
+  aprobacion_anulada: "Solicitud de aprobación anulada.",
+  autorizacion_solicitada: "Autorización enviada al cliente.",
+  autorizada: "Autorización registrada. ENQORA actuará solo dentro de lo que autorizaste.",
+  autorizacion_rechazada: "Rechazaste la autorización. El equipo revisará el caso contigo.",
+  autorizacion_revocada: "Autorización revocada. ENQORA detendrá esa gestión.",
+  autorizacion_anulada: "Solicitud de autorización anulada.",
+};
+
+const APPROVAL_ACTIONS: Record<string, string> = {
+  solicitada: "solicitó aprobación",
+  aprobada: "aprobó",
+  rechazada: "rechazó",
+  devuelta: "devolvió con observaciones",
+  anulada: "anuló la solicitud de aprobación",
+};
+const AUTH_ACTIONS: Record<string, string> = {
+  solicitada: "solicitó tu autorización para",
+  autorizada: "autorizó",
+  rechazada: "no autorizó",
+  revocada: "revocó la autorización de",
+  anulada: "anuló la solicitud de autorización",
 };
 
 type Event = {
@@ -99,7 +127,7 @@ export default async function CasePage({
   if (!caseRow) notFound();
   const c = caseRow as CaseRow;
 
-  const [staffRole, companyRes, eventsRes, tasksRes, docsRes, assignRes, memberRes, stepsRes] = await Promise.all([
+  const [staffRole, companyRes, eventsRes, tasksRes, docsRes, assignRes, memberRes, stepsRes, approvalsRes, authRes] = await Promise.all([
     myStaffRole(),
     supabase.from("companies").select("legal_name, trade_name, rut").eq("id", c.company_id).maybeSingle(),
     supabase.from("case_events").select("id, actor_id, kind, body, visibility, metadata, created_at").eq("case_id", id).order("created_at"),
@@ -112,8 +140,13 @@ export default async function CasePage({
       .select("id, agent, stage, title, detail, status, progress, visibility, created_at, updated_at")
       .eq("case_id", id)
       .order("created_at"),
+    // RLS: el cliente no recibe aprobaciones internas.
+    supabase.from("approvals").select("*").eq("case_id", id).order("requested_at", { ascending: false }),
+    supabase.from("client_authorizations").select("*").eq("case_id", id).order("requested_at", { ascending: false }),
   ]);
   const steps = (stepsRes.data ?? []) as MirrorStep[];
+  const approvals = (approvalsRes.data ?? []) as Approval[];
+  const authorizations = (authRes.data ?? []) as ClientAuthorization[];
 
   const company = companyRes.data as { legal_name: string; trade_name: string | null; rut: string } | null;
   const events = (eventsRes.data ?? []) as Event[];
@@ -136,6 +169,8 @@ export default async function CasePage({
   docs.forEach((d) => d.uploaded_by && people.add(d.uploaded_by));
   assignments.forEach((a) => people.add(a.user_id));
   events.forEach((e) => e.metadata?.usuario && people.add(e.metadata.usuario));
+  approvals.forEach((a) => [a.requested_by, a.decided_by].forEach((u) => u && people.add(u)));
+  authorizations.forEach((a) => [a.requested_by, a.decided_by, a.revoked_by].forEach((u) => u && people.add(u)));
 
   let allStaff: Staff[] = [];
   if (supervisor) {
@@ -159,6 +194,8 @@ export default async function CasePage({
     return role ? `${base} · ${STAFF_ROLES[role]}` : base;
   };
 
+  const names: Record<string, string> = Object.fromEntries([...people].map((uid) => [uid, nameOf(uid)]));
+
   const describe = (e: Event) => {
     switch (e.kind) {
       case "creado":
@@ -177,6 +214,10 @@ export default async function CasePage({
           : `marcó la tarea «${e.body ?? ""}» como ${(TASK_STATUSES[e.metadata?.accion ?? ""] ?? "").toLowerCase()}`;
       case "prioridad":
         return `ajustó la prioridad a ${(PRIORITIES[e.metadata?.prioridad ?? ""] ?? "").toLowerCase()}`;
+      case "aprobacion":
+        return `${APPROVAL_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una aprobación"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
+      case "autorizacion":
+        return `${AUTH_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una autorización"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
       default:
         return null;
     }
@@ -257,6 +298,29 @@ export default async function CasePage({
             </section>
           ) : null}
 
+          <Authorizations
+            caseId={c.id}
+            items={authorizations}
+            names={names}
+            canDecide={!!memberRole && ["owner", "admin"].includes(memberRole)}
+            canRequest={worker && staffRole !== "ai_agent"}
+            isClosed={isClosed}
+          />
+
+          {worker ? (
+            <Approvals
+              caseId={c.id}
+              items={approvals}
+              names={names}
+              me={user.id}
+              role={staffRole}
+              supervisor={supervisor}
+              assigned={assigned}
+              responsibleId={c.responsible_id}
+              isClosed={isClosed}
+            />
+          ) : null}
+
           <section className="card" id="historial">
             <h2 className="card-title"><IconActivity /> Historial y mensajes</h2>
             <ul className="timeline">
@@ -270,7 +334,12 @@ export default async function CasePage({
                       {e.visibility === "interno" ? <span className="badge badge-muted">Interno</span> : null}
                       <span className="tl-when">{fmt(e.created_at)}</span>
                     </div>
-                    {(isMsg || (e.kind === "estado" && e.body)) && e.body ? <p className="pre">{e.body}</p> : null}
+                    {(isMsg ||
+                      (e.kind === "estado" && e.body) ||
+                      ((e.kind === "aprobacion" || e.kind === "autorizacion") && !["solicitada", "anulada"].includes(e.metadata?.accion ?? ""))) &&
+                    e.body ? (
+                      <p className="pre">{e.body}</p>
+                    ) : null}
                   </li>
                 );
               })}
