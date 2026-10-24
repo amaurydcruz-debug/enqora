@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { IconUsers } from "@/components/icons";
 import { CLOSED, MODULES, PRIORITIES, STAFF_ROLES, statusClass, statusLabel, type CaseRow } from "@/lib/cases";
+import { APPROVAL_KINDS, APPROVER_ROLES, type InboxItem } from "@/lib/approvals";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 
@@ -11,8 +12,12 @@ export const metadata: Metadata = { title: "Centro de Mando" };
 const fmt = (iso: string) =>
   new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeZone: "America/Santiago" }).format(new Date(iso));
 
+// Bandejas del Centro de Mando. Cada perfil ve las que le corresponden.
 const VIEWS = {
+  aprobaciones: "Por aprobar",
   mios: "Mis casos",
+  revision: "En revisión profesional",
+  cliente: "Esperando al cliente",
   activos: "Todos los activos",
   sin_asignar: "Sin responsable",
   cerrados: "Finalizados",
@@ -21,7 +26,7 @@ type View = keyof typeof VIEWS;
 
 const PRIORITY_ORDER: Record<string, number> = { urgente: 0, alta: 1, normal: 2, baja: 3 };
 
-// Centro de Mando: vista operativa del equipo ENQORA.
+// Centro de Mando: vista operativa del equipo ENQORA, con bandejas por perfil.
 export default async function CommandCenterPage({
   searchParams,
 }: {
@@ -30,8 +35,8 @@ export default async function CommandCenterPage({
   const role = await myStaffRole();
   if (!role) notFound();
   const supervisor = isSupervisorRole(role);
+  const canApprove = role !== "ai_agent";
   const sp = await searchParams;
-  const view: View = sp.vista && sp.vista in VIEWS ? (sp.vista as View) : supervisor ? "activos" : "mios";
 
   const supabase = await createClient();
   const {
@@ -39,14 +44,25 @@ export default async function CommandCenterPage({
   } = await supabase.auth.getUser();
 
   // RLS: el equipo solo recibe los casos asignados; la supervisión, todos.
-  const [{ data: caseRows }, { data: myAssign }] = await Promise.all([
+  // La bandeja de aprobaciones la calcula la base según el perfil (cuatro ojos incluidos).
+  const [{ data: caseRows }, { data: myAssign }, { data: inboxRows }] = await Promise.all([
     supabase.from("cases").select("*").order("updated_at", { ascending: false }).limit(300),
     supabase.from("case_assignments").select("case_id").eq("user_id", user?.id ?? ""),
+    canApprove ? supabase.rpc("approval_inbox") : Promise.resolve({ data: [] }),
   ]);
+  const inbox = (inboxRows ?? []) as InboxItem[];
+
+  const available = (Object.keys(VIEWS) as View[]).filter((v) => {
+    if (v === "aprobaciones") return canApprove;
+    if (v === "activos" || v === "sin_asignar") return supervisor;
+    return true;
+  });
+  const fallback: View = inbox.length && canApprove ? "aprobaciones" : supervisor ? "activos" : "mios";
+  const view: View = sp.vista && available.includes(sp.vista as View) ? (sp.vista as View) : fallback;
   const all = (caseRows ?? []) as CaseRow[];
   const mine = new Set(((myAssign ?? []) as { case_id: string }[]).map((a) => a.case_id));
 
-  const companyIds = [...new Set(all.map((c) => c.company_id))];
+  const companyIds = [...new Set([...all.map((c) => c.company_id), ...inbox.map((a) => a.company_id)])];
   const { data: companyRows } = companyIds.length
     ? await supabase.from("companies").select("id, legal_name, trade_name").in("id", companyIds)
     : { data: [] };
@@ -60,6 +76,8 @@ export default async function CommandCenterPage({
   const filtered = all
     .filter((c) => {
       if (view === "mios") return mine.has(c.id) && !CLOSED.includes(c.status);
+      if (view === "revision") return c.status === "revision_profesional";
+      if (view === "cliente") return ["esperando_cliente", "autorizacion_cliente"].includes(c.status);
       if (view === "sin_asignar") return !c.responsible_id && !CLOSED.includes(c.status);
       if (view === "cerrados") return CLOSED.includes(c.status);
       return !CLOSED.includes(c.status);
@@ -88,6 +106,9 @@ export default async function CommandCenterPage({
       </div>
 
       <div className="stat-row">
+        {canApprove ? (
+          <div className={`stat${inbox.length ? " stat-warn" : ""}`}><span>Por aprobar</span><b>{inbox.length}</b></div>
+        ) : null}
         <div className="stat"><span>Activos</span><b>{stats.activos}</b></div>
         {supervisor ? <div className="stat"><span>Sin responsable</span><b>{stats.sinAsignar}</b></div> : null}
         <div className="stat"><span>Esperando al cliente</span><b>{stats.cliente}</b></div>
@@ -95,15 +116,54 @@ export default async function CommandCenterPage({
       </div>
 
       <nav className="tabs" aria-label="Vistas">
-        {(Object.keys(VIEWS) as View[])
-          .filter((v) => supervisor || v !== "sin_asignar")
-          .map((v) => (
-            <Link key={v} href={`/mando?vista=${v}`} className={`tab${v === view ? " is-active" : ""}`} aria-current={v === view ? "page" : undefined}>
-              {VIEWS[v]}
-            </Link>
-          ))}
+        {available.map((v) => (
+          <Link key={v} href={`/mando?vista=${v}`} className={`tab${v === view ? " is-active" : ""}`} aria-current={v === view ? "page" : undefined}>
+            {VIEWS[v]}
+            {v === "aprobaciones" && inbox.length ? <span className="tab-count">{inbox.length}</span> : null}
+          </Link>
+        ))}
       </nav>
 
+      {view === "aprobaciones" ? (
+        <section className="card">
+          {inbox.length ? (
+            <div className="table-wrap">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Folio</th>
+                    <th>Solicitud</th>
+                    <th>Empresa</th>
+                    <th>Decide</th>
+                    <th>Solicitada</th>
+                    <th aria-label="Acción" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {inbox.map((a) => (
+                    <tr key={a.id}>
+                      <td className="mono"><Link href={`/casos/${a.case_id}#aprobaciones`}>{a.folio}</Link></td>
+                      <td>
+                        <Link href={`/casos/${a.case_id}#aprobaciones`}>{a.title}</Link>
+                        <span className="muted-line block">
+                          {APPROVAL_KINDS[a.kind]?.label ?? a.kind} · {a.case_title}
+                          {a.own_request ? " · tu propia solicitud (supervisión)" : ""}
+                        </span>
+                      </td>
+                      <td>{companies.get(a.company_id) ?? "—"}</td>
+                      <td>{APPROVER_ROLES[a.approver_role] ?? a.approver_role}</td>
+                      <td>{fmt(a.requested_at)}</td>
+                      <td><Link href={`/casos/${a.case_id}#aprobaciones`} className="btn btn-gold btn-inline btn-sm">Revisar</Link></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="muted-line">No tienes aprobaciones pendientes.</p>
+          )}
+        </section>
+      ) : (
       <section className="card">
         {filtered.length ? (
           <div className="table-wrap">
@@ -145,6 +205,7 @@ export default async function CommandCenterPage({
           <p className="muted-line">No hay casos en esta vista.</p>
         )}
       </section>
+      )}
     </div>
   );
 }
