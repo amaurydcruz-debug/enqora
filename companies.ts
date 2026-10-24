@@ -1,51 +1,166 @@
-import "server-only";
-import { cookies } from "next/headers";
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import type { Company, MyCompany, Role } from "@/lib/company-constants";
+import { siteUrl } from "@/lib/supabase/env";
+import { setActiveCompany } from "@/lib/companies";
+import { isRegime, isRole } from "@/lib/company-constants";
+import { dbCode, dbMessage } from "@/lib/db-errors";
+import { isValidRut, normalizeRut } from "@/lib/rut";
+import { safeNext } from "@/lib/safe-next";
 
-export const ACTIVE_COMPANY_COOKIE = "enq_empresa";
+export type CompanyFormState = { error?: string; ok?: string; link?: string } | undefined;
 
-// Empresas a las que pertenece el usuario actual (RLS garantiza que solo vea las suyas).
-export async function myCompanies(): Promise<MyCompany[]> {
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const text = (fd: FormData, k: string, max = 200) => String(fd.get(k) ?? "").trim().slice(0, max);
+const uuid = (fd: FormData, k: string) => {
+  const v = String(fd.get(k) ?? "");
+  return UUID_RE.test(v) ? v : null;
+};
+
+// Si la base pide reautenticación, se envía al usuario a validar un código nuevo y se lo devuelve.
+function reauthOr(error: { message?: string } | null, back: string) {
+  if (dbCode(error) === "ENQ_REAUTH") redirect(`/mfa/reautenticar?next=${encodeURIComponent(back)}`);
+}
+
+// ---------- Registrar empresa ----------
+export async function createCompanyAction(_: CompanyFormState, fd: FormData): Promise<CompanyFormState> {
+  const rut = normalizeRut(text(fd, "rut", 20));
+  const legalName = text(fd, "legal_name", 160);
+  const regime = text(fd, "tax_regime", 40);
+
+  if (!rut || !isValidRut(rut)) return { error: "El RUT no es válido. Revisa el número y el dígito verificador." };
+  if (legalName.length < 2) return { error: "Ingresa la razón social de la empresa." };
+  if (!isRegime(regime)) return { error: "Selecciona un régimen tributario." };
+
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return [];
-
-  const { data: memberships } = await supabase
-    .from("company_members")
-    .select("company_id, role")
-    .eq("user_id", user.id);
-  const rows = (memberships ?? []) as { company_id: string; role: Role }[];
-  if (!rows.length) return [];
-
-  const { data: companies } = await supabase
-    .from("companies")
-    .select("id, rut, legal_name, trade_name, activity, tax_regime, rut_verified, created_at")
-    .in("id", rows.map((r) => r.company_id))
-    .order("legal_name");
-
-  const roleById = new Map(rows.map((r) => [r.company_id, r.role]));
-  return ((companies ?? []) as Company[]).map((c) => ({ ...c, role: roleById.get(c.id) ?? "viewer" }));
-}
-
-// Empresa activa: la elegida por el usuario (cookie) si sigue siendo miembro; si no, la primera.
-export async function activeCompany(list?: MyCompany[]) {
-  const companies = list ?? (await myCompanies());
-  const store = await cookies();
-  const chosen = store.get(ACTIVE_COMPANY_COOKIE)?.value;
-  const active = companies.find((c) => c.id === chosen) ?? companies[0] ?? null;
-  return { companies, active };
-}
-
-export async function setActiveCompany(id: string) {
-  const store = await cookies();
-  store.set(ACTIVE_COMPANY_COOKIE, id, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 180,
+  const { data, error } = await supabase.rpc("create_company", {
+    p_rut: rut,
+    p_legal_name: legalName,
+    p_trade_name: text(fd, "trade_name", 120),
+    p_activity: text(fd, "activity", 200),
+    p_tax_regime: regime,
   });
+  if (error || !data) return { error: dbMessage(error) };
+
+  await setActiveCompany(String(data));
+  redirect(`/empresas/${data}?aviso=creada`);
+}
+
+// ---------- Editar datos de la empresa ----------
+export async function updateCompanyAction(_: CompanyFormState, fd: FormData): Promise<CompanyFormState> {
+  const id = uuid(fd, "company_id");
+  const legalName = text(fd, "legal_name", 160);
+  const regime = text(fd, "tax_regime", 40);
+  if (!id) return { error: "Empresa no válida." };
+  if (legalName.length < 2) return { error: "Ingresa la razón social de la empresa." };
+  if (!isRegime(regime)) return { error: "Selecciona un régimen tributario." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("update_company", {
+    p_company: id,
+    p_legal_name: legalName,
+    p_trade_name: text(fd, "trade_name", 120),
+    p_activity: text(fd, "activity", 200),
+    p_tax_regime: regime,
+  });
+  if (error) return { error: dbMessage(error) };
+
+  revalidatePath(`/empresas/${id}`);
+  return { ok: "Datos de la empresa actualizados." };
+}
+
+// ---------- Cambiar empresa activa ----------
+export async function selectCompanyAction(fd: FormData) {
+  const id = uuid(fd, "company_id");
+  const next = safeNext(fd.get("next"), "/panel");
+  if (!id) redirect("/empresas");
+
+  // RLS: solo devuelve la empresa si el usuario es miembro.
+  const supabase = await createClient();
+  const { data } = await supabase.from("companies").select("id").eq("id", id).maybeSingle();
+  if (!data) redirect("/empresas?error=ENQ_SIN_PERMISO");
+
+  await setActiveCompany(id);
+  revalidatePath("/", "layout");
+  redirect(next);
+}
+
+// ---------- Invitar ----------
+export async function inviteAction(_: CompanyFormState, fd: FormData): Promise<CompanyFormState> {
+  const id = uuid(fd, "company_id");
+  const email = text(fd, "email", 200).toLowerCase();
+  const role = text(fd, "role", 20);
+  if (!id) return { error: "Empresa no válida." };
+  if (!EMAIL_RE.test(email)) return { error: "Ingresa un correo electrónico válido." };
+  if (!isRole(role) || role === "owner") return { error: "Selecciona un rol válido." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("create_invitation", { p_company: id, p_email: email, p_role: role });
+  reauthOr(error, `/empresas/${id}#invitar`);
+  if (error || !data) return { error: dbMessage(error) };
+
+  revalidatePath(`/empresas/${id}`);
+  return {
+    ok: `Invitación creada para ${email}. Copia el enlace y envíaselo: solo funciona con esa cuenta y vence en 7 días.`,
+    link: `${siteUrl()}/invitacion/${data}`,
+  };
+}
+
+// ---------- Revocar invitación ----------
+export async function revokeInvitationAction(fd: FormData) {
+  const id = uuid(fd, "company_id");
+  const inv = uuid(fd, "invitation_id");
+  if (!id || !inv) redirect("/empresas");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("revoke_invitation", { p_invitation: inv });
+  revalidatePath(`/empresas/${id}`);
+  redirect(`/empresas/${id}?${error ? `error=${dbCode(error) ?? "ENQ_SIN_PERMISO"}` : "aviso=revocada"}`);
+}
+
+// ---------- Cambiar rol ----------
+export async function changeRoleAction(fd: FormData) {
+  const id = uuid(fd, "company_id");
+  const user = uuid(fd, "user_id");
+  const role = String(fd.get("role") ?? "");
+  if (!id || !user || !isRole(role)) redirect("/empresas");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("change_member_role", { p_company: id, p_user: user, p_role: role });
+  reauthOr(error, `/empresas/${id}#miembros`);
+  revalidatePath(`/empresas/${id}`);
+  redirect(`/empresas/${id}?${error ? `error=${dbCode(error) ?? "ENQ_SIN_PERMISO"}` : "aviso=rol"}#miembros`);
+}
+
+// ---------- Quitar miembro o salir de la empresa ----------
+export async function removeMemberAction(fd: FormData) {
+  const id = uuid(fd, "company_id");
+  const user = uuid(fd, "user_id");
+  const leaving = fd.get("leaving") === "1";
+  if (!id || !user) redirect("/empresas");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("remove_member", { p_company: id, p_user: user });
+  reauthOr(error, `/empresas/${id}#miembros`);
+  if (error) redirect(`/empresas/${id}?error=${dbCode(error) ?? "ENQ_SIN_PERMISO"}#miembros`);
+
+  revalidatePath("/", "layout");
+  redirect(leaving ? "/empresas?aviso=saliste" : `/empresas/${id}?aviso=eliminado#miembros`);
+}
+
+// ---------- Aceptar invitación ----------
+export async function acceptInvitationAction(fd: FormData) {
+  const token = String(fd.get("token") ?? "");
+  if (!/^[0-9a-f]{48}$/.test(token)) redirect("/empresas?error=ENQ_INVITACION_INVALIDA");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("accept_invitation", { p_token: token });
+  if (error || !data) redirect(`/invitacion/${token}?error=${dbCode(error) ?? "ENQ_INVITACION_INVALIDA"}`);
+
+  await setActiveCompany(String(data));
+  revalidatePath("/", "layout");
+  redirect(`/empresas/${data}?aviso=unido`);
 }
