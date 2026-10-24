@@ -74,7 +74,8 @@ export async function updateSession(request: NextRequest) {
     return redirectTo("/mfa/configurar");
   }
 
-  // 3) Sesión completa (aal2).
+  // 3) Sesión completa (aal2). /mfa/reautenticar sigue disponible para operaciones sensibles.
+  if (path === "/mfa/reautenticar") return response;
   if (startsWithAny(path, GUEST_ONLY) || path === "/" || path.startsWith("/mfa")) {
     return redirectTo("/panel");
   }
