@@ -35,9 +35,9 @@ Futuros módulos (licitaciones, comercio exterior, inmobiliario…) se agregan s
 4. Expedientes y documentos — **hecho** (Etapa 4)
 5. Casos, tareas y seguimiento — **hecho** (Etapa 4)
 6. Equipo ENQORA: profesionales, gestores y agentes IA — **hecho** (Etapa 4; agentes IA conectados más adelante)
-7. Autorizaciones y mandatos del cliente — pendiente
+7. Autorizaciones del cliente — **hecho** (Etapa 5); mandatos y representación en Etapa 9
 8. Notificaciones (app, correo, WhatsApp) — pendiente
-9. Centro de Mando — **base hecha** (Etapa 4); bandejas por perfil y aprobaciones en Etapa 5
+9. Centro de Mando — **hecho** (Etapas 4 y 5): bandejas por perfil y mecanismo común de aprobaciones
 
 Cada módulo es configuración y contenido sobre este núcleo, no una aplicación aparte: catálogo de servicios → diagnóstico → ruta de trabajo → expediente → agentes IA → profesional responsable → gestor → seguimiento → autorización del cliente → auditoría.
 
@@ -90,9 +90,9 @@ Toda información normativa registra: fuente oficial, fecha de consulta, publica
 | 1 | Identity: registro, correo verificado, MFA, recuperación | Hecho |
 | 2 | Empresas, roles, invitaciones, RLS, auditoría | Hecho |
 | 3 | Shield / Sentinel: sesiones, dispositivos, alertas, registro de seguridad | Hecho |
-| 4 | Núcleo operativo: equipo ENQORA, casos, tareas, expedientes y documentos (almacenamiento privado por empresa) | Entregado |
-| 5 | Centro de Mando: bandejas por perfil, aprobar / rechazar / devolver, mecanismo común de aprobaciones (casos, precios, excepciones), autorizaciones del cliente dentro del caso | Siguiente |
-| 6 | Catálogo de servicios y motor de precios: tarifas versionadas, referencias de mercado con fuente, cotizaciones, excepciones aprobadas en el Centro de Mando, aceptación del cliente | |
+| 4 | Núcleo operativo: equipo ENQORA, casos, tareas, expedientes y documentos (almacenamiento privado por empresa) | Hecho |
+| 5 | Centro de Mando: bandejas por perfil, aprobar / rechazar / devolver, mecanismo común de aprobaciones (casos, precios, excepciones), autorizaciones del cliente dentro del caso | Entregado (ver `ENQORA-APROBACIONES.md`) |
+| 6 | Catálogo de servicios y motor de precios: tarifas versionadas, referencias de mercado con fuente, cotizaciones, excepciones aprobadas en el Centro de Mando, aceptación del cliente | Siguiente |
 | 7 | Diagnóstico gratuito + onboarding inteligente + Centro de control del cliente con su ruta | |
 | 8 | Planes y suscripciones (Plataforma y Contabilidad Profesional), propuesta mensual al cerrar un caso, pagos | |
 | 9 | Mandatos y representación; notificaciones (correo, WhatsApp) | |
