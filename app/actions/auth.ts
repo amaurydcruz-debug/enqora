@@ -70,7 +70,7 @@ export async function requestResetAction(_: FormState, fd: FormData): Promise<Fo
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl()}/auth/confirm`,
+    redirectTo: `${siteUrl()}/auth/confirm?type=recovery`,
   });
   if (error && (error.status === 429 || error.code?.startsWith("over_"))) {
     return { error: authMessage(error) };
