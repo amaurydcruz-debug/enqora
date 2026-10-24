@@ -60,6 +60,11 @@ export function authMessage(error: AuthErr, fallback = "No pudimos completar la 
   if (error.status === 401 || /invalid api key/i.test(error.message ?? "")) {
     return `${CONFIG} (Clave de Supabase no válida.)`;
   }
+  if (/sending .*email|smtp/i.test(error.message ?? "")) {
+    return `${CONFIG} (No se pudo enviar el correo: revisa el remitente y la configuración SMTP.)`;
+  }
   const ref = error.code ?? (error.status ? `http_${error.status}` : error.name ?? "desconocido");
-  return `${fallback} (código: ${ref})`;
+  // El mensaje de Supabase es técnico y genérico (no contiene datos del usuario); ayuda a diagnosticar.
+  const detail = error.message ? ` — ${error.message.slice(0, 160)}` : "";
+  return `${fallback} (código: ${ref}${detail})`;
 }
