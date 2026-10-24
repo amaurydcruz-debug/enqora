@@ -63,4 +63,5 @@ El reloj ENQORA es el emblema del Centro de Control, sin distraer de las funcion
 ## Estado actual (oct 2026)
 
 - Hecho: tokens de color, tipografía (Montserrat + Inter), botones, tarjetas, formularios, insignias, avisos, diseño adaptable.
-- Pendiente Etapa 1: iconografía propia, navegación lateral, estados de carga, retirar estilos en línea restantes, regla global de movimiento reducido.
+- Hecho (Etapas 3 y 4): iconografía propia (`components/icons.tsx`), navegación lateral, estado de carga con el reloj ENQORA, movimiento reducido, foco visible.
+- Pendiente: retirar estilos en línea que quedan en las pantallas de acceso (Etapa 1).
