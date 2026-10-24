@@ -1,6 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Notice } from "@/components/auth-card";
+import { IconAlert, IconBuilding, IconShield, IconSpark } from "@/components/icons";
+import { SubmitButton } from "@/components/submit-button";
+import { acknowledgeAlertsAction } from "@/app/actions/security";
 import { activeCompany } from "@/lib/companies";
 import { REGIMES, ROLES } from "@/lib/company-constants";
 import { formatRut } from "@/lib/rut";
@@ -24,6 +27,11 @@ export default async function PanelPage({
     data: { user },
   } = await supabase.auth.getUser();
   const { companies, active } = await activeCompany();
+  const { count: pendingAlerts } = await supabase
+    .from("security_events")
+    .select("id", { count: "exact", head: true })
+    .eq("event", "nuevo_dispositivo")
+    .is("acknowledged_at", null);
 
   return (
     <div className="stack">
@@ -35,15 +43,32 @@ export default async function PanelPage({
 
       {aviso && AVISOS[aviso] ? <Notice kind="ok">{AVISOS[aviso]}</Notice> : null}
 
+      {pendingAlerts ? (
+        <div className="alert alert-warn alert-row" role="alert">
+          <IconAlert size={22} />
+          <div>
+            <b>Detectamos un ingreso desde un dispositivo nuevo</b>
+            <p>Si no fuiste tú, revisa tu seguridad ahora: cambia tu contraseña y cierra las demás sesiones.</p>
+          </div>
+          <div className="actions-inline">
+            <Link href="/seguridad" className="btn btn-gold btn-inline btn-sm">Revisar</Link>
+            <form action={acknowledgeAlertsAction}>
+              <input type="hidden" name="next" value="/panel" />
+              <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Fui yo</SubmitButton>
+            </form>
+          </div>
+        </div>
+      ) : null}
+
       <div className="grid">
         <section className="card">
-          <h2>Empresa activa</h2>
+          <h2 className="card-title"><IconBuilding /> Empresa activa</h2>
           {active ? (
             <>
               <div className="row"><span>Razón social</span><span>{active.legal_name}</span></div>
               <div className="row"><span>Régimen</span><span>{REGIMES[active.tax_regime] ?? "Por definir"}</span></div>
               <div className="row"><span>Tu rol</span><span className="badge badge-muted">{ROLES[active.role]}</span></div>
-              <p style={{ marginTop: 12 }}>
+              <p className="mt-12">
                 <Link href={`/empresas/${active.id}`}>Administrar empresa →</Link>
                 {companies.length > 1 ? <> · <Link href="/empresas">Cambiar ({companies.length})</Link></> : null}
               </p>
@@ -57,15 +82,16 @@ export default async function PanelPage({
         </section>
 
         <section className="card">
-          <h2>Estado de tu cuenta</h2>
+          <h2 className="card-title"><IconShield /> Estado de tu cuenta</h2>
           <div className="row"><span>Correo verificado</span><span className="badge badge-ok">Verificado</span></div>
           <div className="row"><span>Verificación en dos pasos</span><span className="badge badge-ok">Activa</span></div>
           <div className="row"><span>Sesión actual</span><span className="badge badge-ok">Protegida</span></div>
-          <p style={{ marginTop: 12 }}><Link href="/seguridad">Administrar seguridad →</Link></p>
+          <div className="row"><span>Alertas pendientes</span><span className={`badge ${pendingAlerts ? "badge-warn" : "badge-ok"}`}>{pendingAlerts ? pendingAlerts : "Ninguna"}</span></div>
+          <p className="mt-12"><Link href="/seguridad">Administrar seguridad →</Link></p>
         </section>
 
         <section className="card">
-          <h2>Inteligencia ENQORA</h2>
+          <h2 className="card-title"><IconSpark /> Inteligencia ENQORA</h2>
           <p>Tu asistente contable y el Centro de Resolución se activarán cuando tu empresa esté conectada.</p>
           <span className="badge badge-muted">Próximamente</span>
         </section>
