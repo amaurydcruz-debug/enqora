@@ -1,122 +1,152 @@
-// Catálogo, estados y roles de casos. Utilizable en servidor y navegador.
+import Link from "next/link";
+import type { Metadata } from "next";
+import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
+import { activeCompany } from "@/lib/companies";
+import { CLOSED, MODULES, NEEDS_CLIENT, NEXT_STEP, statusLabel, statusTone, type CaseRow } from "@/lib/cases";
+import { createClient } from "@/lib/supabase/server";
 
-export const MODULES = {
-  contabilidad: { name: "ENQORA CONTABILIDAD", help: "IVA, F29, conciliación, libros, renta" },
-  create: { name: "ENQORA CREATE", help: "Crear y constituir una empresa" },
-  formaliza: { name: "ENQORA FORMALIZA", help: "Inicio de actividades, patentes y permisos" },
-  brand: { name: "ENQORA BRAND", help: "Nombre, logotipo, marca e INAPI" },
-  legal: { name: "ENQORA LEGAL", help: "Contratos, modificaciones y regularización" },
-  gestion: { name: "ENQORA GESTIÓN", help: "Clientes, inventario, caja y personas" },
-  crece: { name: "ENQORA CRECE", help: "Financiamiento, fondos y expansión" },
-  idea: { name: "ENQORA IDEA", help: "Evaluar una idea de negocio" },
-  general: { name: "Consulta general", help: "Otro tema o no sabes a qué área corresponde" },
+export const metadata: Metadata = { title: "Casos" };
+
+const fmt = (iso: string) =>
+  new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", year: "numeric", timeZone: "America/Santiago" }).format(new Date(iso));
+
+const VIEWS = {
+  todos: "Todos",
+  accion: "Necesitan tu acción",
+  curso: "En curso",
+  finalizados: "Finalizados",
 } as const;
-export type ModuleKey = keyof typeof MODULES;
+type View = keyof typeof VIEWS;
 
-type Tone = "ok" | "warn" | "muted" | "gold" | "risk";
+type Profile = { id: string; email: string; full_name: string | null };
 
-export const STATUSES: Record<string, { label: string; tone: Tone }> = {
-  recibido: { label: "Recibido", tone: "muted" },
-  en_investigacion: { label: "En investigación", tone: "gold" },
-  diagnostico: { label: "Diagnóstico preparado", tone: "gold" },
-  revision_profesional: { label: "En revisión profesional", tone: "gold" },
-  devuelto: { label: "Devuelto con observaciones", tone: "warn" },
-  esperando_cliente: { label: "Esperando antecedentes del cliente", tone: "warn" },
-  autorizacion_cliente: { label: "Pendiente de tu autorización", tone: "warn" },
-  en_ejecucion: { label: "En ejecución", tone: "gold" },
-  verificacion: { label: "En verificación", tone: "gold" },
-  cerrado: { label: "Cerrado", tone: "ok" },
-  cancelado: { label: "Cancelado", tone: "muted" },
-};
+// Casos: seguimiento de las solicitudes de la empresa activa.
+export default async function CasesPage({ searchParams }: { searchParams: Promise<{ vista?: string }> }) {
+  const sp = await searchParams;
+  const view: View = sp.vista && sp.vista in VIEWS ? (sp.vista as View) : "todos";
+  const { active } = await activeCompany();
 
-// Recorrido principal que se muestra al cliente.
-export const FLOW = [
-  "recibido",
-  "en_investigacion",
-  "diagnostico",
-  "revision_profesional",
-  "autorizacion_cliente",
-  "en_ejecucion",
-  "verificacion",
-  "cerrado",
-] as const;
+  if (!active) {
+    return (
+      <div className="page">
+        <header className="hero">
+          <div className="hero-main">
+            <span className="eyebrow">Casos</span>
+            <h1>Tus solicitudes</h1>
+          </div>
+        </header>
+        <section className="panel welcome">
+          <IconBuilding size={30} />
+          <h2>Primero registra tu empresa</h2>
+          <p>Las solicitudes se asocian a una empresa para que su información quede protegida y ordenada.</p>
+          <Link href="/empresas/nueva" className="btn btn-gold btn-inline"><IconPlus size={16} /> Registrar empresa</Link>
+        </section>
+      </div>
+    );
+  }
 
-export const CLOSED = ["cerrado", "cancelado"];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("cases")
+    .select("id, folio, module, title, status, priority, responsible_id, updated_at, created_at")
+    .eq("company_id", active.id)
+    .order("updated_at", { ascending: false })
+    .limit(200);
+  const cases = (data ?? []) as CaseRow[];
 
-export const PRIORITIES: Record<string, string> = {
-  baja: "Baja",
-  normal: "Normal",
-  alta: "Alta",
-  urgente: "Urgente",
-};
+  // Profesional responsable (RLS: el cliente ve el perfil de quien trabaja su caso).
+  const respIds = [...new Set(cases.map((c) => c.responsible_id).filter((v): v is string => !!v))];
+  const { data: profileRows } = respIds.length
+    ? await supabase.from("profiles").select("id, email, full_name").in("id", respIds)
+    : { data: [] };
+  const people = new Map(((profileRows ?? []) as Profile[]).map((p) => [p.id, p.full_name || p.email]));
 
-export const STAFF_ROLES = {
-  enqora_admin: "Administrador ENQORA",
-  ops_director: "Director de operaciones",
-  accountant_pro: "Contador autorizado",
-  lawyer_pro: "Abogado autorizado",
-  field_agent: "Gestor presencial",
-  ai_agent: "Agente IA",
-} as const;
-export type StaffRole = keyof typeof STAFF_ROLES;
+  const needsYou = cases.filter((c) => NEEDS_CLIENT.includes(c.status));
+  const inProgress = cases.filter((c) => !CLOSED.includes(c.status) && !NEEDS_CLIENT.includes(c.status));
+  const finished = cases.filter((c) => CLOSED.includes(c.status));
+  const canCreate = active.role !== "viewer";
+  const counts: Record<View, number> = { todos: cases.length, accion: needsYou.length, curso: inProgress.length, finalizados: finished.length };
 
-export const CASE_ROLES: Record<string, string> = {
-  responsable: "Responsable",
-  apoyo: "Apoyo",
-  gestor: "Gestor presencial",
-  agente_ia: "Agente IA",
-};
+  const groups: { key: Exclude<View, "todos">; title: string; items: CaseRow[] }[] = [
+    { key: "accion", title: "Necesitan tu acción", items: needsYou },
+    { key: "curso", title: "En curso", items: inProgress },
+    { key: "finalizados", title: "Finalizados", items: finished },
+  ];
+  const shown = groups.filter((g) => (view === "todos" ? g.items.length : g.key === view));
 
-export const TASK_STATUSES: Record<string, string> = {
-  pendiente: "Pendiente",
-  en_curso: "En curso",
-  hecha: "Hecha",
-  bloqueada: "Bloqueada",
-};
+  return (
+    <div className="page">
+      <header className="hero">
+        <div className="hero-main">
+          <span className="eyebrow">Casos · {active.trade_name || active.legal_name}</span>
+          <h1>Tus solicitudes</h1>
+          <p className="hero-lead">Cada solicitud es un caso con su equipo, documentos y seguimiento hasta verificar el resultado.</p>
+        </div>
+        {canCreate ? (
+          <div className="hero-actions">
+            <Link href="/casos/nuevo" className="btn btn-gold btn-inline"><IconPlus size={16} /> Nueva solicitud</Link>
+          </div>
+        ) : null}
+      </header>
 
-export const UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
-export const UPLOAD_TYPES = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "text/xml",
-  "application/xml",
-  "text/csv",
-  "text/plain",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
-export const UPLOAD_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.xml,.csv,.txt,.xlsx,.xls,.docx";
+      {cases.length === 0 ? (
+        <section className="panel welcome">
+          <h2>Aún no tienes solicitudes</h2>
+          <p>Cuéntanos qué necesitas: un problema contable, crear una empresa, una patente, tu marca…</p>
+          {canCreate ? <Link href="/casos/nuevo" className="btn btn-gold btn-inline"><IconPlus size={16} /> Crear mi primera solicitud</Link> : null}
+        </section>
+      ) : (
+        <>
+          <nav className="segments" aria-label="Filtrar casos">
+            {(Object.keys(VIEWS) as View[]).map((v) => (
+              <Link key={v} href={v === "todos" ? "/casos" : `/casos?vista=${v}`} className={`segment${v === view ? " is-active" : ""}${v === "accion" && counts.accion ? " has-gold" : ""}`} aria-current={v === view ? "page" : undefined}>
+                <span>{VIEWS[v]}</span>
+                <b>{counts[v]}</b>
+              </Link>
+            ))}
+          </nav>
 
-export type CaseRow = {
-  id: string;
-  folio: string;
-  company_id: string;
-  module: ModuleKey;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string;
-  due_date: string | null;
-  responsible_id: string | null;
-  result_summary: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-  closed_at: string | null;
-};
-
-export const isStaffRole = (v: unknown): v is StaffRole => typeof v === "string" && v in STAFF_ROLES;
-export const isModule = (v: unknown): v is ModuleKey => typeof v === "string" && v in MODULES;
-
-export const statusLabel = (s: string) => STATUSES[s]?.label ?? s;
-export const statusClass = (s: string) => `badge badge-${STATUSES[s]?.tone ?? "muted"}`;
-
-export function formatBytes(n: number | null | undefined) {
-  if (!n) return "";
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+          {shown.length ? (
+            shown.map((g) => (
+              <section key={g.key} className="case-group">
+                <h2 className="group-title">{g.title}<span>{g.items.length}</span></h2>
+                {g.items.length ? (
+                  <ul className="case-table" role="list">
+                    {g.items.map((c) => (
+                      <li key={c.id}>
+                        <Link href={`/casos/${c.id}`} className={`case-line${NEEDS_CLIENT.includes(c.status) ? " needs-you" : ""}`}>
+                          <span className="cl-id mono">{c.folio}</span>
+                          <span className="cl-main">
+                            <b>{c.title}</b>
+                            <small>{MODULES[c.module]?.name ?? c.module} · {active.trade_name || active.legal_name}</small>
+                          </span>
+                          <span className="cl-state">
+                            <span className={`status status-${statusTone(c.status)}`}>{statusLabel(c.status)}</span>
+                            <small className="case-next">{NEXT_STEP[c.status] ?? ""}</small>
+                          </span>
+                          <span className="cl-meta">
+                            <small>Responsable</small>
+                            <span>{c.responsible_id ? people.get(c.responsible_id) ?? "Equipo ENQORA" : "Por asignar"}</span>
+                          </span>
+                          <span className="cl-meta">
+                            <small>Actualizado</small>
+                            <span>{fmt(c.updated_at)}</span>
+                          </span>
+                          <IconArrowRight size={16} className="cl-go" />
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="empty-inline">No hay casos en esta vista.</p>
+                )}
+              </section>
+            ))
+          ) : (
+            <p className="empty-inline">No hay casos en esta vista.</p>
+          )}
+        </>
+      )}
+    </div>
+  );
 }
