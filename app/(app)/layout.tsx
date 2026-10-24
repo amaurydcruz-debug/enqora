@@ -1,74 +1,130 @@
-/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import type { Metadata } from "next";
+import { Notice } from "@/components/auth-card";
+import { SubmitButton } from "@/components/submit-button";
+import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
+import { selectCompanyAction } from "@/app/actions/companies";
 import { activeCompany } from "@/lib/companies";
-import { SignOutLink } from "@/components/sign-out-link";
-import { IconActivity, IconBuilding, IconControl, IconShield, IconUsers } from "@/components/icons";
-import { STAFF_ROLES } from "@/lib/cases";
-import { myStaffRole } from "@/lib/staff";
+import { REGIMES, ROLES } from "@/lib/company-constants";
+import { messageForCode } from "@/lib/db-errors";
+import { formatRut } from "@/lib/rut";
+import { createClient } from "@/lib/supabase/server";
 
-// Área privada. El middleware ya exige sesión con segundo factor (aal2);
-// aquí se comprueba de nuevo en el servidor como segunda barrera.
-// Navegación lateral en escritorio; barra desplazable bajo el encabezado en teléfono.
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
+export const metadata: Metadata = { title: "Empresas" };
+
+const AVISOS: Record<string, string> = {
+  saliste: "Saliste de la empresa. Ya no tienes acceso a su información.",
+};
+
+const initials = (name: string) =>
+  name
+    .replace(/\b(SpA|Ltda\.?|S\.A\.|EIRL|Limitada)\b/gi, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") || "E";
+
+type Member = { company_id: string; user_id: string; role: string };
+type Profile = { id: string; email: string; full_name: string | null };
+
+// Empresas: una ficha empresarial por cada empresa a la que pertenece el usuario.
+export default async function CompaniesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ aviso?: string; error?: string }>;
+}) {
+  const sp = await searchParams;
+  const { companies, active } = await activeCompany();
+
+  // Propietarios de cada empresa (RLS: los miembros ven a los miembros de su empresa).
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/ingresar");
+  const ids = companies.map((c) => c.id);
+  const { data: memberRows } = ids.length
+    ? await supabase.from("company_members").select("company_id, user_id, role").in("company_id", ids).eq("role", "owner")
+    : { data: [] };
+  const owners = (memberRows ?? []) as Member[];
+  const ownerIds = [...new Set(owners.map((m) => m.user_id))];
+  const { data: profileRows } = ownerIds.length
+    ? await supabase.from("profiles").select("id, email, full_name").in("id", ownerIds)
+    : { data: [] };
+  const names = new Map(((profileRows ?? []) as Profile[]).map((p) => [p.id, p.full_name || p.email]));
+  const ownerOf = (companyId: string) =>
+    owners
+      .filter((m) => m.company_id === companyId)
+      .map((m) => names.get(m.user_id) ?? "Propietario")
+      .join(", ") || "—";
 
-  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aal?.currentLevel !== "aal2") redirect(aal?.nextLevel === "aal2" ? "/mfa/verificar" : "/mfa/configurar");
-
-  const [{ active }, { count: alerts }, staffRole] = await Promise.all([
-    activeCompany(),
-    supabase
-      .from("security_events")
-      .select("id", { count: "exact", head: true })
-      .eq("event", "nuevo_dispositivo")
-      .is("acknowledged_at", null),
-    myStaffRole(),
-  ]);
+  // La empresa activa primero.
+  const ordered = [...companies].sort((a, b) => (a.id === active?.id ? -1 : b.id === active?.id ? 1 : 0));
 
   return (
-    <div className="shell">
-      <header className="app-top">
-        <div className="app-top-left">
-          <Link href="/panel" className="brand-mark">
-            <img src="/brand/enqora-icon.png" alt="" width={32} height={32} />
-            <b>ENQ<em>ORA</em></b>
-          </Link>
-          <Link href="/empresas" className="company-chip" title="Cambiar de empresa">
-            {active ? active.trade_name || active.legal_name : "Sin empresa"}
-          </Link>
+    <div className="page">
+      <header className="hero">
+        <div className="hero-main">
+          <span className="eyebrow">Empresas</span>
+          <h1>Tus empresas</h1>
+          <p className="hero-lead">Cada empresa tiene su propia información, miembros y permisos. Nadie ve datos de otra empresa.</p>
         </div>
-        <div className="app-top-right">
-          <span className="user-chip" title={user.email ?? ""}>
-            {staffRole ? STAFF_ROLES[staffRole] : user.email}
-          </span>
-          <SignOutLink label="Salir" />
+        <div className="hero-actions">
+          <Link href="/empresas/nueva" className="btn btn-gold btn-inline"><IconPlus size={16} /> Registrar empresa</Link>
         </div>
       </header>
 
-      <nav className="side-nav" aria-label="Principal">
-        <span className="side-group">Mi empresa</span>
-        <Link href="/panel" className="nav-link"><IconControl size={18} /> Centro de control</Link>
-        <Link href="/casos" className="nav-link"><IconActivity size={18} /> Casos</Link>
-        <Link href="/empresas" className="nav-link"><IconBuilding size={18} /> Empresas</Link>
-        <Link href="/seguridad" className="nav-link">
-          <IconShield size={18} /> Seguridad
-          {alerts ? <span className="nav-dot" aria-label={`${alerts} alertas de seguridad`} /> : null}
-        </Link>
-        {staffRole ? (
-          <>
-            <span className="side-group">Equipo ENQORA</span>
-            <Link href="/mando" className="nav-link nav-link-gold"><IconUsers size={18} /> Centro de Mando</Link>
-          </>
-        ) : null}
-      </nav>
+      {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
+      {messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null}
 
-      <main className="app-main">{children}</main>
+      {companies.length === 0 ? (
+        <section className="panel welcome">
+          <IconBuilding size={30} />
+          <h2>Aún no tienes empresas</h2>
+          <p>Registra tu primera empresa o pide a su propietario que te invite.</p>
+          <Link href="/empresas/nueva" className="btn btn-gold btn-inline"><IconPlus size={16} /> Registrar mi primera empresa</Link>
+        </section>
+      ) : (
+        <ul className="company-sheets" role="list">
+          {ordered.map((c) => {
+            const isActive = active?.id === c.id;
+            const name = c.trade_name || c.legal_name;
+            return (
+              <li key={c.id} className={`company-sheet${isActive ? " is-active" : ""}`}>
+                <div className="sheet-id">
+                  <span className="monogram monogram-lg" aria-hidden="true">{initials(name)}</span>
+                  <div className="sheet-name">
+                    <span className="sheet-tags">
+                      {isActive ? <span className="status status-ok">Empresa activa</span> : null}
+                      <span className="tag">{ROLES[c.role]}</span>
+                    </span>
+                    <h2>{name}</h2>
+                    {c.trade_name ? <span className="muted-line">{c.legal_name}</span> : null}
+                  </div>
+                </div>
+
+                <dl className="sheet-facts">
+                  <div><dt>RUT</dt><dd className="mono">{formatRut(c.rut)}</dd></div>
+                  <div><dt>Régimen tributario</dt><dd>{REGIMES[c.tax_regime] ?? "Por definir"}</dd></div>
+                  <div>
+                    <dt>Estado</dt>
+                    <dd className={c.rut_verified ? "text-ok" : "text-warn"}>{c.rut_verified ? "RUT verificado" : "RUT por verificar"}</dd>
+                  </div>
+                  <div><dt>Propietario</dt><dd>{ownerOf(c.id)}</dd></div>
+                </dl>
+
+                <div className="sheet-actions">
+                  <Link href={`/empresas/${c.id}`} className="btn btn-ghost btn-inline btn-sm">Ver ficha <IconArrowRight size={15} /></Link>
+                  {!isActive ? (
+                    <form action={selectCompanyAction}>
+                      <input type="hidden" name="company_id" value={c.id} />
+                      <input type="hidden" name="next" value="/panel" />
+                      <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="Cambiando…">Usar esta empresa</SubmitButton>
+                    </form>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
