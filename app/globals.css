@@ -177,3 +177,65 @@ h1, h2, h3 { font-family: var(--font-brand), sans-serif; color: var(--ivory); ma
   .app-nav { gap: 12px; }
   .auth-card { padding: 26px 18px 22px; }
 }
+
+/* ---------- Etapa 2: empresas ---------- */
+.app-top { flex-wrap: wrap; }
+.app-top-left { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.app-nav { flex-wrap: wrap; }
+.company-chip {
+  max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.8rem; color: var(--gold-bright);
+  border: 1px solid rgba(198, 166, 107, 0.4); border-radius: 999px; padding: 4px 12px;
+}
+.company-chip:hover { text-decoration: none; background: rgba(198, 166, 107, 0.1); }
+
+.page-head-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.narrow { max-width: 620px; }
+.grid-wide { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); align-items: start; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+.muted-line { color: var(--silver-dim); font-size: 0.82rem; }
+.optional { color: var(--silver-dim); font-weight: 400; }
+.sub-title { font-size: 0.92rem; margin: 22px 0 6px; }
+.empty { text-align: center; padding: 36px 20px; }
+.empty .btn { margin-top: 6px; }
+
+select.input { appearance: none; cursor: pointer;
+  background-image: linear-gradient(45deg, transparent 50%, var(--gold) 50%), linear-gradient(135deg, var(--gold) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px; background-repeat: no-repeat; padding-right: 36px; }
+select.input option { background: var(--night); color: var(--ivory); }
+.input[readonly] { opacity: 0.75; cursor: default; }
+
+.btn-sm { padding: 7px 12px; font-size: 0.82rem; }
+.input-sm { padding: 7px 34px 7px 10px; font-size: 0.85rem; width: auto; }
+
+.company-card { display: flex; flex-direction: column; }
+.company-card.is-active { border-color: rgba(198, 166, 107, 0.55); }
+.company-card-head { display: flex; gap: 6px; margin-bottom: 10px; }
+.company-card h2 { margin-bottom: 2px; }
+.actions-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: auto; padding-top: 14px; }
+
+.member-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.member { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 0; border-top: 1px solid var(--night-line); }
+.member:first-child { border-top: 0; }
+.member-who { display: flex; flex-direction: column; min-width: 0; }
+.member-who b { color: var(--ivory); font-weight: 600; overflow-wrap: anywhere; }
+.member-who span { font-size: 0.84rem; overflow-wrap: anywhere; }
+.member-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.inline-form { display: flex; gap: 6px; align-items: center; }
+
+.copy-row { display: flex; gap: 8px; }
+.copy-row .input { font-size: 0.78rem; }
+
+.audit-list { list-style: none; margin: 0; padding: 0; font-size: 0.86rem; }
+.audit-list li { display: grid; grid-template-columns: 130px 1fr; gap: 10px; padding: 8px 0; border-top: 1px solid var(--night-line); }
+.audit-list li:first-child { border-top: 0; }
+.audit-list b { color: var(--ivory); font-weight: 600; }
+.audit-when { color: var(--silver-dim); font-size: 0.78rem; }
+
+@media (max-width: 560px) {
+  .grid-wide { grid-template-columns: 1fr; }
+  .audit-list li { grid-template-columns: 1fr; gap: 2px; }
+  .company-chip { max-width: 140px; }
+}
