@@ -8,6 +8,7 @@ import { isPasswordPwned } from "@/lib/pwned";
 import { authMessage } from "@/lib/auth-errors";
 import { safeNext } from "@/lib/safe-next";
 import { clearRecovery, hasRecovery } from "@/lib/recovery";
+import { logSecurityEvent } from "@/lib/security";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -94,6 +95,7 @@ export async function resetPasswordAction(_: FormState, fd: FormData): Promise<F
 
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: authMessage(error) };
+  await logSecurityEvent(supabase, "clave_restablecida");
 
   // Cierra cualquier otra sesión abierta con la contraseña anterior.
   await supabase.auth.signOut({ scope: "others" });
@@ -105,6 +107,7 @@ export async function resetPasswordAction(_: FormState, fd: FormData): Promise<F
 export async function signOutAction(fd: FormData) {
   const scope = fd.get("scope") === "global" ? "global" : "local";
   const supabase = await createClient();
+  if (scope === "global") await logSecurityEvent(supabase, "sesiones_cerradas", { origen: "todos_los_dispositivos" });
   await supabase.auth.signOut({ scope });
   redirect(scope === "global" ? "/ingresar?aviso=global" : "/ingresar?aviso=salida");
 }
