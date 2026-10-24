@@ -4,7 +4,9 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { activeCompany } from "@/lib/companies";
 import { SignOutLink } from "@/components/sign-out-link";
-import { IconBuilding, IconControl, IconShield } from "@/components/icons";
+import { IconActivity, IconBuilding, IconControl, IconShield, IconUsers } from "@/components/icons";
+import { STAFF_ROLES } from "@/lib/cases";
+import { myStaffRole } from "@/lib/staff";
 
 // Área privada. El middleware ya exige sesión con segundo factor (aal2);
 // aquí se comprueba de nuevo en el servidor como segunda barrera.
@@ -19,13 +21,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   if (aal?.currentLevel !== "aal2") redirect(aal?.nextLevel === "aal2" ? "/mfa/verificar" : "/mfa/configurar");
 
-  const [{ active }, { count: alerts }] = await Promise.all([
+  const [{ active }, { count: alerts }, staffRole] = await Promise.all([
     activeCompany(),
     supabase
       .from("security_events")
       .select("id", { count: "exact", head: true })
       .eq("event", "nuevo_dispositivo")
       .is("acknowledged_at", null),
+    myStaffRole(),
   ]);
 
   return (
@@ -42,7 +45,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
         <div className="app-top-right">
           <span className="user-chip" title={user.email ?? ""}>
-            {user.email}
+            {staffRole ? STAFF_ROLES[staffRole] : user.email}
           </span>
           <SignOutLink label="Salir" />
         </div>
@@ -51,11 +54,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <nav className="side-nav" aria-label="Principal">
         <span className="side-group">Mi empresa</span>
         <Link href="/panel" className="nav-link"><IconControl size={18} /> Centro de control</Link>
+        <Link href="/casos" className="nav-link"><IconActivity size={18} /> Casos</Link>
         <Link href="/empresas" className="nav-link"><IconBuilding size={18} /> Empresas</Link>
         <Link href="/seguridad" className="nav-link">
           <IconShield size={18} /> Seguridad
           {alerts ? <span className="nav-dot" aria-label={`${alerts} alertas de seguridad`} /> : null}
         </Link>
+        {staffRole ? (
+          <>
+            <span className="side-group">Equipo ENQORA</span>
+            <Link href="/mando" className="nav-link nav-link-gold"><IconUsers size={18} /> Centro de Mando</Link>
+          </>
+        ) : null}
       </nav>
 
       <main className="app-main">{children}</main>
