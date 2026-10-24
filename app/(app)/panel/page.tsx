@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Notice } from "@/components/auth-card";
-import { IconAlert, IconBuilding, IconShield, IconSpark } from "@/components/icons";
+import { IconActivity, IconAlert, IconBuilding, IconShield, IconSpark } from "@/components/icons";
+import { CLOSED, statusClass, statusLabel, type CaseRow } from "@/lib/cases";
 import { SubmitButton } from "@/components/submit-button";
 import { acknowledgeAlertsAction } from "@/app/actions/security";
 import { activeCompany } from "@/lib/companies";
@@ -32,6 +33,16 @@ export default async function PanelPage({
     .select("id", { count: "exact", head: true })
     .eq("event", "nuevo_dispositivo")
     .is("acknowledged_at", null);
+  const { data: caseRows } = active
+    ? await supabase
+        .from("cases")
+        .select("id, folio, title, status, updated_at")
+        .eq("company_id", active.id)
+        .order("updated_at", { ascending: false })
+        .limit(20)
+    : { data: [] };
+  const openCases = ((caseRows ?? []) as CaseRow[]).filter((c) => !CLOSED.includes(c.status));
+  const waiting = openCases.filter((c) => ["esperando_cliente", "autorizacion_cliente"].includes(c.status));
 
   return (
     <div className="stack">
@@ -89,6 +100,29 @@ export default async function PanelPage({
           <div className="row"><span>Alertas pendientes</span><span className={`badge ${pendingAlerts ? "badge-warn" : "badge-ok"}`}>{pendingAlerts ? pendingAlerts : "Ninguna"}</span></div>
           <p className="mt-12"><Link href="/seguridad">Administrar seguridad →</Link></p>
         </section>
+
+        {active ? (
+          <section className="card">
+            <h2 className="card-title"><IconActivity /> Tus casos</h2>
+            {waiting.length ? (
+              <p className="text-warn">{waiting.length === 1 ? "1 caso necesita tu acción." : `${waiting.length} casos necesitan tu acción.`}</p>
+            ) : null}
+            {openCases.length ? (
+              openCases.slice(0, 4).map((c) => (
+                <div className="row" key={c.id}>
+                  <Link href={`/casos/${c.id}`}>{c.title}</Link>
+                  <span className={statusClass(c.status)}>{statusLabel(c.status)}</span>
+                </div>
+              ))
+            ) : (
+              <p>No tienes casos en curso. ¿Necesitas ayuda con algo?</p>
+            )}
+            <p className="mt-12">
+              <Link href="/casos">Ver todos →</Link>
+              {active.role !== "viewer" ? <> · <Link href="/casos/nuevo">Nueva solicitud</Link></> : null}
+            </p>
+          </section>
+        ) : null}
 
         <section className="card">
           <h2 className="card-title"><IconSpark /> Inteligencia ENQORA</h2>
