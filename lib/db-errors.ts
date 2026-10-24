@@ -15,6 +15,12 @@ const MESSAGES: Record<string, string> = {
   ENQ_MIEMBRO_NO_EXISTE: "Ese miembro ya no pertenece a la empresa.",
   ENQ_INVITACION_INVALIDA: "La invitación no es válida, ya fue usada o expiró.",
   ENQ_INVITACION_OTRO_CORREO: "Esta invitación fue enviada a otro correo. Ingresa con la cuenta invitada.",
+  ENQ_USUARIO_NO_EXISTE: "No existe una cuenta ENQORA con ese correo. La persona debe registrarse primero.",
+  ENQ_ULTIMO_ADMIN: "ENQORA debe tener al menos un Administrador activo.",
+  ENQ_NO_ES_EQUIPO: "Esa persona no pertenece al equipo ENQORA.",
+  ENQ_CASO_CERRADO: "El caso está cerrado. Solo la supervisión puede reabrirlo.",
+  ENQ_CIERRE_SIN_RESULTADO: "Para cerrar el caso describe el resultado obtenido (mínimo 10 caracteres).",
+  ENQ_ARCHIVO_NO_SUBIDO: "El archivo no terminó de subirse. Intenta nuevamente.",
 };
 
 export function dbCode(error: DbErr): string | null {
