@@ -21,6 +21,12 @@ const MESSAGES: Record<string, string> = {
   ENQ_CASO_CERRADO: "El caso está cerrado. Solo la supervisión puede reabrirlo.",
   ENQ_CIERRE_SIN_RESULTADO: "Para cerrar el caso describe el resultado obtenido (mínimo 10 caracteres).",
   ENQ_ARCHIVO_NO_SUBIDO: "El archivo no terminó de subirse. Intenta nuevamente.",
+  ENQ_SIN_RESPONSABLE: "El caso aún no tiene responsable. Asígnalo o envía la aprobación a la supervisión.",
+  ENQ_YA_DECIDIDA: "Esta solicitud ya fue decidida o anulada.",
+  ENQ_CUATRO_OJOS: "No puedes decidir una solicitud que tú mismo enviaste. Debe decidirla otra persona.",
+  ENQ_FALTA_OBSERVACION: "Para rechazar o devolver, explica el motivo (mínimo 10 caracteres).",
+  ENQ_AUTORIZACION_VENCIDA: "El plazo de esta autorización ya venció. ENQORA deberá enviarte una nueva solicitud.",
+  ENQ_FALTA_CONFIRMACION: "Para autorizar, marca la casilla de confirmación.",
 };
 
 export function dbCode(error: DbErr): string | null {
