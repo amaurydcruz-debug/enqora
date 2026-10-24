@@ -6,6 +6,7 @@ import { authMessage } from "@/lib/auth-errors";
 import { safeNext } from "@/lib/safe-next";
 import { passwordProblems } from "@/lib/password";
 import { isPasswordPwned } from "@/lib/pwned";
+import { logSecurityEvent, recordLogin } from "@/lib/security";
 import type { FormState } from "./auth";
 
 const CODE_RE = /^\d{6}$/;
@@ -57,13 +58,21 @@ export async function confirmEnrollAction(prev: EnrollState, fd: FormData): Prom
   const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
   if (error) return { ...prev, error: authMessage(error) };
 
+  // Primer ingreso completo: registra este navegador como dispositivo conocido.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  await recordLogin(supabase, user?.email);
+  await logSecurityEvent(supabase, "mfa_activado");
+
   redirect("/panel?aviso=mfa");
 }
 
-// ---------- Verificar al ingresar ----------
+// ---------- Verificar al ingresar (o reautenticar) ----------
 export async function verifyMfaAction(_: FormState, fd: FormData): Promise<FormState> {
   const code = cleanCode(fd.get("code"));
   const next = safeNext(fd.get("next"));
+  const isReauth = fd.get("purpose") === "reauth";
   if (!CODE_RE.test(code)) return { error: "Ingresa el código de 6 dígitos." };
 
   const { supabase, factorId } = await verifiedTotpId();
@@ -71,6 +80,14 @@ export async function verifyMfaAction(_: FormState, fd: FormData): Promise<FormS
 
   const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
   if (error) return { error: authMessage(error) };
+
+  // Ingreso completo: registro de seguridad y detección de dispositivo nuevo.
+  if (!isReauth) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    await recordLogin(supabase, user?.email);
+  }
 
   redirect(next);
 }
@@ -101,6 +118,7 @@ export async function changePasswordAction(_: FormState, fd: FormData): Promise<
   const { error } = await supabase.auth.updateUser({ password });
   if (error) return { error: authMessage(error) };
 
+  await logSecurityEvent(supabase, "clave_cambiada");
   await supabase.auth.signOut({ scope: "others" });
   return { ok: "Contraseña actualizada. Cerramos las demás sesiones abiertas de tu cuenta." };
 }
