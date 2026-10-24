@@ -32,7 +32,10 @@ import { messageForCode } from "@/lib/db-errors";
 import { formatRut } from "@/lib/rut";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
+import { EnqoraMirror } from "@/components/mirror/enqora-mirror";
+import type { MirrorStep } from "@/lib/mirror";
 import { CommentForm } from "./comment-form";
+import { MirrorConsole } from "./mirror-console";
 import { UploadDocument } from "./upload";
 
 export const metadata: Metadata = { title: "Caso" };
@@ -96,7 +99,7 @@ export default async function CasePage({
   if (!caseRow) notFound();
   const c = caseRow as CaseRow;
 
-  const [staffRole, companyRes, eventsRes, tasksRes, docsRes, assignRes, memberRes] = await Promise.all([
+  const [staffRole, companyRes, eventsRes, tasksRes, docsRes, assignRes, memberRes, stepsRes] = await Promise.all([
     myStaffRole(),
     supabase.from("companies").select("legal_name, trade_name, rut").eq("id", c.company_id).maybeSingle(),
     supabase.from("case_events").select("id, actor_id, kind, body, visibility, metadata, created_at").eq("case_id", id).order("created_at"),
@@ -104,7 +107,13 @@ export default async function CasePage({
     supabase.from("case_documents").select("id, file_name, size_bytes, visibility, uploaded_by, created_at").eq("case_id", id).order("created_at", { ascending: false }),
     supabase.from("case_assignments").select("user_id, role_in_case, assigned_at").eq("case_id", id),
     supabase.from("company_members").select("role").eq("company_id", c.company_id).eq("user_id", user.id).maybeSingle(),
+    supabase
+      .from("case_analysis_steps")
+      .select("id, agent, stage, title, detail, status, progress, visibility, created_at, updated_at")
+      .eq("case_id", id)
+      .order("created_at"),
   ]);
+  const steps = (stepsRes.data ?? []) as MirrorStep[];
 
   const company = companyRes.data as { legal_name: string; trade_name: string | null; rut: string } | null;
   const events = (eventsRes.data ?? []) as Event[];
@@ -215,6 +224,19 @@ export default async function CasePage({
           ))}
         </ol>
       ) : null}
+
+      {c.status !== "cancelado" ? (
+        <div id="mirror" className="stack">
+          <EnqoraMirror
+            steps={steps}
+            caseStatus={c.status}
+            caseInfo={{ id: c.id, folio: c.folio }}
+            documents={docs.filter((d) => d.visibility === "cliente")}
+          />
+        </div>
+      ) : null}
+
+      {worker && !isClosed ? <MirrorConsole caseId={c.id} steps={steps} /> : null}
 
       {c.status === "cerrado" && c.result_summary ? (
         <div className="alert alert-ok alert-row">
