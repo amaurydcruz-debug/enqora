@@ -64,4 +64,5 @@ El reloj ENQORA es el emblema del Centro de Control, sin distraer de las funcion
 
 - Hecho: tokens de color, tipografía (Montserrat + Inter), botones, tarjetas, formularios, insignias, avisos, diseño adaptable.
 - Hecho (Etapas 3 y 4): iconografía propia (`components/icons.tsx`), navegación lateral, estado de carga con el reloj ENQORA, movimiento reducido, foco visible.
+- Hecho: ENQORA MIRROR, la Ventana de Inteligencia (`components/mirror/`): cámara de inteligencia privada con núcleo 3D real (WebGL: cristal en placas con juntas de oro líquido, luz dorada central, espacio volumétrico) sobre pedestal ENQORA, agentes con nodo propio y filamentos de energía, y lectura del caso con datos reales. Ver `ENQORA-MIRROR.md`.
 - Pendiente: retirar estilos en línea que quedan en las pantallas de acceso (Etapa 1).
