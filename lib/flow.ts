@@ -16,7 +16,7 @@ export const flowEnabled = () =>
 export const flowIsSandbox = () => apiUrl().includes("sandbox");
 
 function signed(params: Record<string, string>) {
-  const all = { ...params, apiKey: process.env.FLOW_API_KEY ?? "" };
+  const all: Record<string, string> = { ...params, apiKey: process.env.FLOW_API_KEY ?? "" };
   const keys = Object.keys(all).sort();
   const toSign = keys.map((k) => `${k}${all[k]}`).join("");
   const s = createHmac("sha256", process.env.FLOW_SECRET_KEY ?? "").update(toSign).digest("hex");
