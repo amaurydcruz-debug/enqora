@@ -106,7 +106,9 @@ export default async function CommandCenterPage({
         </div>
         <div className="hero-actions">
           <Link href="/mando/catalogo" className="btn btn-ghost btn-inline">Catálogo y precios</Link>
+          <Link href="/mando/planes" className="btn btn-ghost btn-inline">Planes</Link>
           <Link href="/mando/datos-publicos" className="btn btn-ghost btn-inline">Datos públicos</Link>
+          {supervisor ? <Link href="/mando/cobros" className="btn btn-ghost btn-inline">Cobros y pagos</Link> : null}
           {role === "enqora_admin" ? (
             <Link href="/mando/equipo" className="btn btn-ghost btn-inline"><IconUsers size={18} /> Equipo ENQORA</Link>
           ) : null}

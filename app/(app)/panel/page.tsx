@@ -157,11 +157,26 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const events = (evRes.data ?? []) as Ev[];
   const pendingQuotes = (quoteRes.data ?? []) as PendingQuote[];
 
+  // Cobros por pagar y propuestas de plan (M10). RLS: los cobros solo los ven Propietario, Administradores y Contador.
+  const billingRole = !!active && ["owner", "admin", "accountant"].includes(active.role);
+  const [{ data: chargeRows }, { data: proposalRows }] = active
+    ? await Promise.all([
+        billingRole
+          ? supabase.from("charges").select("id, folio, description, amount, status, due_date").eq("company_id", active.id)
+              .in("status", ["pendiente", "vencido"]).order("due_date").limit(5)
+          : Promise.resolve({ data: [] }),
+        supabase.from("plan_proposals").select("id, case_id, plan_name, monthly_price, valid_until").eq("company_id", active.id)
+          .eq("status", "enviada").order("sent_at"),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const dueCharges = (chargeRows ?? []) as { id: string; folio: string; description: string; amount: number; status: string; due_date: string }[];
+  const planOffers = (proposalRows ?? []) as { id: string; case_id: string; plan_name: string; monthly_price: number; valid_until: string }[];
+
   const open = cases.filter((c) => !CLOSED.includes(c.status));
   const finished = cases.filter((c) => c.status === "cerrado");
   // Casos que esperan antecedentes del cliente (los de autorización ya aparecen como autorización).
   const waitingInfo = open.filter((c) => c.status === "esperando_cliente");
-  const attention = pendingAuth.length + pendingQuotes.length + myTasks.length + waitingInfo.length;
+  const attention = pendingAuth.length + pendingQuotes.length + myTasks.length + waitingInfo.length + dueCharges.length + planOffers.length;
   const canAuthorize = !!active && ["owner", "admin"].includes(active.role);
   const canCreate = !!active && active.role !== "viewer";
 
@@ -322,6 +337,45 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                     >
                       Verás el precio estándar, el descuento si lo hay, lo que incluye y lo que no.
                     </NextAction>
+                  </Disclosure>
+                ))}
+                {dueCharges.map((ch) => (
+                  <Disclosure
+                    key={ch.id}
+                    tone="gold"
+                    group="atencion"
+                    emblem={<Emblem name="cobros" size="sm" />}
+                    title={ch.description}
+                    summary={`Cobro · ${ch.folio}`}
+                    meta={<span className={`status status-${ch.status === "vencido" ? "risk" : "warn"}`}>{clp(ch.amount)}</span>}
+                  >
+                    <p className="disc-lead">
+                      {ch.status === "vencido" ? "Venció" : "Vence"} el {fmtLong(ch.due_date)}. Puedes pagarlo en línea o por transferencia;
+                      si ya transferiste, infórmalo para que el equipo lo confirme.
+                    </p>
+                    <NextAction
+                      title="Paga o informa tu pago"
+                      action={<Link href="/facturacion#cobros" className="btn btn-gold btn-inline btn-sm">Ir a pagar</Link>}
+                    />
+                  </Disclosure>
+                ))}
+                {planOffers.map((pp) => (
+                  <Disclosure
+                    key={pp.id}
+                    group="atencion"
+                    emblem={<Emblem name="planes" size="sm" />}
+                    title={`Propuesta: ${pp.plan_name}`}
+                    summary={`Plan mensual · ${caseById.get(pp.case_id)?.folio ?? ""}`}
+                    meta={<span className="status status-gold">{clp(pp.monthly_price)} / mes</span>}
+                  >
+                    <p className="disc-lead">
+                      Al cerrar tu caso, ENQORA te propone acompañamiento mensual según lo que se resolvió y lo que continúa.
+                      Válida hasta el {fmtLong(pp.valid_until)}. No estás obligado a contratarla.
+                    </p>
+                    <NextAction
+                      title={canAuthorize ? "Revisa la propuesta y decide" : "Debe decidirla el Propietario o un Administrador"}
+                      action={<Link href={`/casos/${pp.case_id}#plan`} className="btn btn-ghost btn-inline btn-sm">Ver propuesta</Link>}
+                    />
                   </Disclosure>
                 ))}
                 {waitingInfo.filter((c) => delivered.has(c.id)).map((c) => (

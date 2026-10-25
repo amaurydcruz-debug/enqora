@@ -1,6 +1,6 @@
 # ENQORA — Modelo comercial, motor de precios y diagnóstico gratuito
 
-Regla permanente del proyecto. Se construye en las Etapas 6, 7 y 8 (ver `ENQORA-ARQUITECTURA.md`). El motor de precios (Etapa 6) está implementado: ver `ENQORA-PRECIOS.md`.
+Regla permanente del proyecto. Se construye en las Etapas 6, 7 y 8 (ver `ENQORA-ARQUITECTURA.md`). El motor de precios (Etapa 6) está implementado: ver `ENQORA-PRECIOS.md`. Planes, propuesta mensual y pagos (Etapa 8): ver `ENQORA-PLANES-PAGOS.md`.
 
 ## Tres productos distintos
 

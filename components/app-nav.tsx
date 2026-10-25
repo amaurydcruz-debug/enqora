@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconActivity, IconBuilding, IconControl, IconShield, IconUsers } from "@/components/icons";
+import { IconActivity, IconBuilding, IconCard, IconControl, IconShield, IconUsers } from "@/components/icons";
 
 // Navegación principal ENQORA. Marca la sección activa según la ruta actual.
 // "side": navegación lateral de escritorio · "bottom": barra compacta inferior en teléfono.
@@ -12,6 +12,7 @@ const ICONS = {
   casos: IconActivity,
   empresas: IconBuilding,
   seguridad: IconShield,
+  pagos: IconCard,
   mando: IconUsers,
 } as const;
 

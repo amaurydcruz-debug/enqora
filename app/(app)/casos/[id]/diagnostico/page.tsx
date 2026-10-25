@@ -7,7 +7,7 @@ import type { Diagnosis, Finding } from "@/lib/diagnosis";
 import { formatRut } from "@/lib/rut";
 import { createClient } from "@/lib/supabase/server";
 import { DiagnosisReport, type ServiceRef } from "../diagnosis-report";
-import { PrintButton } from "./print-button";
+import { PrintButton } from "@/components/print-button";
 
 export const metadata: Metadata = { title: "Diagnóstico" };
 

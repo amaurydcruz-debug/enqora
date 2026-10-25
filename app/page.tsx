@@ -71,7 +71,7 @@ export default async function WelcomePage() {
             <ul role="list">
               <li><b>Consulta</b><small>Cuéntanos tu situación. El equipo la revisa y te orienta antes de que contrates.</small></li>
               <li><b>Contratación puntual</b><small>Cotización por caso con el alcance, lo que no incluye y el precio final.</small></li>
-              <li><b>Suscripción mensual</b><small>Planes de acompañamiento continuo. Próximamente.</small></li>
+              <li><b>Suscripción mensual</b><small>Planes de acompañamiento continuo: cada uno dice qué incluye, qué no y su precio mensual.</small></li>
             </ul>
           </div>
 
