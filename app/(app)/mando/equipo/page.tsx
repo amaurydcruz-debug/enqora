@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Accordion } from "@/components/accordion";
+import { Emblem } from "@/components/emblems";
 import { STAFF_ROLES, type StaffRole } from "@/lib/cases";
 import { myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
@@ -24,45 +26,65 @@ export default async function TeamPage() {
   );
 
   return (
-    <div className="stack">
-      <div className="page-head">
-        <span className="eyebrow">Centro de Mando</span>
-        <h1>Equipo ENQORA</h1>
-        <p>
-          Profesionales, gestores y agentes que trabajan los casos. Cada persona solo accede a los casos que se le
-          asignan; la supervisión (Administrador y Director de operaciones) ve todos.
-        </p>
-      </div>
+    <div className="page">
+      <Link href="/mando" className="back-link"><span aria-hidden="true">←</span> Centro de Mando</Link>
+      <header className="hero">
+        <div className="hero-main">
+          <span className="eyebrow">Centro de Mando</span>
+          <h1>Equipo ENQORA</h1>
+          <p className="hero-lead">
+            Profesionales, gestores y agentes que trabajan los casos. Cada persona solo accede a los casos que se le
+            asignan; la supervisión (Administrador y Director de operaciones) ve todos.
+          </p>
+        </div>
+      </header>
 
-      <div className="grid grid-wide">
-        <section className="card">
-          <h2>Integrantes</h2>
-          <ul className="member-list">
-            {staff.map((s) => {
-              const p = profiles.get(s.user_id);
-              return (
-                <li key={s.user_id} className="member">
-                  <div className="member-who">
-                    <b>{p?.full_name || p?.email || s.user_id}</b>
-                    {p?.full_name ? <span>{p.email}</span> : null}
-                  </div>
-                  <span className={`badge ${s.active ? "badge-gold" : "badge-muted"}`}>
-                    {s.active ? STAFF_ROLES[s.role] : "Desactivado"}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-
-        <section className="card">
-          <h2>Agregar o cambiar rol</h2>
-          <p>La persona debe tener una cuenta ENQORA con segundo factor activo. Este cambio pide confirmar tu identidad.</p>
-          <StaffForm />
-        </section>
-      </div>
-
-      <p><Link href="/mando">← Volver al Centro de Mando</Link></p>
+      <Accordion
+        label="Equipo ENQORA"
+        defaultOpen="integrantes"
+        items={[
+          {
+            id: "integrantes",
+            title: "Integrantes",
+            description: "Quién trabaja en ENQORA y con qué rol",
+            emblem: <Emblem name="miembros" />,
+            status: <span>{staff.filter((s) => s.active).length} activos</span>,
+            content: (
+              <ul className="people" role="list">
+                {staff.map((s) => {
+                  const p = profiles.get(s.user_id);
+                  return (
+                    <li key={s.user_id} className="person">
+                      <div className="person-main">
+                        <span className="person-avatar" aria-hidden="true">{(p?.full_name || p?.email || "?").slice(0, 1).toUpperCase()}</span>
+                        <span className="person-who">
+                          <b>{p?.full_name || p?.email || s.user_id}</b>
+                          {p?.full_name ? <small>{p.email}</small> : null}
+                        </span>
+                        <span className="person-tools">
+                          <span className={`person-role${s.active ? "" : " is-off"}`}>{s.active ? STAFF_ROLES[s.role] : "Desactivado"}</span>
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            ),
+          },
+          {
+            id: "agregar",
+            title: "Agregar o cambiar rol",
+            description: "La persona necesita una cuenta ENQORA con segundo factor activo",
+            emblem: <Emblem name="invitar" />,
+            content: (
+              <>
+                <p className="panel-lead">Este cambio pide confirmar tu identidad.</p>
+                <StaffForm />
+              </>
+            ),
+          },
+        ]}
+      />
     </div>
   );
 }

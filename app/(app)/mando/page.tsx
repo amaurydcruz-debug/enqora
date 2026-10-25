@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { IconUsers } from "@/components/icons";
-import { CLOSED, MODULES, PRIORITIES, STAFF_ROLES, statusClass, statusLabel, type CaseRow } from "@/lib/cases";
+import { Emblem } from "@/components/emblems";
+import { IconArrowRight, IconUsers } from "@/components/icons";
+import { ModuleIcon } from "@/components/module-icons";
+import { CLOSED, MODULES, PRIORITIES, STAFF_ROLES, statusLabel, statusTone, type CaseRow } from "@/lib/cases";
 import { APPROVAL_KINDS, APPROVER_ROLES, type InboxItem } from "@/lib/approvals";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
@@ -93,118 +95,92 @@ export default async function CommandCenterPage({
   };
 
   return (
-    <div className="stack">
-      <div className="page-head page-head-row">
-        <div>
+    <div className="page">
+      <header className="hero">
+        <div className="hero-main">
           <span className="eyebrow">Centro de Mando · {STAFF_ROLES[role]}</span>
           <h1>Casos ENQORA</h1>
-          <p>{supervisor ? "Supervisión de todos los casos, asignaciones y plazos." : "Tus casos asignados."}</p>
+          <p className="hero-lead">{supervisor ? "Supervisión de todos los casos, asignaciones y plazos." : "Tus casos asignados."}</p>
         </div>
         {role === "enqora_admin" ? (
-          <Link href="/mando/equipo" className="btn btn-ghost btn-inline"><IconUsers size={18} /> Equipo ENQORA</Link>
+          <div className="hero-actions">
+            <Link href="/mando/equipo" className="btn btn-ghost btn-inline"><IconUsers size={18} /> Equipo ENQORA</Link>
+          </div>
         ) : null}
-      </div>
+      </header>
 
-      <div className="stat-row">
+      <div className="kpis kpis-mando">
         {canApprove ? (
-          <div className={`stat${inbox.length ? " stat-warn" : ""}`}><span>Por aprobar</span><b>{inbox.length}</b></div>
+          <div className={`kpi${inbox.length ? " kpi-gold" : ""}`}><span>Por aprobar</span><b>{inbox.length}</b></div>
         ) : null}
-        <div className="stat"><span>Activos</span><b>{stats.activos}</b></div>
-        {supervisor ? <div className="stat"><span>Sin responsable</span><b>{stats.sinAsignar}</b></div> : null}
-        <div className="stat"><span>Esperando al cliente</span><b>{stats.cliente}</b></div>
-        <div className={`stat${stats.vencidos ? " stat-warn" : ""}`}><span>Vencidos</span><b>{stats.vencidos}</b></div>
+        <div className="kpi"><span>Activos</span><b>{stats.activos}</b></div>
+        {supervisor ? <div className={`kpi${stats.sinAsignar ? " kpi-gold" : ""}`}><span>Sin responsable</span><b>{stats.sinAsignar}</b></div> : null}
+        <div className="kpi"><span>Esperando al cliente</span><b>{stats.cliente}</b></div>
+        <div className={`kpi${stats.vencidos ? " kpi-risk" : ""}`}><span>Vencidos</span><b>{stats.vencidos}</b></div>
       </div>
 
-      <nav className="tabs" aria-label="Vistas">
+      <nav className="segments" aria-label="Bandejas">
         {available.map((v) => (
-          <Link key={v} href={`/mando?vista=${v}`} className={`tab${v === view ? " is-active" : ""}`} aria-current={v === view ? "page" : undefined}>
-            {VIEWS[v]}
-            {v === "aprobaciones" && inbox.length ? <span className="tab-count">{inbox.length}</span> : null}
+          <Link key={v} href={`/mando?vista=${v}`} className={`segment${v === view ? " is-active" : ""}${v === "aprobaciones" && inbox.length ? " has-gold" : ""}`} aria-current={v === view ? "page" : undefined}>
+            <span>{VIEWS[v]}</span>
+            {v === "aprobaciones" && inbox.length ? <b>{inbox.length}</b> : null}
           </Link>
         ))}
       </nav>
 
       {view === "aprobaciones" ? (
-        <section className="card">
-          {inbox.length ? (
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Folio</th>
-                    <th>Solicitud</th>
-                    <th>Empresa</th>
-                    <th>Decide</th>
-                    <th>Solicitada</th>
-                    <th aria-label="Acción" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {inbox.map((a) => (
-                    <tr key={a.id}>
-                      <td className="mono"><Link href={`/casos/${a.case_id}#aprobaciones`}>{a.folio}</Link></td>
-                      <td>
-                        <Link href={`/casos/${a.case_id}#aprobaciones`}>{a.title}</Link>
-                        <span className="muted-line block">
-                          {APPROVAL_KINDS[a.kind]?.label ?? a.kind} · {a.case_title}
-                          {a.own_request ? " · tu propia solicitud (supervisión)" : ""}
-                        </span>
-                      </td>
-                      <td>{companies.get(a.company_id) ?? "—"}</td>
-                      <td>{APPROVER_ROLES[a.approver_role] ?? a.approver_role}</td>
-                      <td>{fmt(a.requested_at)}</td>
-                      <td><Link href={`/casos/${a.case_id}#aprobaciones`} className="btn btn-gold btn-inline btn-sm">Revisar</Link></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="muted-line">No tienes aprobaciones pendientes.</p>
-          )}
-        </section>
-      ) : (
-      <section className="card">
-        {filtered.length ? (
-          <div className="table-wrap">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Folio</th>
-                  <th>Caso</th>
-                  <th>Empresa</th>
-                  <th>Estado</th>
-                  <th>Prioridad</th>
-                  <th>Vence</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((c) => (
-                  <tr key={c.id}>
-                    <td className="mono"><Link href={`/casos/${c.id}`}>{c.folio}</Link></td>
-                    <td>
-                      <Link href={`/casos/${c.id}`}>{c.title}</Link>
-                      <span className="muted-line block">{MODULES[c.module]?.name ?? c.module} · {fmt(c.updated_at)}</span>
-                    </td>
-                    <td>{companies.get(c.company_id) ?? "—"}</td>
-                    <td><span className={statusClass(c.status)}>{statusLabel(c.status)}</span></td>
-                    <td>
-                      <span className={`badge ${c.priority === "urgente" ? "badge-risk" : c.priority === "alta" ? "badge-warn" : "badge-muted"}`}>
-                        {PRIORITIES[c.priority]}
-                      </span>
-                    </td>
-                    <td className={c.due_date && c.due_date < today && !CLOSED.includes(c.status) ? "text-warn" : undefined}>
-                      {c.due_date ? fmt(`${c.due_date}T12:00:00Z`) : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        inbox.length ? (
+          <ul className="case-table" role="list">
+            {inbox.map((a) => (
+              <li key={a.id}>
+                <Link href={`/casos/${a.case_id}#aprobaciones`} className="case-line inbox-line needs-you">
+                  <Emblem name="control" size="sm" />
+                  <span className="cl-id mono">{a.folio}</span>
+                  <span className="cl-main">
+                    <b>{a.title}</b>
+                    <small>
+                      {APPROVAL_KINDS[a.kind]?.label ?? a.kind} · {a.case_title}
+                      {a.own_request ? " · tu propia solicitud (supervisión)" : ""}
+                    </small>
+                  </span>
+                  <span className="cl-meta"><small>Empresa</small><span>{companies.get(a.company_id) ?? "—"}</span></span>
+                  <span className="cl-meta"><small>Decide</small><span>{APPROVER_ROLES[a.approver_role] ?? a.approver_role}</span></span>
+                  <span className="cl-meta"><small>Solicitada</small><span>{fmt(a.requested_at)}</span></span>
+                  <IconArrowRight size={16} className="cl-go" />
+                </Link>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <p className="muted-line">No hay casos en esta vista.</p>
-        )}
-      </section>
+          <p className="empty-inline">No tienes aprobaciones pendientes.</p>
+        )
+      ) : filtered.length ? (
+        <ul className="case-table" role="list">
+          {filtered.map((c) => {
+            const late = !!c.due_date && c.due_date < today && !CLOSED.includes(c.status);
+            return (
+              <li key={c.id}>
+                <Link href={`/casos/${c.id}`} className={`case-line${c.priority === "urgente" || late ? " needs-you" : ""}`}>
+                  <ModuleIcon module={c.module} size="sm" />
+                  <span className="cl-id mono">{c.folio}</span>
+                  <span className="cl-main">
+                    <b>{c.title}</b>
+                    <small>{MODULES[c.module]?.name ?? c.module} · {companies.get(c.company_id) ?? "—"}</small>
+                  </span>
+                  <span className="cl-state">
+                    <span className={`status status-${statusTone(c.status)}`}>{statusLabel(c.status)}</span>
+                    <small className={`case-next prio-${c.priority}`}>Prioridad {PRIORITIES[c.priority]?.toLowerCase()}</small>
+                  </span>
+                  <span className="cl-meta"><small>Actualizado</small><span>{fmt(c.updated_at)}</span></span>
+                  <span className={`cl-meta${late ? " is-late" : ""}`}><small>Vence</small><span>{c.due_date ? fmt(`${c.due_date}T12:00:00Z`) : "—"}</span></span>
+                  <IconArrowRight size={16} className="cl-go" />
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="empty-inline">No hay casos en esta vista.</p>
       )}
     </div>
   );

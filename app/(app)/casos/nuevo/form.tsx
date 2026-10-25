@@ -1,26 +1,35 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Emblem } from "@/components/emblems";
 import { createCaseAction } from "@/app/actions/cases";
 import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
-import { MODULES } from "@/lib/cases";
+import { MODULES, type ModuleKey } from "@/lib/cases";
 
 export function NewCaseForm({ companyId, defaultModule = "contabilidad" }: { companyId: string; defaultModule?: string }) {
   const [state, action] = useActionState(createCaseAction, undefined);
+  const [picked, setPicked] = useState(defaultModule);
 
   return (
     <form action={action}>
       {state?.error ? <Notice kind="error">{state.error}</Notice> : null}
       <input type="hidden" name="company_id" value={companyId} />
-      <div className="field">
-        <label htmlFor="module">¿Con qué necesitas ayuda?</label>
-        <select id="module" name="module" className="input" defaultValue={defaultModule}>
-          {Object.entries(MODULES).map(([key, m]) => (
-            <option key={key} value={key}>{m.name} — {m.help}</option>
+      <fieldset className="module-picker">
+        <legend>¿Con qué necesitas ayuda?</legend>
+        <div className="module-options">
+          {(Object.keys(MODULES) as ModuleKey[]).map((key) => (
+            <label key={key} className={`module-option${picked === key ? " is-selected" : ""}`}>
+              <input type="radio" name="module" value={key} checked={picked === key} onChange={() => setPicked(key)} />
+              <Emblem name={key} size="sm" />
+              <span className="module-option-text">
+                <b>{MODULES[key].name.replace("ENQORA ", "")}</b>
+                <small>{MODULES[key].help}</small>
+              </span>
+            </label>
           ))}
-        </select>
-      </div>
+        </div>
+      </fieldset>
       <div className="field">
         <label htmlFor="title">Resume tu solicitud en una frase</label>
         <input id="title" name="title" className="input" required minLength={3} maxLength={160}

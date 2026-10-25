@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { EnqoraMirror } from "@/components/mirror/enqora-mirror";
+import { MirrorStage } from "@/components/mirror/mirror-stage";
 import { MirrorExplore } from "@/components/mirror/mirror-explore";
+import { statusLabel, statusTone } from "@/lib/cases";
 import type { MirrorStep } from "@/lib/mirror";
 import { createClient } from "@/lib/supabase/server";
 
@@ -10,7 +11,7 @@ export const metadata: Metadata = { title: "ENQORA MIRROR" };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// Vista inmersiva de la Ventana de Inteligencia de un caso.
+// Pantalla completa de ENQORA MIRROR: el núcleo más grande y las preguntas del análisis.
 export default async function MirrorPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!UUID_RE.test(id)) notFound();
@@ -33,23 +34,21 @@ export default async function MirrorPage({ params }: { params: Promise<{ id: str
   const steps = (data ?? []) as MirrorStep[];
 
   return (
-    <div className="page">
-      <div className="page-head page-head-row">
-        <div>
-          <span className="eyebrow"><span className="mono">{c.folio}</span> · Ventana de Inteligencia</span>
-          <h1>{c.title}</h1>
-          <p>Una ventana hacia la inteligencia de tu empresa.</p>
+    <div className="page ws-page">
+      <section className="ws ws-immersive" aria-label={`ENQORA MIRROR · ${c.folio}`}>
+        <header className="ws-head">
+          <Link href={`/casos/${c.id}`} className="ws-back" aria-label="Volver a la ficha del caso"><span aria-hidden="true">←</span></Link>
+          <div className="ws-title">
+            <span className="ws-wordmark">ENQORA <em>MIRROR</em> <span className="mono">{c.folio}</span></span>
+            <h1>{c.title}</h1>
+          </div>
+          <span className={`status status-${statusTone(c.status)} ws-status`}>{statusLabel(c.status)}</span>
+        </header>
+        <MirrorStage steps={steps} caseStatus={c.status} pendingAuthorizations={pendingAuth ?? 0} />
+        <div className="ws-panel">
+          <MirrorExplore caseId={c.id} caseStatus={c.status} steps={steps} documents={documents} pendingAuthorizations={pendingAuth ?? 0} />
         </div>
-        <Link href={`/casos/${c.id}`} className="btn btn-ghost btn-inline">Volver a la ficha</Link>
-      </div>
-      <EnqoraMirror
-        steps={steps}
-        caseStatus={c.status}
-        caseInfo={{ id: c.id, folio: c.folio }}
-        documents={documents}
-        immersive
-      />
-      <MirrorExplore caseId={c.id} caseStatus={c.status} steps={steps} documents={documents} pendingAuthorizations={pendingAuth ?? 0} />
+      </section>
     </div>
   );
 }

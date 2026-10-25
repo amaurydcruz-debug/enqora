@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Emblem } from "@/components/emblems";
 import type { Metadata } from "next";
 import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
@@ -31,15 +32,18 @@ export default async function InvitationPage({
   }
 
   return (
-    <div className="stack narrow">
-      <div className="page-head">
-        <span className="eyebrow">Invitación</span>
-        <h1>Unirte a una empresa</h1>
-      </div>
+    <div className="page narrow">
+      <header className="hero">
+        <div className="hero-main">
+          <span className="eyebrow">Invitación</span>
+          <h1>Unirte a una empresa</h1>
+        </div>
+      </header>
 
       {messageForCode(error) ? <Notice kind="error">{messageForCode(error)}</Notice> : null}
 
-      <section className="card">
+      <section className="card form-card invite-card">
+        <Emblem name={preview.status === "valida" ? "invitar" : "seguridad"} size="lg" />
         {preview.status === "valida" && preview.role ? (
           <>
             <h2>{preview.company_name}</h2>
@@ -78,7 +82,7 @@ export default async function InvitationPage({
         )}
       </section>
 
-      <p><Link href="/empresas">Ir a mis empresas →</Link></p>
+      <Link href="/empresas" className="back-link">Ir a mis empresas <span aria-hidden="true">→</span></Link>
     </div>
   );
 }
