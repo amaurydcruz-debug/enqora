@@ -6,6 +6,11 @@ Regla permanente del proyecto. Define el mapa completo; se construye por etapas 
 
 ENQORA vela prioritariamente por los intereses legítimos del cliente, usando la normativa chilena para identificar las alternativas legales más favorables, prevenir incumplimientos y resolver problemas. Toda recomendación es fundamentada y verificable, y explica beneficios, obligaciones y riesgos. Los agentes investigadores sugieren soluciones y precios; las excepciones y actuaciones que requieren autorización las aprueba el responsable competente desde el Centro de Mando.
 
+## Principios permanentes
+
+- **Orquestación inteligente** (`ENQORA-ORQUESTACION.md`): el Centro de Mando coordina agentes, profesionales y procesos; los agentes, incluidos orquestador y supervisor, nunca aprueban acciones de alto impacto. "La inteligencia trabaja. El equipo supervisa. El cliente conserva el control de sus autorizaciones."
+- **Interfaz limpia y revelación progresiva** (`ENQORA-EXPERIENCIA.md`): lo esencial a la vista, el detalle bajo demanda, advertencias siempre visibles y nada simulado.
+
 ## Visión
 
 ENQORA no es solo un software contable. Acompaña a la empresa durante todo su ciclo de vida: idea → creación → formalización → operación → crecimiento → regularización, reorganización o cierre. El cliente no busca diez proveedores: ENQORA identifica lo que necesita, organiza los servicios y coordina agentes IA y profesionales.
@@ -99,4 +104,4 @@ Toda información normativa registra: fuente oficial, fecha de consulta, publica
 | 10 | Primer servicio completo: ENQORA CONTABILIDAD (documentos, conciliación, IVA/F29) | |
 | 11+ | CREATE, FORMALIZA, BRAND, agentes de investigación, IDEA, GESTIÓN, CRECE, LEGAL | |
 
-Ver también `docs/ENQORA-COMERCIAL.md` (precios, diagnóstico gratuito y conversión) y `docs/ENQORA-DISENO.md` (sistema visual).
+Ver también `docs/ENQORA-COMERCIAL.md` (precios, diagnóstico gratuito y conversión), `docs/ENQORA-DISENO.md` (sistema visual), `docs/ENQORA-ORQUESTACION.md` (orquestación) y `docs/ENQORA-EXPERIENCIA.md` (revelación progresiva).
