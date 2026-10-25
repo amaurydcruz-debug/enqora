@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { INTENT_COOKIE } from "@/lib/discovery";
 import { createClient } from "@/lib/supabase/server";
 import { siteUrl } from "@/lib/supabase/env";
 import { setActiveCompany } from "@/lib/companies";
@@ -46,6 +48,8 @@ export async function createCompanyAction(_: CompanyFormState, fd: FormData): Pr
   if (error || !data) return { error: dbMessage(error) };
 
   await setActiveCompany(String(data));
+  // Si el cliente llegó eligiendo un servicio en la puerta de entrada, continúa directo hacia él.
+  if ((await cookies()).get(INTENT_COOKIE)?.value) redirect("/comenzar/continuar");
   redirect(`/empresas/${data}?aviso=creada`);
 }
 

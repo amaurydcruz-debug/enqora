@@ -3,7 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabaseEnv } from "./env";
 
 // Rutas accesibles sin sesión.
-const PUBLIC_PREFIXES = ["/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth"];
+const PUBLIC_PREFIXES = ["/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth", "/comenzar"];
 // Rutas que solo tienen sentido sin sesión.
 const GUEST_ONLY = ["/ingresar", "/registro"];
 
@@ -33,7 +33,8 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublic = startsWithAny(path, PUBLIC_PREFIXES);
+  // La portada (/) es la puerta de entrada pública: bienvenida, consulta por RUT y galería.
+  const isPublic = path === "/" || startsWithAny(path, PUBLIC_PREFIXES);
 
   const redirectTo = (target: string, keepNext = false) => {
     const dest = request.nextUrl.clone();

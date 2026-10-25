@@ -472,6 +472,15 @@ export function Emblem({
   );
 }
 
+// Composición sin marco, para escenas grandes (galería de la puerta de entrada).
+export function EmblemGlyph({ name, className = "" }: { name: string; className?: string }) {
+  const key = (name in GLYPHS ? name : ALIAS[name] ?? "general") as EmblemKey;
+  const G = GLYPHS[key];
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true" focusable="false">{G()}</svg>
+  );
+}
+
 // Materiales compartidos. Se renderiza una sola vez en el layout raíz.
 // No usa display:none (los navegadores dejan de resolver los gradientes); queda fuera de vista.
 export function EmblemDefs() {

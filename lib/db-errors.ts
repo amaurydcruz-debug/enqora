@@ -31,6 +31,7 @@ const MESSAGES: Record<string, string> = {
   ENQ_SIN_TARIFA: "Ese servicio aún no tiene una tarifa vigente publicada.",
   ENQ_SERVICIO_INACTIVO: "Ese servicio no está activo en el catálogo.",
   ENQ_FALTA_MOTIVO_DESCUENTO: "Todo descuento necesita un motivo (mínimo 10 caracteres).",
+  ENQ_DEMASIADAS_CONSULTAS: "Hiciste muchas consultas seguidas. Intenta nuevamente en una hora.",
   ENQ_COTIZACION_VENCIDA: "La validez de esta cotización terminó. Pide al equipo ENQORA una nueva.",
 };
 
