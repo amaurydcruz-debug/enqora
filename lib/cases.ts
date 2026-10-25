@@ -1,141 +1,126 @@
-// Catálogo, estados y roles de casos. Utilizable en servidor y navegador.
+import { Disclosure, FactTag } from "@/components/disclosure";
+import { IconActivity, IconCheck, IconDocument, IconShield, IconUsers } from "@/components/icons";
+import { AGENT_KEYS, AGENTS, mirrorState, STAGES, type MirrorStep } from "@/lib/mirror";
 
-export const MODULES = {
-  contabilidad: { name: "ENQORA CONTABILIDAD", help: "IVA, F29, conciliación, libros, renta" },
-  create: { name: "ENQORA CREATE", help: "Crear y constituir una empresa" },
-  formaliza: { name: "ENQORA FORMALIZA", help: "Inicio de actividades, patentes y permisos" },
-  brand: { name: "ENQORA BRAND", help: "Nombre, logotipo, marca e INAPI" },
-  legal: { name: "ENQORA LEGAL", help: "Contratos, modificaciones y regularización" },
-  gestion: { name: "ENQORA GESTIÓN", help: "Clientes, inventario, caja y personas" },
-  crece: { name: "ENQORA CRECE", help: "Financiamiento, fondos y expansión" },
-  idea: { name: "ENQORA IDEA", help: "Evaluar una idea de negocio" },
-  general: { name: "Consulta general", help: "Otro tema o no sabes a qué área corresponde" },
-} as const;
-export type ModuleKey = keyof typeof MODULES;
+// Explorar el análisis: preguntas que el cliente puede abrir bajo demanda.
+// Solo aparecen las que corresponden a su caso y todo sale de datos reales registrados.
+const STATE_LABEL = { inactivo: "En espera", trabajando: "Trabajando", completado: "Completado", revision: "Espera autorización" } as const;
 
-type Tone = "ok" | "warn" | "muted" | "gold" | "risk";
+export function MirrorExplore({
+  caseId,
+  caseStatus,
+  steps,
+  documents,
+  pendingAuthorizations,
+}: {
+  caseId: string;
+  caseStatus: string;
+  steps: MirrorStep[];
+  documents: { id: string; file_name: string }[];
+  pendingAuthorizations: number;
+}) {
+  const { agents, current } = mirrorState(steps, caseStatus);
+  const working = steps.filter((s) => s.status === "trabajando");
+  const review = steps.filter((s) => s.status === "revision");
+  const lastByAgent = new Map(steps.map((s) => [s.agent, s] as const));
+  const active = AGENT_KEYS.filter((k) => agents[k] !== "inactivo");
+  const counts = {
+    trabajando: AGENT_KEYS.filter((k) => agents[k] === "trabajando").length,
+    completado: AGENT_KEYS.filter((k) => agents[k] === "completado").length,
+  };
 
-export const STATUSES: Record<string, { label: string; tone: Tone }> = {
-  recibido: { label: "Recibido", tone: "muted" },
-  en_investigacion: { label: "En investigación", tone: "gold" },
-  diagnostico: { label: "Diagnóstico preparado", tone: "gold" },
-  revision_profesional: { label: "En revisión profesional", tone: "gold" },
-  devuelto: { label: "Devuelto con observaciones", tone: "warn" },
-  esperando_cliente: { label: "Esperando antecedentes del cliente", tone: "warn" },
-  autorizacion_cliente: { label: "Pendiente de tu autorización", tone: "warn" },
-  en_ejecucion: { label: "En ejecución", tone: "gold" },
-  verificacion: { label: "En verificación", tone: "gold" },
-  cerrado: { label: "Cerrado", tone: "ok" },
-  cancelado: { label: "Cancelado", tone: "muted" },
-};
+  return (
+    <section className="zone" aria-label="Explorar el análisis">
+      <h2 className="zone-title">Explora el análisis</h2>
+      <div className="disclosures">
+        <Disclosure
+          icon={<IconActivity size={18} />}
+          title="¿Qué está investigando ENQORA?"
+          summary={`Etapa actual: ${STAGES[current].label}`}
+          tone="blue"
+        >
+          {working.length ? (
+            <ul className="explore-list">
+              {working.map((s) => (
+                <li key={s.id}>
+                  <b>{s.title}</b>
+                  <small>{AGENTS[s.agent]?.name ?? s.agent}{s.detail ? ` · ${s.detail}` : ""}</small>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="disc-lead">En este momento no hay tareas de análisis en curso. {STAGES[current].message}</p>
+          )}
+        </Disclosure>
 
-// Recorrido principal que se muestra al cliente.
-export const FLOW = [
-  "recibido",
-  "en_investigacion",
-  "diagnostico",
-  "revision_profesional",
-  "autorizacion_cliente",
-  "en_ejecucion",
-  "verificacion",
-  "cerrado",
-] as const;
+        <Disclosure
+          icon={<IconDocument size={18} />}
+          title="¿Qué documentos está revisando?"
+          summary={documents.length ? (documents.length === 1 ? "1 documento en el expediente" : `${documents.length} documentos en el expediente`) : "Aún no hay documentos"}
+          tone="blue"
+        >
+          {documents.length ? (
+            <ul className="explore-list">
+              {documents.slice(0, 12).map((d) => (
+                <li key={d.id}><a href={`/casos/${caseId}/documentos/${d.id}`} target="_blank" rel="noopener">{d.file_name}</a></li>
+              ))}
+              {documents.length > 12 ? <li><a href={`/casos/${caseId}#documentos`}>Ver el expediente completo</a></li> : null}
+            </ul>
+          ) : (
+            <p className="disc-lead">Puedes subir antecedentes desde el expediente del caso.</p>
+          )}
+        </Disclosure>
 
-export const CLOSED = ["cerrado", "cancelado"];
+        {active.length ? (
+          <Disclosure
+            icon={<IconUsers size={18} />}
+            title="¿Qué agentes están trabajando?"
+            summary={[counts.trabajando ? `${counts.trabajando} trabajando` : null, counts.completado ? `${counts.completado} completado${counts.completado > 1 ? "s" : ""}` : null].filter(Boolean).join(" · ") || "Con tareas registradas"}
+            tone="blue"
+          >
+            <ul className="explore-list">
+              {active.map((k) => (
+                <li key={k}>
+                  <b>{AGENTS[k].name} <span className={`status status-${agents[k] === "completado" ? "ok" : "gold"}`}>{STATE_LABEL[agents[k]]}</span></b>
+                  <small>{lastByAgent.get(k)?.title ?? ""}</small>
+                </li>
+              ))}
+            </ul>
+          </Disclosure>
+        ) : null}
 
-export const PRIORITIES: Record<string, string> = {
-  baja: "Baja",
-  normal: "Normal",
-  alta: "Alta",
-  urgente: "Urgente",
-};
+        {review.length ? (
+          <Disclosure
+            icon={<IconCheck size={18} />}
+            title="¿Qué conclusiones están pendientes?"
+            summary={review.length === 1 ? "1 conclusión espera revisión profesional" : `${review.length} conclusiones esperan revisión profesional`}
+            tone="gold"
+          >
+            <FactTag kind="revision" />
+            <ul className="explore-list">
+              {review.map((s) => (
+                <li key={s.id}>
+                  <b>{s.title}</b>
+                  <small>{AGENTS[s.agent]?.name ?? s.agent} · aún no es una conclusión definitiva</small>
+                </li>
+              ))}
+            </ul>
+          </Disclosure>
+        ) : null}
 
-export const STAFF_ROLES = {
-  enqora_admin: "Administrador ENQORA",
-  ops_director: "Director de operaciones",
-  accountant_pro: "Contador autorizado",
-  lawyer_pro: "Abogado autorizado",
-  field_agent: "Gestor presencial",
-  ai_agent: "Agente IA",
-} as const;
-export type StaffRole = keyof typeof STAFF_ROLES;
-
-export const CASE_ROLES: Record<string, string> = {
-  responsable: "Responsable",
-  apoyo: "Apoyo",
-  gestor: "Gestor presencial",
-  agente_ia: "Agente IA",
-};
-
-export const TASK_STATUSES: Record<string, string> = {
-  pendiente: "Pendiente",
-  en_curso: "En curso",
-  hecha: "Hecha",
-  bloqueada: "Bloqueada",
-};
-
-export const UPLOAD_MAX_BYTES = 20 * 1024 * 1024;
-export const UPLOAD_TYPES = [
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "text/xml",
-  "application/xml",
-  "text/csv",
-  "text/plain",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-excel",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-];
-export const UPLOAD_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.xml,.csv,.txt,.xlsx,.xls,.docx";
-
-export type CaseRow = {
-  id: string;
-  folio: string;
-  company_id: string;
-  module: ModuleKey;
-  title: string;
-  description: string | null;
-  status: string;
-  priority: string;
-  due_date: string | null;
-  responsible_id: string | null;
-  result_summary: string | null;
-  created_by: string | null;
-  created_at: string;
-  updated_at: string;
-  closed_at: string | null;
-};
-
-export const isStaffRole = (v: unknown): v is StaffRole => typeof v === "string" && v in STAFF_ROLES;
-export const isModule = (v: unknown): v is ModuleKey => typeof v === "string" && v in MODULES;
-
-// Estados en los que el caso espera una acción del cliente.
-export const NEEDS_CLIENT = ["esperando_cliente", "autorizacion_cliente"];
-
-// Próximo paso de cada estado, explicado al cliente (se deriva del estado real; no inventa avances).
-export const NEXT_STEP: Record<string, string> = {
-  recibido: "ENQORA asignará a un profesional responsable",
-  en_investigacion: "El equipo investiga tu situación",
-  diagnostico: "Se prepara el diagnóstico",
-  revision_profesional: "Un profesional revisa el diagnóstico",
-  devuelto: "El equipo ajusta la propuesta con las observaciones",
-  esperando_cliente: "Envía los antecedentes solicitados",
-  autorizacion_cliente: "Revisa y decide la autorización solicitada",
-  en_ejecucion: "ENQORA ejecuta la solución autorizada",
-  verificacion: "Se verifica el resultado",
-  cerrado: "Resultado verificado y entregado",
-  cancelado: "Solicitud cancelada",
-};
-
-export const statusTone = (s: string) => STATUSES[s]?.tone ?? "muted";
-export const statusLabel = (s: string) => STATUSES[s]?.label ?? s;
-export const statusClass = (s: string) => `badge badge-${STATUSES[s]?.tone ?? "muted"}`;
-
-export function formatBytes(n: number | null | undefined) {
-  if (!n) return "";
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
-  return `${(n / 1024 / 1024).toFixed(1)} MB`;
+        {pendingAuthorizations ? (
+          <Disclosure
+            icon={<IconShield size={18} />}
+            title="¿Qué autorizaciones se necesitan?"
+            summary={pendingAuthorizations === 1 ? "1 autorización espera tu decisión" : `${pendingAuthorizations} autorizaciones esperan tu decisión`}
+            tone="gold"
+          >
+            <FactTag kind="autorizacion" />
+            <p className="disc-lead">ENQORA no actuará ante ninguna institución sin tu autorización explícita.</p>
+            <a href={`/casos/${caseId}#autorizaciones`} className="btn btn-gold btn-inline btn-sm">Ir a las autorizaciones</a>
+          </Disclosure>
+        ) : null}
+      </div>
+    </section>
+  );
 }
