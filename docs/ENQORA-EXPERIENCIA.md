@@ -68,7 +68,7 @@ Componente oficial para mostrar información bajo demanda en toda ENQORA, salvo 
 | Empresas | Nombre, RUT, estado de verificación, acciones | Datos de la empresa |
 | Ficha de empresa | Emblema, nombre comercial, razón social, RUT, estado, rol y resumen breve | Siete opciones en mosaico, una abierta a la vez: datos (lectura y luego «Editar datos»), miembros y permisos (acciones con «Administrar»), invitar, actividad (últimas 5 y «Explorar actividad»), seguridad y autorizaciones, documentos y configuración |
 | Seguridad | Estado de protección y alertas | Cada sección (identidad, dos pasos, sesiones, dispositivos, actividad, contraseña) |
-| Caso | Encabezado, progreso, MIRROR, autorizaciones | Explora el análisis, historial, expediente, tareas, equipo |
+| Caso (MIRROR) | Encabezado compacto, núcleo MIRROR al centro, etapa actual con su frase y progreso real, avisos de autorizaciones o tareas | «Ver proceso completo» (nueve etapas con estado real) y el panel de exploración: qué investiga ENQORA, documentos, agentes y responsables, historial y mensajes, tareas, expediente, diagnóstico, próximas acciones (y gestión del caso para el equipo); una opción abierta a la vez |
 
 ## MIRROR: lo que el cliente puede explorar
 

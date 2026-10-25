@@ -28,7 +28,12 @@ export type MirrorLayout = {
   anchors: AgentAnchor[]; // vacío en la composición compacta
 };
 
-export function mirrorLayout(w: number, h: number): MirrorLayout {
+export function mirrorLayout(w: number, h: number, stage = false): MirrorLayout {
+  // Escenario centrado (espacio de trabajo del caso): núcleo al centro, agentes en órbita.
+  if (stage) {
+    const r = Math.max(48, Math.min(w * 0.2, h * 0.27, 118));
+    return { wide: false, cx: w / 2, cy: h * 0.4, r, anchors: [] };
+  }
   const wide = w >= WIDE_MIN;
   if (!wide) {
     const r = Math.min(w * 0.23, 140);
