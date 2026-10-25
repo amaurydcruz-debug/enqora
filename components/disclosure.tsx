@@ -1,156 +1,152 @@
-/* eslint-disable @next/next/no-img-element */
-import Link from "next/link";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
-import { activeCompany } from "@/lib/companies";
-import { ROLES } from "@/lib/company-constants";
-import { formatRut } from "@/lib/rut";
-import { AppNav, type NavItem } from "@/components/app-nav";
-import { SignOutLink } from "@/components/sign-out-link";
-import { UserMenu } from "@/components/user-menu";
-import { IconAlert, IconBuilding, IconShield } from "@/components/icons";
-import { STAFF_ROLES } from "@/lib/cases";
-import { myStaffRole } from "@/lib/staff";
+// Revelación progresiva: componentes reutilizables de ENQORA.
+// La complejidad pertenece al sistema; la claridad pertenece al cliente.
+// Todo se basa en <details>/<summary> nativos: accesibles, funcionan sin JavaScript
+// y nunca se abren solos (salvo que la pantalla lo indique con `open`).
 
-// Área privada. El middleware ya exige sesión con segundo factor (aal2);
-// aquí se comprueba de nuevo en el servidor como segunda barrera.
-// Escritorio: navegación lateral + encabezado compacto (seguridad, avisos y perfil).
-// Teléfono: barra superior compacta + barra inferior.
-const initials = (name: string) =>
-  name
-    .replace(/\b(SpA|Ltda\.?|S\.A\.|EIRL|Limitada)\b/gi, "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("") || "E";
+type Tone = "neutral" | "gold" | "ok" | "risk" | "blue";
 
-const Bell = () => (
-  <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-    <path d="M6 16V11a6 6 0 1 1 12 0v5l1.5 2h-15z" />
-    <path d="M10 20.5a2 2 0 0 0 4 0" />
+const Chevron = () => (
+  <svg className="disc-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="m6 9 6 6 6-6" />
   </svg>
 );
 
-export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) redirect("/ingresar");
-
-  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aal?.currentLevel !== "aal2") redirect(aal?.nextLevel === "aal2" ? "/mfa/verificar" : "/mfa/configurar");
-
-  const [{ active }, { count: alerts }, staffRole, { data: me }] = await Promise.all([
-    activeCompany(),
-    supabase
-      .from("security_events")
-      .select("id", { count: "exact", head: true })
-      .eq("event", "nuevo_dispositivo")
-      .is("acknowledged_at", null),
-    myStaffRole(),
-    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
-  ]);
-
-  // Avisos reales: autorizaciones que esperan a la empresa y, para el equipo, aprobaciones por decidir.
-  const [{ count: pendingAuth }, { data: inbox }] = await Promise.all([
-    active
-      ? supabase.from("client_authorizations").select("id", { count: "exact", head: true }).eq("company_id", active.id).eq("status", "pendiente")
-      : Promise.resolve({ count: 0 }),
-    staffRole && staffRole !== "ai_agent" ? supabase.rpc("approval_inbox") : Promise.resolve({ data: [] }),
-  ]);
-  const toApprove = Array.isArray(inbox) ? inbox.length : 0;
-  const notices = (pendingAuth ?? 0) + toApprove;
-  const noticesHref = toApprove && !pendingAuth ? "/mando?vista=aprobaciones" : "/panel#atencion";
-
-  const companyName = active ? active.trade_name || active.legal_name : null;
-  const roleLabel = staffRole ? STAFF_ROLES[staffRole] : active ? ROLES[active.role] : "Sin empresa";
-  const displayName = (me as { full_name: string | null } | null)?.full_name || user.email || "";
-  const initial = (displayName || "?")[0].toUpperCase();
-
-  const items: NavItem[] = [
-    { href: "/panel", label: "Centro de control", short: "Control", icon: "control", group: "empresa" },
-    { href: "/casos", label: "Casos", short: "Casos", icon: "casos", group: "empresa" },
-    { href: "/empresas", label: "Empresas", short: "Empresas", icon: "empresas", group: "empresa" },
-    {
-      href: "/seguridad",
-      label: "Seguridad",
-      short: "Seguridad",
-      icon: "seguridad",
-      group: "empresa",
-      alert: alerts ? `${alerts} alertas de seguridad` : undefined,
-    },
-    ...(staffRole ? [{ href: "/mando", label: "Centro de Mando", short: "Mando", icon: "mando", group: "equipo" } as NavItem] : []),
-  ];
-
-  const securityChip = alerts ? (
-    <Link href="/seguridad" className="chip chip-warn"><IconAlert size={15} /> {alerts === 1 ? "1 alerta" : `${alerts} alertas`}</Link>
-  ) : (
-    <Link href="/seguridad" className="chip chip-ok"><IconShield size={15} /> Cuenta protegida</Link>
-  );
-  const bell = (
-    <Link href={noticesHref} className="bell" aria-label={notices ? `${notices} avisos pendientes` : "Sin avisos pendientes"}>
-      <Bell />
-      {notices ? <span className="bell-count">{notices > 9 ? "9+" : notices}</span> : null}
-    </Link>
-  );
-  const menu = (
-    <UserMenu initial={initial}>
-      <div className="menu-who">
-        <b>{displayName}</b>
-        <small>{user.email}</small>
-        <small className="menu-role">{roleLabel}</small>
-      </div>
-      {companyName ? (
-        <Link href="/empresas" className="menu-link"><IconBuilding size={16} /> {companyName} · cambiar</Link>
-      ) : null}
-      <Link href="/seguridad" className="menu-link"><IconShield size={16} /> Seguridad de la cuenta</Link>
-      <SignOutLink label="Cerrar sesión" className="menu-link menu-signout" icon />
-    </UserMenu>
-  );
-
+// Elemento desplegable: muestra un resumen y revela el detalle solo cuando el usuario lo pide.
+export function Disclosure({
+  title,
+  summary,
+  meta,
+  icon,
+  tone = "neutral",
+  cta = "Explorar",
+  open,
+  id,
+  children,
+}: {
+  title: React.ReactNode;
+  summary?: React.ReactNode;
+  meta?: React.ReactNode;
+  icon?: React.ReactNode;
+  tone?: Tone;
+  cta?: string;
+  open?: boolean;
+  id?: string;
+  children: React.ReactNode;
+}) {
   return (
-    <div className="shell">
-      <aside className="side">
-        <Link href="/panel" className="brand-mark">
-          <img src="/brand/enqora-icon.png" alt="" width={34} height={34} />
-          <b>ENQ<em>ORA</em></b>
-        </Link>
+    <details className={`disclosure tone-${tone}`} open={open} id={id}>
+      <summary>
+        {icon ? <span className="disc-icon" aria-hidden="true">{icon}</span> : null}
+        <span className="disc-text">
+          <b>{title}</b>
+          {summary ? <small>{summary}</small> : null}
+        </span>
+        {meta ? <span className="disc-meta">{meta}</span> : null}
+        <span className="disc-cta">
+          <span className="disc-cta-open">{cta}</span>
+          <span className="disc-cta-close">Cerrar</span>
+          <Chevron />
+        </span>
+      </summary>
+      <div className="disclosure-body">{children}</div>
+    </details>
+  );
+}
 
-        <div className="side-company">
-          <span className="side-label">Empresa activa</span>
-          <Link href="/empresas" className="company-switch" title="Cambiar de empresa">
-            <span className="monogram" aria-hidden="true">{companyName ? initials(companyName) : "+"}</span>
-            <span className="company-switch-text">
-              <b>{companyName ?? "Registrar empresa"}</b>
-              <small>{active ? formatRut(active.rut) : "Aún no tienes una empresa"}</small>
-            </span>
-          </Link>
-        </div>
+// Sección plegable de una pantalla (historial, expediente, sesiones…).
+export function Fold({
+  title,
+  summary,
+  icon,
+  open,
+  id,
+  children,
+}: {
+  title: string;
+  summary?: React.ReactNode;
+  icon?: React.ReactNode;
+  open?: boolean;
+  id?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <details className="fold" open={open} id={id}>
+      <summary>
+        {icon ? <span className="fold-icon" aria-hidden="true">{icon}</span> : null}
+        <span className="fold-title">{title}</span>
+        {summary ? <span className="fold-summary">{summary}</span> : null}
+        <Chevron />
+      </summary>
+      <div className="fold-body">{children}</div>
+    </details>
+  );
+}
 
-        <AppNav items={items} variant="side" />
+// Naturaleza de una afirmación: el cliente siempre sabe qué es hecho y qué no.
+const FACT_KINDS = {
+  verificado: "Hecho verificado",
+  interpretacion: "Interpretación",
+  estimacion: "Estimación",
+  alternativa: "Alternativa posible",
+  autorizacion: "Requiere tu autorización",
+  revision: "Sujeto a revisión profesional",
+} as const;
+export type FactKind = keyof typeof FACT_KINDS;
 
-        <p className="side-motto">La complejidad es nuestra.<br />La claridad, tuya.</p>
-      </aside>
+export function FactTag({ kind }: { kind: FactKind }) {
+  return <span className={`fact fact-${kind}`}>{FACT_KINDS[kind]}</span>;
+}
 
-      <div className="frame">
-        <header className="topbar">
-          <Link href="/panel" className="brand-mark topbar-brand">
-            <img src="/brand/enqora-icon.png" alt="" width={30} height={30} />
-            <b>ENQ<em>ORA</em></b>
-          </Link>
-          <div className="topbar-right">
-            <span className="topbar-security">{securityChip}</span>
-            {bell}
-            {menu}
-          </div>
-        </header>
-
-        <main className="app-main">{children}</main>
+// Advertencia importante: nunca se oculta dentro de un desplegable.
+export function Callout({
+  kind = "info",
+  title,
+  children,
+  action,
+}: {
+  kind?: "info" | "warn" | "risk";
+  title: React.ReactNode;
+  children?: React.ReactNode;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className={`callout callout-${kind}`} role={kind === "info" ? "status" : "alert"}>
+      <span className="callout-mark" aria-hidden="true" />
+      <div className="callout-text">
+        <b>{title}</b>
+        {children ? <div>{children}</div> : null}
       </div>
+      {action ? <div className="callout-action">{action}</div> : null}
+    </div>
+  );
+}
 
-      <AppNav items={items} variant="bottom" />
+// Fuentes y evidencias de una conclusión.
+export function Evidence({ items }: { items: { label: string; href?: string; detail?: string }[] }) {
+  if (!items.length) return null;
+  return (
+    <ul className="evidence">
+      {items.map((it, i) => (
+        <li key={i}>
+          {it.href ? <a href={it.href} target="_blank" rel="noopener">{it.label}</a> : <span>{it.label}</span>}
+          {it.detail ? <small>{it.detail}</small> : null}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+// Acción recomendada al final de un análisis o asunto.
+export function NextAction({ title, children, action }: { title: string; children?: React.ReactNode; action?: React.ReactNode }) {
+  return (
+    <div className="next-action">
+      <div>
+        <span className="next-label">Próximo paso</span>
+        <b>{title}</b>
+        {children ? <p>{children}</p> : null}
+      </div>
+      {action ? <div className="next-cta">{action}</div> : null}
     </div>
   );
 }
