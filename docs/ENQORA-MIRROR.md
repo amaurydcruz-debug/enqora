@@ -92,3 +92,24 @@ La ventana del cliente se actualiza sola cada 20 segundos mientras el caso está
 drop function if exists public.log_analysis_step, public.update_analysis_step cascade;
 drop table if exists public.case_analysis_steps cascade;
 ```
+
+
+## Espacio de trabajo del caso (M04)
+
+La ficha del caso es un único espacio de trabajo con tres áreas:
+
+1. **Encabezado compacto:** ENQORA MIRROR, folio, título, estado, volver y pantalla completa.
+2. **Escenario central** (`components/mirror/mirror-stage.tsx`):
+   - El núcleo 3D, con los agentes en órbita, es el protagonista.
+   - Debajo se muestran solo la etapa actual («04 / 09 — Cruzando información»), su estado y una frase breve.
+   - El progreso por etapas es real. El avance medible aparece solo si el equipo lo registró.
+   - Las nueve etapas se consultan con «Ver proceso completo». Sus estados reales son: pendiente, en curso, completado, requiere información, esperando autorización y revisión profesional.
+3. **Panel de exploración:** el acordeón compacto de ENQORA, en mosaico, con una opción abierta a la vez.
+   - Si una opción tiene mucha información, se desplaza dentro de sí misma.
+   - Los enlaces antiguos (`#autorizaciones`, `#tareas`, `#equipo`, `#estado`, `#mirror`) abren la opción que corresponde.
+
+**Agentes** (`components/mirror/agents-panel.tsx`):
+- Primero se muestra un resumen; al elegir un agente se ve qué hace, qué información usa, su actividad, qué necesita, si requiere revisión y sus resultados.
+- Un agente figura «Trabajando» solo si tiene un paso registrado en ese estado.
+
+La pantalla completa (`/casos/[id]/mirror`) mantiene la cámara inmersiva.

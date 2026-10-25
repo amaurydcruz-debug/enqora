@@ -18,6 +18,7 @@ type Props = {
   phase: Phase;
   selected: AgentKey | null;
   reduced: boolean;
+  stage?: boolean; // escenario centrado: siempre composición compacta con el núcleo al centro
 };
 
 // ---------- Utilidades 3D ----------
@@ -171,11 +172,11 @@ const RIBBONS = [
   { R: 1.17, tx: 1.15, tz: 0.18, k: 4, amp: 0.05, speed: 0.12, color: BLUE, data: true },
 ];
 
-export function MirrorCore({ agents, tasks, phase, selected, reduced }: Props) {
+export function MirrorCore({ agents, tasks, phase, selected, reduced, stage = false }: Props) {
   const glRef = useRef<HTMLCanvasElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef({ agents, tasks, phase, selected });
-  stateRef.current = { agents, tasks, phase, selected };
+  const stateRef = useRef({ agents, tasks, phase, selected, stage });
+  stateRef.current = { agents, tasks, phase, selected, stage };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -271,7 +272,7 @@ export function MirrorCore({ agents, tasks, phase, selected, reduced }: Props) {
       first = false;
       const energy = energySm;
 
-      const L = mirrorLayout(w, h);
+      const L = mirrorLayout(w, h, stateRef.current.stage);
       const intro = reduced ? 1 : 1 - Math.pow(1 - Math.min(1, time / 2.4), 3);
       const cx = L.cx, cy = L.cy;
       const scale = L.r * (0.92 + 0.08 * intro);

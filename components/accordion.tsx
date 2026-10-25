@@ -22,6 +22,7 @@ export type AccordionItem = {
   status?: React.ReactNode;
   tone?: "default" | "gold" | "risk";
   content: React.ReactNode;
+  aliases?: string[]; // otros # que también abren esta opción (enlaces antiguos, p. ej. #autorizaciones)
 };
 
 export function Accordion({
@@ -30,27 +31,34 @@ export function Accordion({
   variant = "list",
   defaultOpen = null,
   syncHash = true,
+  compact = false,
+  className = "",
 }: {
   items: AccordionItem[];
   label: string;
   variant?: "list" | "tiles";
   defaultOpen?: string | null;
   syncHash?: boolean;
+  compact?: boolean; // mosaico compacto: emblema pequeño, título y estado (sin descripción)
+  className?: string;
 }) {
   const [open, setOpen] = useState<string | null>(defaultOpen);
   const headers = useRef<Map<string, HTMLButtonElement>>(new Map());
   const uid = useId();
   const ids = new Set(items.map((i) => i.id));
-  const idsKey = items.map((i) => i.id).join("|");
+  const idsKey = items.map((i) => [i.id, ...(i.aliases ?? [])].join(",")).join("|");
 
   // Abrir desde la URL al cargar y cuando cambia el #.
   useEffect(() => {
     if (!syncHash) return;
     const fromHash = () => {
       const h = decodeURIComponent(window.location.hash.slice(1));
-      if (h && idsKey.split("|").includes(h)) {
-        setOpen(h);
-        requestAnimationFrame(() => reveal(headers.current.get(h)));
+      if (!h) return;
+      const match = idsKey.split("|").map((g) => g.split(",")).find((g) => g.includes(h));
+      if (match) {
+        const target = match[0];
+        setOpen(target);
+        requestAnimationFrame(() => reveal(headers.current.get(target)));
       }
     };
     fromHash();
@@ -89,7 +97,7 @@ export function Accordion({
   if (open && !ids.has(open)) setOpen(null);
 
   return (
-    <div className={`acc acc-${variant}${open ? " has-open" : ""}`} role="group" aria-label={label}>
+    <div className={`acc acc-${variant}${compact ? " acc-compact" : ""}${open ? " has-open" : ""} ${className}`} role="group" aria-label={label}>
       {items.map((it, i) => {
         const isOpen = open === it.id;
         const hid = `${uid}-h-${it.id}`;

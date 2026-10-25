@@ -4,7 +4,6 @@ import { notFound } from "next/navigation";
 import { Notice } from "@/components/auth-card";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { SubmitButton } from "@/components/submit-button";
-import { IconActivity, IconCheck, IconClock, IconShield, IconUsers } from "@/components/icons";
 import {
   assignAction,
   changeStatusAction,
@@ -22,8 +21,9 @@ import {
   PRIORITIES,
   STAFF_ROLES,
   STATUSES,
-  statusClass,
+  NEXT_STEP,
   statusLabel,
+  statusTone,
   TASK_STATUSES,
   type CaseRow,
   type StaffRole,
@@ -32,12 +32,14 @@ import { messageForCode } from "@/lib/db-errors";
 import { formatRut } from "@/lib/rut";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
-import { EnqoraMirror } from "@/components/mirror/enqora-mirror";
-import type { MirrorStep } from "@/lib/mirror";
+import { Accordion, type AccordionItem } from "@/components/accordion";
+import { Callout, FactTag } from "@/components/disclosure";
+import { Emblem } from "@/components/emblems";
+import { AgentsPanel } from "@/components/mirror/agents-panel";
+import { MirrorStage } from "@/components/mirror/mirror-stage";
+import { AGENT_KEYS, AGENTS, mirrorState, STAGES, type MirrorStep } from "@/lib/mirror";
 import type { Approval, ClientAuthorization } from "@/lib/approvals";
 import { Approvals } from "./approvals";
-import { Fold } from "@/components/disclosure";
-import { MirrorExplore } from "@/components/mirror/mirror-explore";
 import { Authorizations } from "./authorizations";
 import { CommentForm } from "./comment-form";
 import { MirrorConsole } from "./mirror-console";
@@ -234,221 +236,153 @@ export default async function CasePage({
     ...(c.created_by ? [c.created_by] : []),
   ].filter((v, i, arr) => arr.indexOf(v) === i);
 
-  return (
-    <div className="page">
-      <div className="page-head page-head-row">
-        <div>
-          <span className="eyebrow">
-            <span className="mono">{c.folio}</span> · {MODULES[c.module]?.name ?? c.module}
-          </span>
-          <h1>{c.title}</h1>
-          <p>
-            {company ? `${company.trade_name || company.legal_name} · ${formatRut(company.rut)} · ` : ""}
-            creado {fmt(c.created_at)}
-          </p>
-        </div>
-        <div className="case-head-badges">
-          <span className={statusClass(c.status)}>{statusLabel(c.status)}</span>
-          {worker ? <span className="badge badge-muted">Prioridad {PRIORITIES[c.priority]?.toLowerCase()}</span> : null}
-        </div>
-      </div>
+  // ---------- Resúmenes para las opciones ----------
+  const clientDocs = docs.filter((d) => d.visibility === "cliente");
+  const visibleDocs = worker ? docs : clientDocs;
+  const working = steps.filter((s) => s.status === "trabajando");
+  const reviewSteps = steps.filter((s) => s.status === "revision");
+  const pendingAuths = authorizations.filter((a) => a.status === "pendiente");
+  const pendingApprovals = approvals.filter((a) => a.status === "pendiente");
+  const canDecide = !!memberRole && ["owner", "admin"].includes(memberRole);
+  const { agents } = mirrorState(steps, c.status);
+  const agentCount = (st: string) => AGENT_KEYS.filter((k) => agents[k] === st).length;
+  const agentSummary = [
+    agentCount("trabajando") ? `${agentCount("trabajando")} trabajando` : null,
+    agentCount("revision") ? `${agentCount("revision")} en revisión` : null,
+    agentCount("completado") ? `${agentCount("completado")} completado${agentCount("completado") > 1 ? "s" : ""}` : null,
+    agentCount("inactivo") ? `${agentCount("inactivo")} en espera` : null,
+  ].filter(Boolean).join(" · ");
+  const responsible = c.responsible_id ? nameOf(c.responsible_id) : null;
+  const diagnosisState = c.status === "cerrado" && c.result_summary
+    ? { tone: "ok", text: "Resultado verificado" }
+    : reviewSteps.length
+      ? { tone: "gold", text: "En revisión profesional" }
+      : { tone: "muted", text: "Aún no disponible" };
 
-      {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
-      {messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null}
+  // Sección que se abre sola tras una acción, para ver su resultado.
+  const OPEN_AFTER: Record<string, string> = {
+    tarea: "tareas", analisis: "investigando", asignado: "agentes", retirado: "agentes", estado: "gestion", prioridad: "gestion",
+    aprobacion_solicitada: "proximas", aprobacion_aprobar: "proximas", aprobacion_rechazar: "proximas", aprobacion_devolver: "proximas",
+    aprobacion_anulada: "proximas", autorizacion_solicitada: "proximas", autorizada: "proximas", autorizacion_rechazada: "proximas",
+    autorizacion_revocada: "proximas", autorizacion_anulada: "proximas",
+  };
 
-      {c.status !== "cancelado" ? (
-        <ol className="flow" aria-label="Avance del caso">
-          {FLOW.map((s, i) => (
-            <li
-              key={s}
-              className={i < flowIndex || c.status === "cerrado" ? "done" : i === flowIndex ? "current" : ""}
-              aria-current={i === flowIndex ? "step" : undefined}
-            >
-              <span className="flow-dot" />
-              <span className="flow-label">{STATUSES[s].label}</span>
+  const timeline = (
+    <>
+      <ul className="timeline">
+        {[...events].reverse().map((e) => {
+          const action = describe(e);
+          const isMsg = e.kind === "comentario" || e.kind === "nota_interna";
+          return (
+            <li key={e.id} className={`tl-item${isMsg ? " tl-msg" : ""}${e.visibility === "interno" ? " tl-internal" : ""}`}>
+              <div className="tl-meta">
+                <b>{nameOf(e.actor_id)}</b> {action ?? ""}
+                {e.visibility === "interno" ? <span className="badge badge-muted">Interno</span> : null}
+                <span className="tl-when">{fmt(e.created_at)}</span>
+              </div>
+              {(isMsg ||
+                (e.kind === "estado" && e.body) ||
+                ((e.kind === "aprobacion" || e.kind === "autorizacion") && !["solicitada", "anulada"].includes(e.metadata?.accion ?? ""))) &&
+              e.body ? (
+                <p className="pre">{e.body}</p>
+              ) : null}
             </li>
-          ))}
-        </ol>
-      ) : null}
+          );
+        })}
+      </ul>
+    </>
+  );
 
-      {c.status !== "cancelado" ? (
-        <div id="mirror" className="stack">
-          <EnqoraMirror
-            steps={steps}
-            caseStatus={c.status}
-            caseInfo={{ id: c.id, folio: c.folio }}
-            documents={docs.filter((d) => d.visibility === "cliente")}
-          />
-          <MirrorExplore
-            caseId={c.id}
-            caseStatus={c.status}
-            steps={steps}
-            documents={docs.filter((d) => d.visibility === "cliente")}
-            pendingAuthorizations={authorizations.filter((a) => a.status === "pendiente").length}
-          />
-        </div>
-      ) : null}
-
-      {worker && !isClosed ? <MirrorConsole caseId={c.id} steps={steps} /> : null}
-
-      {c.status === "cerrado" && c.result_summary ? (
-        <div className="alert alert-ok alert-row">
-          <IconCheck size={22} />
-          <div>
-            <b>Resultado verificado</b>
-            <p>{c.result_summary}</p>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="case-layout">
-        <div className="stack">
-          {c.description ? (
-            <section className="card">
-              <h2>Solicitud</h2>
-              <p className="pre">{c.description}</p>
-            </section>
-          ) : null}
-
-          <Authorizations
-            caseId={c.id}
-            items={authorizations}
-            names={names}
-            canDecide={!!memberRole && ["owner", "admin"].includes(memberRole)}
-            canRequest={worker && staffRole !== "ai_agent"}
-            isClosed={isClosed}
-          />
-
-          {worker ? (
-            <Approvals
-              caseId={c.id}
-              items={approvals}
-              names={names}
-              me={user.id}
-              role={staffRole}
-              supervisor={supervisor}
-              assigned={assigned}
-              responsibleId={c.responsible_id}
-              isClosed={isClosed}
-            />
-          ) : null}
-
-          <Fold id="historial" title="Historial y mensajes" icon={<IconActivity size={18} />} summary={`${messages} mensaje${messages === 1 ? "" : "s"} · ${events.length} movimientos`} open={worker}>
-            <ul className="timeline">
-              {events.map((e) => {
-                const action = describe(e);
-                const isMsg = e.kind === "comentario" || e.kind === "nota_interna";
-                return (
-                  <li key={e.id} className={`tl-item${isMsg ? " tl-msg" : ""}${e.visibility === "interno" ? " tl-internal" : ""}`}>
-                    <div className="tl-meta">
-                      <b>{nameOf(e.actor_id)}</b> {action ?? ""}
-                      {e.visibility === "interno" ? <span className="badge badge-muted">Interno</span> : null}
-                      <span className="tl-when">{fmt(e.created_at)}</span>
-                    </div>
-                    {(isMsg ||
-                      (e.kind === "estado" && e.body) ||
-                      ((e.kind === "aprobacion" || e.kind === "autorizacion") && !["solicitada", "anulada"].includes(e.metadata?.accion ?? ""))) &&
-                    e.body ? (
-                      <p className="pre">{e.body}</p>
-                    ) : null}
-                  </li>
-                );
-              })}
+  const items: AccordionItem[] = [
+    {
+      id: "investigando",
+      aliases: ["mirror", "mirror-consola"],
+      title: "¿Qué está investigando ENQORA?",
+      emblem: <Emblem name="investigacion" size="sm" />,
+      status: <span>{working.length ? (working.length === 1 ? "1 tarea en curso" : `${working.length} tareas en curso`) : "Sin tareas en curso"}</span>,
+      content: (
+        <>
+          {working.length ? (
+            <ul className="explore-list">
+              {working.map((s) => (
+                <li key={s.id}>
+                  <b>{s.title}</b>
+                  <small>
+                    {AGENTS[s.agent]?.name ?? s.agent} · {STAGES.find((x) => x.key === s.stage)?.label}
+                    {s.progress !== null ? ` · ${s.progress}%` : ""}
+                    {s.detail ? ` · ${s.detail}` : ""}
+                  </small>
+                </li>
+              ))}
             </ul>
-            {canPost ? <CommentForm caseId={c.id} canInternal={worker} /> : null}
-            {isClosed ? <p className="muted-line">El caso está {statusLabel(c.status).toLowerCase()}; no admite nuevos mensajes.</p> : null}
-          </Fold>
-        </div>
-
-        <aside className="stack">
-          <Fold id="documentos" title="Expediente" icon={<IconShield size={18} />} summary={docs.length === 1 ? "1 documento" : `${docs.length} documentos`} open={worker}>
-            {docs.length ? (
-              <ul className="doc-list">
-                {docs.map((d) => (
-                  <li key={d.id}>
-                    <a href={`/casos/${c.id}/documentos/${d.id}`} target="_blank" rel="noopener">{d.file_name}</a>
-                    <span className="muted-line">
-                      {formatBytes(d.size_bytes)} · {nameOf(d.uploaded_by)} · {fmt(d.created_at, false)}
-                      {d.visibility === "interno" ? " · solo equipo" : ""}
+          ) : (
+            <p className="panel-lead">En este momento no hay tareas de análisis en curso. {NEXT_STEP[c.status] ? `Próximo paso: ${NEXT_STEP[c.status].toLowerCase()}.` : ""}</p>
+          )}
+          {worker && !isClosed ? <MirrorConsole caseId={c.id} steps={steps} /> : null}
+        </>
+      ),
+    },
+    {
+      id: "documentos",
+      title: "Documentos del caso",
+      emblem: <Emblem name="documentos" size="sm" />,
+      status: <span>{visibleDocs.length === 1 ? "1 documento" : `${visibleDocs.length} documentos`}</span>,
+      content: (
+        <>
+          {visibleDocs.length ? (
+            <ul className="file-list">
+              {visibleDocs.map((d) => (
+                <li key={d.id}>
+                  <a href={`/casos/${c.id}/documentos/${d.id}`} target="_blank" rel="noopener" className="file-line">
+                    <Emblem name="documentos" size="sm" />
+                    <span className="file-main">
+                      <b>{d.file_name}</b>
+                      <small>
+                        {formatBytes(d.size_bytes)} · {nameOf(d.uploaded_by)} · {fmt(d.created_at, false)}
+                        {d.visibility === "interno" ? " · solo equipo" : ""}
+                      </small>
                     </span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="muted-line">Sin documentos todavía.</p>
-            )}
-            {canPost ? <UploadDocument caseId={c.id} canInternal={worker} /> : null}
-          </Fold>
-
-          <Fold id="tareas" title="Tareas" icon={<IconCheck size={18} />} summary={openTasks ? `${openTasks} pendiente${openTasks === 1 ? "" : "s"}` : "Sin pendientes"} open={worker || myOpenTasks > 0}>
-            {tasks.length ? (
-              <ul className="task-list">
-                {tasks.map((t) => {
-                  const mine = t.assignee_id === user.id;
-                  return (
-                    <li key={t.id} className={`task task-${t.status}`}>
-                      <div>
-                        <b>{t.title}</b>
-                        <span className="muted-line">
-                          {t.assignee_id ? nameOf(t.assignee_id) : "Sin asignar"}
-                          {t.due_date ? ` · vence ${fmtDate(t.due_date)}` : ""}
-                          {t.visibility === "interno" ? " · interna" : ""}
-                        </span>
-                      </div>
-                      {!isClosed && (worker || mine) ? (
-                        <form action={taskStatusAction} className="inline-form">
-                          <input type="hidden" name="case_id" value={c.id} />
-                          <input type="hidden" name="task_id" value={t.id} />
-                          <select name="status" className="input input-sm" defaultValue={t.status} aria-label="Estado de la tarea">
-                            {Object.entries(TASK_STATUSES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                          </select>
-                          <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">OK</SubmitButton>
-                        </form>
-                      ) : (
-                        <span className="badge badge-muted">{TASK_STATUSES[t.status]}</span>
-                      )}
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="muted-line">Sin tareas.</p>
-            )}
-            {worker && !isClosed ? (
-              <form action={createTaskAction} className="mini-form">
-                <input type="hidden" name="case_id" value={c.id} />
-                <input name="title" className="input input-sm" placeholder="Nueva tarea" required minLength={3} maxLength={200} aria-label="Nueva tarea" />
-                <div className="inline-form">
-                  <select name="assignee_id" className="input input-sm" defaultValue="" aria-label="Responsable de la tarea">
-                    <option value="">Sin asignar</option>
-                    {taskPeople.map((uid) => <option key={uid} value={uid}>{nameOf(uid)}</option>)}
-                  </select>
-                  <input type="date" name="due_date" className="input input-sm" aria-label="Vencimiento" />
-                </div>
-                <div className="comment-actions">
-                  <label className="check-inline"><input type="checkbox" name="internal" /> Interna</label>
-                  <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Agregar tarea</SubmitButton>
-                </div>
-              </form>
-            ) : null}
-          </Fold>
-
-          <Fold id="equipo" title="Equipo ENQORA" icon={<IconUsers size={18} />} summary={assignments.length ? `${assignments.length} persona${assignments.length === 1 ? "" : "s"}` : "Por asignar"} open={supervisor}>
+                    <span className="file-open">Abrir</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted-line">Aún no hay documentos en tu caso.</p>
+          )}
+          {canPost ? <UploadDocument caseId={c.id} canInternal={worker} /> : null}
+        </>
+      ),
+    },
+    {
+      id: "agentes",
+      aliases: ["equipo"],
+      title: "Agentes y responsables",
+      emblem: <Emblem name="agentes" size="sm" />,
+      status: <span>{agentSummary.split(" · ").slice(0, 2).join(" · ")}</span>,
+      content: (
+        <>
+          <AgentsPanel steps={steps} caseStatus={c.status} />
+          <div className="sub-block">
+            <h4 className="sub-title">Responsables ENQORA</h4>
             {assignments.length ? (
-              <ul className="member-list">
+              <ul className="people" role="list">
                 {assignments.map((a) => (
-                  <li key={a.user_id} className="member">
-                    <div className="member-who">
-                      <b>{nameOf(a.user_id)}</b>
-                      <span className="muted-line">{CASE_ROLES[a.role_in_case] ?? a.role_in_case}</span>
+                  <li key={a.user_id} className="person">
+                    <div className="person-main">
+                      <span className="person-avatar" aria-hidden="true">{(profiles.get(a.user_id)?.full_name || profiles.get(a.user_id)?.email || "?").slice(0, 1).toUpperCase()}</span>
+                      <span className="person-who">
+                        <b>{nameOf(a.user_id)}</b>
+                        <small>{CASE_ROLES[a.role_in_case] ?? a.role_in_case}</small>
+                      </span>
+                      {supervisor && !isClosed ? (
+                        <form action={unassignAction} className="person-tools">
+                          <input type="hidden" name="case_id" value={c.id} />
+                          <input type="hidden" name="user_id" value={a.user_id} />
+                          <ConfirmSubmit message="¿Retirar a esta persona del caso? Perderá el acceso al expediente." variant="ghost">Retirar</ConfirmSubmit>
+                        </form>
+                      ) : null}
                     </div>
-                    {supervisor && !isClosed ? (
-                      <form action={unassignAction}>
-                        <input type="hidden" name="case_id" value={c.id} />
-                        <input type="hidden" name="user_id" value={a.user_id} />
-                        <ConfirmSubmit message="¿Retirar a esta persona del caso? Perderá el acceso al expediente." variant="ghost">Retirar</ConfirmSubmit>
-                      </form>
-                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -474,46 +408,309 @@ export default async function CasePage({
                 </div>
               </form>
             ) : null}
-          </Fold>
-
-          {worker ? (
-            <section className="card" id="estado">
-              <h2 className="card-title"><IconClock /> Gestión del caso</h2>
-              <form action={changeStatusAction} className="mini-form">
-                <input type="hidden" name="case_id" value={c.id} />
-                <label htmlFor="status" className="field-label">Cambiar estado</label>
-                <select id="status" name="status" className="input input-sm" defaultValue={c.status}>
-                  {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+          </div>
+        </>
+      ),
+    },
+    {
+      id: "historial",
+      aliases: ["mensajes"],
+      title: "Historial y mensajes",
+      emblem: <Emblem name="mensajes" size="sm" />,
+      status: <span>{messages === 1 ? "1 mensaje" : `${messages} mensajes`} · {events.length} movimientos</span>,
+      content: (
+        <>
+          {canPost ? <CommentForm caseId={c.id} canInternal={worker} /> : null}
+          {isClosed ? <p className="muted-line">El caso está {statusLabel(c.status).toLowerCase()}; no admite nuevos mensajes.</p> : null}
+          <div className="acc-scroll">{timeline}</div>
+        </>
+      ),
+    },
+    {
+      id: "tareas",
+      title: "Tareas pendientes",
+      emblem: <Emblem name="tareas" size="sm" />,
+      tone: myOpenTasks ? "gold" : "default",
+      status: myOpenTasks
+        ? <span className="status status-gold">{myOpenTasks === 1 ? "1 es tuya" : `${myOpenTasks} son tuyas`}</span>
+        : <span>{openTasks ? `${openTasks} pendiente${openTasks === 1 ? "" : "s"}` : "Sin pendientes"}</span>,
+      content: (
+        <>
+          {tasks.length ? (
+            <ul className="task-list">
+              {tasks.map((t) => {
+                const mine = t.assignee_id === user.id;
+                return (
+                  <li key={t.id} className={`task task-${t.status}${mine ? " is-mine" : ""}`}>
+                    <div>
+                      <b>{t.title}</b>
+                      <span className="muted-line">
+                        {t.assignee_id ? nameOf(t.assignee_id) : "Sin asignar"}
+                        {t.due_date ? ` · vence ${fmtDate(t.due_date)}` : ""}
+                        {t.visibility === "interno" ? " · interna" : ""}
+                      </span>
+                    </div>
+                    {!isClosed && (worker || mine) ? (
+                      <form action={taskStatusAction} className="inline-form">
+                        <input type="hidden" name="case_id" value={c.id} />
+                        <input type="hidden" name="task_id" value={t.id} />
+                        <select name="status" className="input input-sm" defaultValue={t.status} aria-label="Estado de la tarea">
+                          {Object.entries(TASK_STATUSES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        </select>
+                        <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Guardar</SubmitButton>
+                      </form>
+                    ) : (
+                      <span className="badge badge-muted">{TASK_STATUSES[t.status]}</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="muted-line">Sin tareas.</p>
+          )}
+          {worker && !isClosed ? (
+            <form action={createTaskAction} className="mini-form">
+              <input type="hidden" name="case_id" value={c.id} />
+              <input name="title" className="input input-sm" placeholder="Nueva tarea" required minLength={3} maxLength={200} aria-label="Nueva tarea" />
+              <div className="inline-form">
+                <select name="assignee_id" className="input input-sm" defaultValue="" aria-label="Responsable de la tarea">
+                  <option value="">Sin asignar</option>
+                  {taskPeople.map((uid) => <option key={uid} value={uid}>{nameOf(uid)}</option>)}
                 </select>
-                <textarea name="note" className="input" rows={2} maxLength={4000}
-                  placeholder="Nota para el cliente. Para cerrar: describe el resultado verificado." aria-label="Nota" />
-                <SubmitButton variant="gold" className="btn-inline btn-sm" pendingText="…">Actualizar estado</SubmitButton>
-              </form>
-              <form action={setPriorityAction} className="mini-form">
-                <input type="hidden" name="case_id" value={c.id} />
-                <div className="inline-form">
-                  <select name="priority" className="input input-sm" defaultValue={c.priority} aria-label="Prioridad">
-                    {Object.entries(PRIORITIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
-                  </select>
-                  <input type="date" name="due_date" className="input input-sm" defaultValue={c.due_date ?? ""} aria-label="Fecha límite" />
-                  <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Guardar</SubmitButton>
-                </div>
-              </form>
-            </section>
-          ) : canCancel ? (
-            <section className="card" id="estado">
-              <h2>¿Ya no necesitas esta solicitud?</h2>
-              <form action={changeStatusAction}>
-                <input type="hidden" name="case_id" value={c.id} />
-                <input type="hidden" name="status" value="cancelado" />
-                <ConfirmSubmit message="¿Cancelar esta solicitud?">Cancelar solicitud</ConfirmSubmit>
-              </form>
-            </section>
+                <input type="date" name="due_date" className="input input-sm" aria-label="Vencimiento" />
+              </div>
+              <div className="comment-actions">
+                <label className="check-inline"><input type="checkbox" name="internal" /> Interna</label>
+                <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Agregar tarea</SubmitButton>
+              </div>
+            </form>
           ) : null}
-        </aside>
-      </div>
+        </>
+      ),
+    },
+    {
+      id: "expediente",
+      title: "Expediente",
+      emblem: <Emblem name="expediente" size="sm" />,
+      status: <span>{MODULES[c.module]?.name.replace("ENQORA ", "") ?? c.module}</span>,
+      content: (
+        <>
+          <dl className="data-grid">
+            <div><dt>Folio</dt><dd className="mono">{c.folio}</dd></div>
+            <div><dt>Servicio</dt><dd>{MODULES[c.module]?.name ?? c.module}</dd></div>
+            <div><dt>Empresa</dt><dd>{company ? `${company.trade_name || company.legal_name} · ${formatRut(company.rut)}` : "—"}</dd></div>
+            <div><dt>Creado</dt><dd>{fmt(c.created_at)}</dd></div>
+            <div><dt>Profesional responsable</dt><dd>{responsible ?? "Por asignar"}</dd></div>
+            {c.due_date ? <div><dt>Fecha límite</dt><dd>{fmtDate(c.due_date)}</dd></div> : null}
+            {worker ? <div><dt>Prioridad</dt><dd>{PRIORITIES[c.priority]}</dd></div> : null}
+          </dl>
+          {c.description ? (
+            <div className="sub-block">
+              <h4 className="sub-title">Tu solicitud</h4>
+              <p className="pre">{c.description}</p>
+            </div>
+          ) : null}
+          {c.status !== "cancelado" ? (
+            <div className="sub-block">
+              <h4 className="sub-title">Avance del caso</h4>
+              <ol className="flow" aria-label="Avance del caso">
+                {FLOW.map((st, i) => (
+                  <li
+                    key={st}
+                    className={i < flowIndex || c.status === "cerrado" ? "done" : i === flowIndex ? "current" : ""}
+                    aria-current={i === flowIndex ? "step" : undefined}
+                  >
+                    <span className="flow-dot" />
+                    <span className="flow-label">{STATUSES[st].label}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : null}
+          {canCancel ? (
+            <form action={changeStatusAction} className="person-danger">
+              <input type="hidden" name="case_id" value={c.id} />
+              <input type="hidden" name="status" value="cancelado" />
+              <span>¿Ya no necesitas esta solicitud? Puedes cancelarla mientras no haya comenzado el trabajo.</span>
+              <ConfirmSubmit message="¿Cancelar esta solicitud?">Cancelar solicitud</ConfirmSubmit>
+            </form>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      id: "diagnostico",
+      title: "Diagnóstico y recomendaciones",
+      emblem: <Emblem name="diagnostico" size="sm" />,
+      status: <span className={`status status-${diagnosisState.tone}`}>{diagnosisState.text}</span>,
+      content: (
+        <>
+          {c.status === "cerrado" && c.result_summary ? (
+            <div className="result-box">
+              <FactTag kind="verificado" />
+              <h4>Resultado verificado</h4>
+              <p className="pre">{c.result_summary}</p>
+            </div>
+          ) : null}
+          {reviewSteps.length ? (
+            <div className="sub-block">
+              <FactTag kind="revision" />
+              <ul className="explore-list">
+                {reviewSteps.map((s) => (
+                  <li key={s.id}>
+                    <b>{s.title}</b>
+                    <small>{AGENTS[s.agent]?.name ?? s.agent} · aún no es una conclusión definitiva</small>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {!(c.status === "cerrado" && c.result_summary) ? (
+            <p className="panel-lead">
+              El diagnóstico con sus recomendaciones se publicará aquí cuando un profesional autorizado lo valide.
+              Ninguna conclusión se presenta como confirmada antes de esa revisión.
+            </p>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      id: "proximas",
+      aliases: ["autorizaciones", "aprobaciones"],
+      title: "Próximas acciones",
+      emblem: <Emblem name="proximas" size="sm" />,
+      tone: pendingAuths.length && canDecide ? "gold" : "default",
+      status: pendingAuths.length
+        ? <span className="status status-gold">{pendingAuths.length === 1 ? "1 autorización pendiente" : `${pendingAuths.length} autorizaciones pendientes`}</span>
+        : worker && pendingApprovals.length
+          ? <span className="status status-gold">{pendingApprovals.length} aprobación{pendingApprovals.length === 1 ? "" : "es"} pendiente{pendingApprovals.length === 1 ? "" : "s"}</span>
+          : <span>{NEXT_STEP[c.status] ?? ""}</span>,
+      content: (
+        <>
+          {NEXT_STEP[c.status] ? (
+            <div className="next-action">
+              <div>
+                <span className="eyebrow">Próximo paso</span>
+                <b>{NEXT_STEP[c.status]}</b>
+              </div>
+            </div>
+          ) : null}
+          <Authorizations
+            caseId={c.id}
+            items={authorizations}
+            names={names}
+            canDecide={canDecide}
+            canRequest={worker && staffRole !== "ai_agent"}
+            isClosed={isClosed}
+          />
+          {worker ? (
+            <Approvals
+              caseId={c.id}
+              items={approvals}
+              names={names}
+              me={user.id}
+              role={staffRole}
+              supervisor={supervisor}
+              assigned={assigned}
+              responsibleId={c.responsible_id}
+              isClosed={isClosed}
+            />
+          ) : null}
+        </>
+      ),
+    },
+  ];
 
-      <p><Link href={worker ? "/mando" : "/casos"}>← Volver</Link></p>
+  if (worker) {
+    items.push({
+      id: "gestion",
+      aliases: ["estado"],
+      title: "Gestión del caso",
+      emblem: <Emblem name="configuracion" size="sm" />,
+      status: <span>Prioridad {PRIORITIES[c.priority]?.toLowerCase()}</span>,
+      content: (
+        <>
+          <p className="panel-lead">Solo el equipo ENQORA ve esta opción.</p>
+          <form action={changeStatusAction} className="mini-form">
+            <input type="hidden" name="case_id" value={c.id} />
+            <label htmlFor="status" className="field-label">Cambiar estado</label>
+            <select id="status" name="status" className="input input-sm" defaultValue={c.status}>
+              {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+            </select>
+            <textarea name="note" className="input" rows={2} maxLength={4000}
+              placeholder="Nota para el cliente. Para cerrar: describe el resultado verificado." aria-label="Nota" />
+            <SubmitButton variant="gold" className="btn-inline btn-sm" pendingText="Actualizando…">Actualizar estado</SubmitButton>
+          </form>
+          <form action={setPriorityAction} className="mini-form">
+            <input type="hidden" name="case_id" value={c.id} />
+            <div className="inline-form">
+              <select name="priority" className="input input-sm" defaultValue={c.priority} aria-label="Prioridad">
+                {Object.entries(PRIORITIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+              <input type="date" name="due_date" className="input input-sm" defaultValue={c.due_date ?? ""} aria-label="Fecha límite" />
+              <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Guardar</SubmitButton>
+            </div>
+          </form>
+        </>
+      ),
+    });
+  }
+
+  const backHref = worker ? "/mando" : "/casos";
+
+  return (
+    <div className="page ws-page">
+      <section className={`ws${c.status === "cancelado" ? " is-cancelled" : ""}`} aria-label={`Caso ${c.folio}`}>
+        {/* A · Encabezado compacto */}
+        <header className="ws-head">
+          <Link href={backHref} className="ws-back" aria-label="Volver"><span aria-hidden="true">←</span></Link>
+          <div className="ws-title">
+            <span className="ws-wordmark">ENQORA <em>MIRROR</em> <span className="mono">{c.folio}</span></span>
+            <h1>{c.title}</h1>
+          </div>
+          <span className={`status status-${statusTone(c.status)} ws-status`}>{statusLabel(c.status)}</span>
+          {c.status !== "cancelado" ? (
+            <Link href={`/casos/${c.id}/mirror`} className="btn btn-ghost btn-inline btn-sm ws-full">Pantalla completa</Link>
+          ) : null}
+        </header>
+
+        {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
+        {messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null}
+
+        {/* B · Núcleo MIRROR y etapa actual */}
+        {c.status !== "cancelado" ? (
+          <MirrorStage steps={steps} caseStatus={c.status} pendingAuthorizations={pendingAuths.length} />
+        ) : (
+          <p className="panel-lead ws-cancelled">Esta solicitud fue cancelada. Su historial sigue disponible.</p>
+        )}
+
+        {/* Lo importante nunca queda escondido */}
+        {pendingAuths.length && canDecide ? (
+          <Callout
+            kind="warn"
+            title={pendingAuths.length === 1 ? "Una autorización espera tu decisión" : `${pendingAuths.length} autorizaciones esperan tu decisión`}
+            action={<a href="#autorizaciones" className="btn btn-gold btn-inline btn-sm">Revisar</a>}
+          >
+            ENQORA no actuará ante ninguna institución sin tu autorización explícita.
+          </Callout>
+        ) : null}
+        {myOpenTasks && !worker ? (
+          <Callout kind="info" title={myOpenTasks === 1 ? "Tienes una tarea pendiente en este caso" : `Tienes ${myOpenTasks} tareas pendientes en este caso`} action={<a href="#tareas" className="btn btn-ghost btn-inline btn-sm">Ver tareas</a>} />
+        ) : null}
+
+        {/* C · Panel de exploración */}
+        <div className="ws-panel">
+          <Accordion
+            label="Explorar el caso"
+            variant="tiles"
+            compact
+            className="ws-options"
+            items={items}
+            defaultOpen={(sp.aviso && OPEN_AFTER[sp.aviso]) || null}
+          />
+        </div>
+      </section>
     </div>
   );
 }
