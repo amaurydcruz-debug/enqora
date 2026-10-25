@@ -5,6 +5,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { Callout, Disclosure, FactTag, NextAction } from "@/components/disclosure";
 import { ModuleIcon } from "@/components/module-icons";
 import { Emblem } from "@/components/emblems";
+import { clp, todayCL } from "@/lib/pricing";
 import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
 import { acknowledgeAlertsAction } from "@/app/actions/security";
 import { activeCompany } from "@/lib/companies";
@@ -60,6 +61,7 @@ const FEATURED: ModuleKey[] = ["contabilidad", "formaliza", "create", "brand", "
 
 type Task = { id: string; case_id: string; title: string; status: string; due_date: string | null };
 type Auth = { id: string; case_id: string; title: string; scope: string; institution: string | null; valid_until: string | null };
+type PendingQuote = { id: string; case_id: string; service_name: string; final_price: number; external_costs: number; valid_until: string };
 type Ev = { id: number; case_id: string; kind: string; metadata: Record<string, string>; created_at: string };
 
 // Centro de control: limpio por defecto. Lo importante a la vista; el detalle, cuando el cliente lo pide.
@@ -90,7 +92,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const caseIds = cases.map((c) => c.id);
   const caseById = new Map(cases.map((c) => [c.id, c]));
 
-  const [authRes, taskRes, evRes] =
+  const [authRes, taskRes, evRes, quoteRes] =
     active && caseIds.length
       ? await Promise.all([
           supabase
@@ -115,17 +117,26 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
             .neq("kind", "estado")
             .order("created_at", { ascending: false })
             .limit(6),
+          // Cotizaciones enviadas que esperan decisión (RLS: el cliente solo recibe las enviadas).
+          supabase
+            .from("quotes")
+            .select("id, case_id, service_name, final_price, external_costs, valid_until")
+            .eq("company_id", active.id)
+            .eq("status", "enviada")
+            .gte("valid_until", todayCL())
+            .order("sent_at"),
         ])
-      : [{ data: [] }, { data: [] }, { data: [] }];
+      : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
   const pendingAuth = (authRes.data ?? []) as Auth[];
   const myTasks = (taskRes.data ?? []) as Task[];
   const events = (evRes.data ?? []) as Ev[];
+  const pendingQuotes = (quoteRes.data ?? []) as PendingQuote[];
 
   const open = cases.filter((c) => !CLOSED.includes(c.status));
   const finished = cases.filter((c) => c.status === "cerrado");
   // Casos que esperan antecedentes del cliente (los de autorización ya aparecen como autorización).
   const waitingInfo = open.filter((c) => c.status === "esperando_cliente");
-  const attention = pendingAuth.length + myTasks.length + waitingInfo.length;
+  const attention = pendingAuth.length + pendingQuotes.length + myTasks.length + waitingInfo.length;
   const canAuthorize = !!active && ["owner", "admin"].includes(active.role);
   const canCreate = !!active && active.role !== "viewer";
 
@@ -254,6 +265,28 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                       action={<Link href={`/casos/${a.case_id}#autorizaciones`} className="btn btn-gold btn-inline btn-sm">Revisar y decidir</Link>}
                     >
                       ENQORA solo actuará dentro de lo que autorices, y podrás revocarlo cuando quieras.
+                    </NextAction>
+                  </Disclosure>
+                ))}
+                {pendingQuotes.map((q) => (
+                  <Disclosure
+                    key={q.id}
+                    tone="gold"
+                    group="atencion"
+                    emblem={<Emblem name="contabilidad" size="sm" />}
+                    title={q.service_name}
+                    summary={`Cotización · ${caseById.get(q.case_id)?.folio ?? ""}`}
+                    meta={<span className="status status-warn">{clp(q.final_price)}</span>}
+                  >
+                    <p className="disc-lead">
+                      ENQORA te envió una cotización por {clp(q.final_price)}
+                      {q.external_costs ? `, más ${clp(q.external_costs)} de gastos externos estimados` : ""}. Es válida hasta el {fmtLong(q.valid_until)}.
+                    </p>
+                    <NextAction
+                      title={canAuthorize ? "Revisa el alcance y decide" : "Debe decidirla el Propietario o un Administrador"}
+                      action={<Link href={`/casos/${q.case_id}#cotizacion`} className="btn btn-gold btn-inline btn-sm">Ver cotización</Link>}
+                    >
+                      Verás el precio estándar, el descuento si lo hay, lo que incluye y lo que no.
                     </NextAction>
                   </Disclosure>
                 ))}

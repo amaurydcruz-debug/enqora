@@ -39,7 +39,9 @@ import { AgentsPanel } from "@/components/mirror/agents-panel";
 import { MirrorStage } from "@/components/mirror/mirror-stage";
 import { AGENT_KEYS, AGENTS, mirrorState, STAGES, type MirrorStep } from "@/lib/mirror";
 import type { Approval, ClientAuthorization } from "@/lib/approvals";
+import { quoteStatus, type MarketReference, type Quote, type Service, type Tariff } from "@/lib/pricing";
 import { Approvals } from "./approvals";
+import { Quotes } from "./quotes";
 import { Authorizations } from "./authorizations";
 import { CommentForm } from "./comment-form";
 import { MirrorConsole } from "./mirror-console";
@@ -77,6 +79,10 @@ const AVISOS: Record<string, string> = {
   autorizacion_rechazada: "Rechazaste la autorización. El equipo revisará el caso contigo.",
   autorizacion_revocada: "Autorización revocada. ENQORA detendrá esa gestión.",
   autorizacion_anulada: "Solicitud de autorización anulada.",
+  cotizacion_creada: "Cotización registrada.",
+  cotizacion_aceptada: "Cotización aceptada. Quedó registrada con su versión y precio.",
+  cotizacion_rechazada: "Registramos que no aceptas la cotización. El equipo la revisará contigo.",
+  cotizacion_anulada: "Cotización anulada.",
 };
 
 const APPROVAL_ACTIONS: Record<string, string> = {
@@ -92,6 +98,13 @@ const AUTH_ACTIONS: Record<string, string> = {
   rechazada: "no autorizó",
   revocada: "revocó la autorización de",
   anulada: "anuló la solicitud de autorización",
+};
+
+const QUOTE_ACTIONS: Record<string, string> = {
+  enviada: "envió la cotización",
+  aceptada: "aceptó la cotización",
+  rechazada: "no aceptó la cotización",
+  anulada: "anuló la cotización",
 };
 
 type Event = {
@@ -131,7 +144,7 @@ export default async function CasePage({
   if (!caseRow) notFound();
   const c = caseRow as CaseRow;
 
-  const [staffRole, companyRes, eventsRes, tasksRes, docsRes, assignRes, memberRes, stepsRes, approvalsRes, authRes] = await Promise.all([
+  const [staffRole, companyRes, eventsRes, tasksRes, docsRes, assignRes, memberRes, stepsRes, approvalsRes, authRes, quotesRes] = await Promise.all([
     myStaffRole(),
     supabase.from("companies").select("legal_name, trade_name, rut").eq("id", c.company_id).maybeSingle(),
     supabase.from("case_events").select("id, actor_id, kind, body, visibility, metadata, created_at").eq("case_id", id).order("created_at"),
@@ -147,10 +160,13 @@ export default async function CasePage({
     // RLS: el cliente no recibe aprobaciones internas.
     supabase.from("approvals").select("*").eq("case_id", id).order("requested_at", { ascending: false }),
     supabase.from("client_authorizations").select("*").eq("case_id", id).order("requested_at", { ascending: false }),
+    // RLS: el cliente solo recibe las cotizaciones ya enviadas.
+    supabase.from("quotes").select("*").eq("case_id", id).order("created_at", { ascending: false }),
   ]);
   const steps = (stepsRes.data ?? []) as MirrorStep[];
   const approvals = (approvalsRes.data ?? []) as Approval[];
   const authorizations = (authRes.data ?? []) as ClientAuthorization[];
+  const quotes = (quotesRes.data ?? []) as Quote[];
 
   const company = companyRes.data as { legal_name: string; trade_name: string | null; rut: string } | null;
   const events = (eventsRes.data ?? []) as Event[];
@@ -178,6 +194,7 @@ export default async function CasePage({
   events.forEach((e) => e.metadata?.usuario && people.add(e.metadata.usuario));
   approvals.forEach((a) => [a.requested_by, a.decided_by].forEach((u) => u && people.add(u)));
   authorizations.forEach((a) => [a.requested_by, a.decided_by, a.revoked_by].forEach((u) => u && people.add(u)));
+  quotes.forEach((q) => [q.created_by, q.decided_by].forEach((u) => u && people.add(u)));
 
   let allStaff: Staff[] = [];
   if (supervisor) {
@@ -203,6 +220,23 @@ export default async function CasePage({
 
   const names: Record<string, string> = Object.fromEntries([...people].map((uid) => [uid, nameOf(uid)]));
 
+  // Catálogo para cotizar (equipo) y referencias de mercado de los servicios cotizados.
+  let quoteServices: Service[] = [];
+  let quoteTariffs: Tariff[] = [];
+  if (worker && !isClosed) {
+    const [{ data: sv }, { data: tf }] = await Promise.all([
+      supabase.from("services").select("*").eq("active", true).order("code"),
+      supabase.from("service_tariffs").select("*").eq("status", "vigente"),
+    ]);
+    quoteServices = (sv ?? []) as Service[];
+    quoteTariffs = (tf ?? []) as Tariff[];
+  }
+  const quotedServices = [...new Set(quotes.map((q) => q.service_id))];
+  const { data: refRows } = quotedServices.length
+    ? await supabase.from("market_references").select("*").in("service_id", quotedServices)
+    : { data: [] };
+  const references = (refRows ?? []) as MarketReference[];
+
   const describe = (e: Event) => {
     switch (e.kind) {
       case "creado":
@@ -223,6 +257,8 @@ export default async function CasePage({
         return `ajustó la prioridad a ${(PRIORITIES[e.metadata?.prioridad ?? ""] ?? "").toLowerCase()}`;
       case "aprobacion":
         return `${APPROVAL_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una aprobación"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
+      case "cotizacion":
+        return `${QUOTE_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una cotización"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
       case "autorizacion":
         return `${AUTH_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una autorización"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
       default:
@@ -243,6 +279,8 @@ export default async function CasePage({
   const reviewSteps = steps.filter((s) => s.status === "revision");
   const pendingAuths = authorizations.filter((a) => a.status === "pendiente");
   const pendingApprovals = approvals.filter((a) => a.status === "pendiente");
+  const openQuotes = quotes.filter((q) => quoteStatus(q) === "enviada");
+  const reviewQuotes = quotes.filter((q) => q.status === "pendiente_aprobacion" || q.status === "observada");
   const canDecide = !!memberRole && ["owner", "admin"].includes(memberRole);
   const { agents } = mirrorState(steps, c.status);
   const agentCount = (st: string) => AGENT_KEYS.filter((k) => agents[k] === st).length;
@@ -265,6 +303,7 @@ export default async function CasePage({
     aprobacion_solicitada: "proximas", aprobacion_aprobar: "proximas", aprobacion_rechazar: "proximas", aprobacion_devolver: "proximas",
     aprobacion_anulada: "proximas", autorizacion_solicitada: "proximas", autorizada: "proximas", autorizacion_rechazada: "proximas",
     autorizacion_revocada: "proximas", autorizacion_anulada: "proximas",
+    cotizacion_creada: "cotizacion", cotizacion_aceptada: "cotizacion", cotizacion_rechazada: "cotizacion", cotizacion_anulada: "cotizacion",
   };
 
   const timeline = (
@@ -576,6 +615,32 @@ export default async function CasePage({
       ),
     },
     {
+      id: "cotizacion",
+      aliases: ["cotizaciones"],
+      title: "Cotización",
+      emblem: <Emblem name="contabilidad" size="sm" />,
+      tone: openQuotes.length && canDecide ? "gold" : "default",
+      status: openQuotes.length
+        ? <span className="status status-gold">{openQuotes.length === 1 ? "1 espera tu decisión" : `${openQuotes.length} esperan tu decisión`}</span>
+        : worker && reviewQuotes.length
+          ? <span className="status status-gold">{reviewQuotes.length} en revisión</span>
+          : <span>{quotes.some((q) => q.status === "aceptada") ? "Aceptada" : quotes.length ? `${quotes.length} registrada${quotes.length === 1 ? "" : "s"}` : "Sin cotización"}</span>,
+      content: (
+        <Quotes
+          caseId={c.id}
+          quotes={quotes}
+          references={references}
+          services={quoteServices}
+          tariffs={quoteTariffs}
+          names={names}
+          canDecide={canDecide}
+          worker={worker}
+          isAgent={staffRole === "ai_agent"}
+          isClosed={isClosed}
+        />
+      ),
+    },
+    {
       id: "proximas",
       aliases: ["autorizaciones", "aprobaciones"],
       title: "Próximas acciones",
@@ -693,6 +758,15 @@ export default async function CasePage({
             action={<a href="#autorizaciones" className="btn btn-gold btn-inline btn-sm">Revisar</a>}
           >
             ENQORA no actuará ante ninguna institución sin tu autorización explícita.
+          </Callout>
+        ) : null}
+        {openQuotes.length && canDecide ? (
+          <Callout
+            kind="warn"
+            title={openQuotes.length === 1 ? "Tienes una cotización por revisar" : `Tienes ${openQuotes.length} cotizaciones por revisar`}
+            action={<a href="#cotizacion" className="btn btn-gold btn-inline btn-sm">Ver cotización</a>}
+          >
+            Revisa el alcance, el precio y las condiciones antes de decidir.
           </Callout>
         ) : null}
         {myOpenTasks && !worker ? (
