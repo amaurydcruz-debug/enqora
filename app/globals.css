@@ -685,14 +685,7 @@ select.input option { background: var(--bg-2); color: var(--text); }
 .audit-list b { color: var(--text); font-weight: 600; }
 .audit-when { color: var(--text-3); font-size: 0.78rem; }
 
-/* Carga: reloj ENQORA */
-.loading-state { min-height: 40vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; color: var(--text-3); font-size: 0.9rem; }
-.loading-clock .lc-ring { fill: none; stroke: var(--hairline-strong); stroke-width: 2.5; }
-.loading-clock .lc-arc { fill: none; stroke: var(--gold); stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 40 126; transform-origin: 24px 24px; animation: enq-spin 1.4s linear infinite; }
-.loading-clock .lc-hand { stroke: var(--text-2); stroke-width: 2; stroke-linecap: round; transform-origin: 24px 24px; }
-.loading-clock .lc-minute { animation: enq-spin 1.4s linear infinite; }
-.loading-clock .lc-hour { animation: enq-spin 8.4s linear infinite; }
-.loading-clock .lc-pin { fill: var(--gold); }
+/* Carga: ver «EnqoraClockLoader» en el bloque Sistema ENQORA */
 @keyframes enq-spin { to { transform: rotate(360deg); } }
 
 /* Lista de casos (vistas internas) */
@@ -1318,3 +1311,226 @@ details.setting > summary:hover h2 { color: var(--gold-bright); }
 }
 
 .input-num { width: 74px !important; flex: 0 0 74px !important; }
+
+/* =====================================================================
+   Sistema ENQORA (M02): emblemas, reloj del logotipo, botones con
+   estados completos y panel de opciones (acordeón exclusivo).
+   ===================================================================== */
+
+/* ---------- Emblemas 3D ---------- */
+.emblem-defs { position: absolute; width: 0; height: 0; overflow: hidden; pointer-events: none; }
+.emblem {
+  --e: 44px;
+  position: relative; flex-shrink: 0; display: inline-grid; place-items: center;
+  width: var(--e); height: var(--e); border-radius: 30%;
+  background:
+    radial-gradient(circle at 32% 22%, #1f3a63 0%, #0d1a31 58%, #070e1d 100%) padding-box,
+    linear-gradient(145deg, rgba(243, 223, 168, 0.6), rgba(60, 118, 210, 0.28) 42%, rgba(154, 168, 189, 0.14) 70%, rgba(229, 199, 131, 0.42)) border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.09), inset 0 -10px 18px rgba(5, 9, 20, 0.55);
+}
+.emblem::after {
+  content: ""; position: absolute; inset: 1px; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(170deg, rgba(255, 255, 255, 0.1), transparent 38%);
+}
+.emblem svg {
+  width: 84%; height: 84%; overflow: visible;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 6px rgba(60, 118, 210, 0.22));
+  transition: transform 0.45s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.emblem-sm { --e: 32px; }
+.emblem-md { --e: 44px; }
+.emblem-lg { --e: 56px; }
+.emblem-xl { --e: 76px; border-radius: 28%; }
+.module .emblem { margin-bottom: 6px; }
+.module:hover .emblem svg,
+.acc-option:hover .emblem svg,
+.acc-option.is-open .emblem svg { transform: translateY(-1px) rotate(-4deg) scale(1.06); }
+
+/* ---------- Reloj del logotipo ---------- */
+.enq-clock { display: block; overflow: visible; }
+.enq-clock .ec-hand, .enq-clock .ec-sheen { transform-box: view-box; }
+.enq-clock .ec-hand { transform-origin: 258px 277px; transform: rotate(var(--a0)); }
+.enq-clock .ec-hour { --a0: 308deg; }
+.enq-clock .ec-minute { --a0: 50deg; }
+.enq-clock .ec-sheen { transform-origin: 255px 277px; opacity: 0; }
+.enq-clock.is-live .ec-minute { animation: ec-turn 2.8s linear infinite; }
+.enq-clock.is-live .ec-hour { animation: ec-turn 33.6s linear infinite; }
+.enq-clock.is-live .ec-sheen { animation: ec-sheen 3.6s cubic-bezier(0.45, 0, 0.25, 1) infinite; }
+.enq-clock.is-live .ec-core { animation: ec-breathe 2.8s ease-in-out infinite alternate; }
+.enq-clock.is-live .ec-flare { animation: ec-flare 3.6s ease-in-out infinite alternate; }
+.enq-clock.is-live .ec-tail-light { animation: ec-breathe 3.6s ease-in-out infinite alternate; }
+@keyframes ec-turn { from { transform: rotate(var(--a0)); } to { transform: rotate(calc(var(--a0) + 360deg)); } }
+@keyframes ec-sheen {
+  0% { transform: rotate(-150deg); opacity: 0; }
+  15% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { transform: rotate(150deg); opacity: 0; }
+}
+@keyframes ec-breathe { from { opacity: 0.45; } to { opacity: 1; } }
+@keyframes ec-flare { from { opacity: 0.55; } to { opacity: 1; } }
+
+/* EnqoraClockLoader */
+.clock-loader { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; text-align: center; color: var(--text-2); }
+.clock-navegacion { min-height: 56vh; animation: clock-in 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) 0.12s both; }
+.clock-ia { min-height: 240px; padding: 24px 16px; }
+.clock-datos { flex-direction: row; justify-content: flex-start; gap: 14px; padding: 16px 4px; text-align: left; animation: clock-in 0.3s ease 0.08s both; }
+.clock-stage { position: relative; display: grid; place-items: center; perspective: 720px; }
+.clock-stage .enq-clock {
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 18px 26px rgba(0, 0, 0, 0.55)) drop-shadow(0 0 26px rgba(60, 118, 210, 0.22));
+  animation: clock-tilt 6s ease-in-out infinite alternate;
+}
+.clock-floor {
+  position: absolute; left: 18%; right: 18%; bottom: -14%; height: 14%; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(60, 118, 210, 0.28), transparent);
+  filter: blur(4px);
+}
+.clock-datos .clock-floor { display: none; }
+.clock-text { display: flex; flex-direction: column; gap: 4px; }
+.clock-label { font-family: var(--font-brand), sans-serif; font-weight: 500; letter-spacing: 0.06em; font-size: 0.95rem; color: var(--text); }
+.clock-datos .clock-label { font-family: inherit; letter-spacing: 0.01em; font-size: 0.88rem; color: var(--text-2); }
+.clock-detail { font-size: 0.82rem; color: var(--text-3); max-width: 46ch; }
+@keyframes clock-in { from { opacity: 0; transform: translateY(8px) scale(0.97); } to { opacity: 1; transform: none; } }
+@keyframes clock-tilt {
+  from { transform: rotateY(-14deg) rotateX(7deg); }
+  to { transform: rotateY(14deg) rotateX(-5deg); }
+}
+
+/* ---------- Botones: estados completos ---------- */
+.btn-gold {
+  background:
+    linear-gradient(180deg, #24467b 0%, #142c55 42%, #0a162d 100%) padding-box,
+    linear-gradient(135deg, #f3dfa8 0%, #9c7c45 34%, rgba(60, 118, 210, 0.6) 62%, #e5c783 100%) border-box;
+}
+.btn:disabled:not([aria-busy="true"]) { opacity: 0.45; filter: saturate(0.4); box-shadow: none; }
+.btn:disabled:not([aria-busy="true"])::after { display: none; }
+.btn[aria-busy="true"] { opacity: 1; cursor: progress; }
+.btn-clock { display: inline-grid; width: 18px; height: 18px; margin-left: -2px; }
+.btn-mark { flex-shrink: 0; }
+.btn[data-state="done"] {
+  color: #c9f3e6;
+  background:
+    linear-gradient(180deg, #123a3a 0%, #0b2229 100%) padding-box,
+    linear-gradient(135deg, rgba(158, 230, 209, 0.9), rgba(100, 199, 174, 0.35) 55%, rgba(158, 230, 209, 0.7)) border-box;
+  border: 1px solid transparent; text-shadow: none;
+  animation: btn-done 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.btn[data-state="error"] {
+  color: #f6c0c3; background: rgba(228, 124, 130, 0.08); border-color: rgba(228, 124, 130, 0.6); text-shadow: none;
+  animation: btn-error 0.4s ease;
+}
+@keyframes btn-done { 0% { transform: scale(0.97); } 60% { transform: scale(1.015); } 100% { transform: none; } }
+@keyframes btn-error { 0%, 100% { transform: none; } 25% { transform: translateX(-3px); } 50% { transform: translateX(3px); } 75% { transform: translateX(-2px); } }
+
+/* ---------- Panel de opciones (acordeón exclusivo) ---------- */
+.acc { display: flex; flex-direction: column; gap: 10px; }
+.acc-slot { display: flex; flex-direction: column; }
+.acc-h { margin: 0; font: inherit; scroll-margin-top: 88px; }
+.acc-option {
+  position: relative; overflow: hidden; width: 100%;
+  display: flex; align-items: center; gap: 14px; text-align: left;
+  padding: 14px 16px; border-radius: 16px; cursor: pointer;
+  font: inherit; color: var(--text);
+  border: 1px solid var(--hairline);
+  background: linear-gradient(160deg, rgba(16, 29, 52, 0.78), rgba(8, 15, 29, 0.72));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), border-color 0.25s, box-shadow 0.25s, background 0.25s, opacity 0.25s;
+}
+.acc-option::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.35s;
+  background: radial-gradient(420px 160px at 10% 0%, rgba(60, 118, 210, 0.16), transparent 70%);
+}
+.acc-option:hover { transform: translateY(-2px); border-color: rgba(60, 118, 210, 0.42); box-shadow: 0 16px 34px rgba(0, 0, 0, 0.35), 0 0 26px rgba(60, 118, 210, 0.08); }
+.acc-option:hover::before, .acc-option.is-open::before { opacity: 1; }
+.acc-option:active { transform: translateY(0) scale(0.992); transition-duration: 0.08s; }
+.acc-option.is-open {
+  border-color: rgba(229, 199, 131, 0.5);
+  background: linear-gradient(160deg, rgba(26, 45, 79, 0.9), rgba(10, 20, 38, 0.85));
+  box-shadow: 0 0 0 1px rgba(229, 199, 131, 0.12), 0 18px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.acc-option.is-open::after {
+  content: ""; position: absolute; left: 0; top: 18%; bottom: 18%; width: 3px; border-radius: 0 3px 3px 0;
+  background: linear-gradient(180deg, var(--gold-bright), var(--gold-deep)); box-shadow: 0 0 12px rgba(229, 199, 131, 0.5);
+}
+.acc.has-open .acc-option:not(.is-open) { opacity: 0.8; }
+.acc.has-open .acc-option:not(.is-open):hover { opacity: 1; }
+.acc-option.tone-gold:not(.is-open) { border-color: rgba(229, 199, 131, 0.28); }
+.acc-option.tone-risk:not(.is-open) { border-color: rgba(228, 124, 130, 0.4); }
+.acc-emblem { display: inline-flex; }
+.acc-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.acc-title { font-family: var(--font-brand), sans-serif; font-weight: 600; font-size: 0.98rem; color: var(--text); letter-spacing: 0.01em; }
+.acc-desc { font-size: 0.82rem; color: var(--text-3); line-height: 1.45; }
+.acc-status { margin-left: auto; font-size: 0.8rem; color: var(--text-3); white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; }
+.acc-chevron {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  border: 1px solid var(--hairline-strong); color: var(--text-3);
+  transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1), color 0.25s, border-color 0.25s, background 0.25s;
+}
+.acc-option:hover .acc-chevron { color: var(--gold-bright); border-color: rgba(229, 199, 131, 0.4); }
+.acc-option.is-open .acc-chevron { transform: rotate(180deg); color: var(--gold-bright); border-color: rgba(229, 199, 131, 0.55); background: var(--gold-soft); }
+
+.acc-panel { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.acc-panel.is-open { grid-template-rows: 1fr; }
+.acc-clip { overflow: hidden; min-height: 0; }
+.acc-body {
+  margin-top: 8px; padding: 20px; border-radius: 16px;
+  border: 1px solid rgba(229, 199, 131, 0.16);
+  background: linear-gradient(180deg, rgba(12, 22, 42, 0.82), rgba(6, 12, 25, 0.78));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  opacity: 0; transform: translateY(-8px);
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.acc-panel.is-open .acc-body { opacity: 1; transform: none; transition-delay: 0.06s; }
+.acc-body > * + * { margin-top: 14px; }
+
+/* Variante mosaico: las opciones forman una galería; el contenido se abre a todo el ancho
+   debajo de la fila de la opción elegida (grid denso). */
+.acc-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); grid-auto-flow: row dense; column-gap: 12px; row-gap: 0; }
+.acc-tiles .acc-slot { display: contents; }
+.acc-tiles .acc-h { margin-bottom: 12px; }
+.acc-tiles .acc-panel { grid-column: 1 / -1; }
+.acc-tiles .acc-panel.is-open { margin-bottom: 14px; }
+.acc-tiles .acc-panel .acc-body { margin-top: -2px; }
+.acc-tiles .acc-option { flex-direction: column; align-items: flex-start; gap: 12px; min-height: 148px; padding: 18px; }
+.acc-tiles .acc-chevron { position: absolute; top: 14px; right: 14px; }
+.acc-tiles .acc-status { margin-left: 0; margin-top: auto; }
+.acc-tiles .acc-option.is-open::after { left: 18%; right: 18%; top: auto; bottom: 0; width: auto; height: 3px; border-radius: 3px 3px 0 0; }
+
+@media (max-width: 720px) {
+  .acc-tiles { grid-template-columns: 1fr; }
+  .acc-tiles .acc-h { margin-bottom: 10px; }
+  .acc-tiles .acc-option { flex-direction: row; align-items: center; min-height: 0; padding: 14px; }
+  .acc-tiles .acc-chevron { position: static; }
+  .acc-tiles .acc-status { display: none; }
+  .acc-tiles .acc-option.is-open::after { left: 0; right: auto; top: 18%; bottom: 18%; width: 3px; height: auto; border-radius: 0 3px 3px 0; }
+  .acc-body { padding: 16px; }
+  .acc-option { padding: 13px 14px; gap: 12px; }
+  .acc-status { display: none; }
+}
+
+/* ---------- Acceso: clases que reemplazan estilos en línea ---------- */
+.pw-wrap { position: relative; }
+.pw-input { padding-right: 64px; }
+.pw-toggle {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  background: none; border: 0; padding: 6px 8px; border-radius: 8px;
+  color: var(--text-3); cursor: pointer; font: inherit; font-size: 0.78rem;
+}
+.pw-toggle:hover { color: var(--gold-bright); }
+.field-check { flex-direction: row; align-items: flex-start; gap: 10px; }
+.field-check input { margin-top: 4px; accent-color: var(--gold); }
+.field-check label { font-weight: 400; color: var(--text-3); }
+.hint-after { margin-top: 14px; font-size: 0.8rem; color: var(--text-3); }
+.hint-center { text-align: center; font-size: 0.8rem; color: var(--text-3); margin: 0 0 6px; }
+.invite-ok { margin: 0 0 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .enq-clock *, .clock-stage .enq-clock, .clock-loader, .acc-body, .btn[data-state] { animation: none !important; }
+  .enq-clock .ec-sheen { opacity: 0 !important; }
+  .acc-panel, .acc-body, .acc-option, .acc-chevron, .emblem svg { transition: none !important; }
+}
+.acc-tiles .acc-h { display: flex; }
+.acc-tiles .acc-option { height: 100%; }
+.acc-tiles .emblem { --e: 52px; }
+@media (max-width: 720px) { .acc-tiles .emblem { --e: 44px; } }

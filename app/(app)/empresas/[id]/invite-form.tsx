@@ -25,7 +25,7 @@ export function InviteForm({ companyId, allowedRoles }: { companyId: string; all
       {state?.error ? <Notice kind="error">{state.error}</Notice> : null}
       {state?.ok && state.link ? (
         <div className="alert alert-ok">
-          <p style={{ margin: "0 0 8px" }}>{state.ok}</p>
+          <p className="invite-ok">{state.ok}</p>
           <div className="copy-row">
             <input className="input mono" readOnly value={state.link} onFocus={(e) => e.currentTarget.select()} />
             <button type="button" className="btn btn-ghost btn-inline" onClick={copy}>{copied ? "Copiado" : "Copiar"}</button>

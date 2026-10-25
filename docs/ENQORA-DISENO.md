@@ -48,6 +48,16 @@ Debe transmitir inteligencia empresarial, seguridad financiera, tecnología avan
   - Tamaños normal y `btn-sm`.
 - Revelación progresiva: `Disclosure`, `Fold`, `FactTag`, `Callout`, `Evidence` y `NextAction` (ver `ENQORA-EXPERIENCIA.md`).
 - Movimiento: entrada escalonada del contenido (`rise`), apertura de secciones (`unfold`), aparición de menús (`pop`) y profundidad sutil. Todo se desactiva con `prefers-reduced-motion`.
+- Botones con siete estados: normal, hover, presionado, en ejecución (reloj ENQORA en miniatura mientras la acción real está pendiente), deshabilitado, completado y error (`SubmitButton` con `status`).
+- Emblemas 3D (`components/emblems.tsx`):
+  - Identidad propia para cada módulo, servicio y sección, con metal azul, oro, plata y luz.
+  - Composiciones isométricas que comparten materiales globales (`<EmblemDefs />` en el layout raíz).
+  - Un módulo nuevo agrega su composición; nunca se repite un dibujo cambiando solo el color.
+- EnqoraClockLoader (`components/clock-loader.tsx`):
+  - Es el indicador oficial de carga: el reloj del logotipo en vector (`components/brand/enqora-clock.tsx`), con manecillas en movimiento, reflejo en el metal, núcleo de luz azul e inclinación 3D sutil.
+  - Modos `navegacion` (cada sección tiene su `loading.tsx` con una frase propia), `datos` (en línea, sin bloquear la pantalla) e `ia` (con la descripción real del trabajo).
+  - Sin tiempos artificiales: desaparece en cuanto el contenido está listo. Queda quieto con «reducir movimiento».
+  - No se usan círculos giratorios genéricos ni íconos de librerías.
 - Barra superior: estado de seguridad, notificaciones con contador real y menú de perfil.
 - Tarjetas, paneles, formularios, tablas y listas con un solo lenguaje visual.
 - Estados obligatorios en cada pantalla: carga, éxito, error, advertencia y vacío.
@@ -96,4 +106,4 @@ El reloj ENQORA es el emblema del Centro de Control, sin distraer de las funcion
 - Hecho: ENQORA MIRROR, la Ventana de Inteligencia (`components/mirror/`): cámara de inteligencia privada con núcleo 3D real (WebGL: cristal en placas con juntas de oro líquido, luz dorada central, espacio volumétrico) sobre pedestal ENQORA, agentes con nodo propio y filamentos de energía, y lectura del caso con datos reales. Ver `ENQORA-MIRROR.md`.
 - Hecho: rediseño premium del sistema (paleta azul casi negro y oro, navegación lateral con estado activo, barra inferior en teléfono) y de Centro de control, Casos, Empresas y Seguridad.
 - Hecho: rediseño élite con revelación progresiva: barra superior limpia, bienvenida personalizada, solo indicadores importantes, mosaicos de servicios, "Explora el análisis" en MIRROR, botones premium y experiencia móvil nativa.
-- Pendiente: retirar estilos en línea que quedan en las pantallas de acceso (Etapa 1).
+- Hecho (M02): estilos en línea retirados de las pantallas de acceso; los únicos que quedan son posiciones calculadas de MIRROR.

@@ -18,7 +18,7 @@ export function RequestResetForm() {
         <input id="email" name="email" type="email" className="input" autoComplete="email" required />
       </div>
       <SubmitButton pendingText="Enviando…">Enviar enlace</SubmitButton>
-      <p className="hint" style={{ marginTop: 14, fontSize: "0.8rem", color: "var(--silver-dim)" }}>
+      <p className="hint hint-after">
         Si activaste el segundo factor, también te pediremos el código de tu aplicación autenticadora.
       </p>
     </form>
