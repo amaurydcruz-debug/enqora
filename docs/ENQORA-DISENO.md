@@ -41,7 +41,14 @@ Debe transmitir inteligencia empresarial, seguridad financiera, tecnología avan
 
 - Tokens en `app/globals.css` (`:root`). Ningún color, sombra o radio fuera de los tokens.
 - Componentes reutilizables en `components/`. No duplicar estilos por pantalla ni usar estilos en línea.
-- Botones: principal (`btn-gold`), secundario (`btn-ghost`), peligro (`btn-danger`); tamaños normal y `btn-sm`.
+- Botones:
+  - **Principal (`btn-gold`):** azul profundo, borde metálico fino (oro a azul), texto dorado, profundidad interior. Al pasar el cursor sube 1 px, brilla y recorre un reflejo; al presionar se hunde levemente.
+  - **Secundario (`btn-ghost`):** discreto, vidrio con desenfoque y borde fino.
+  - **Riesgo (`btn-danger`):** nunca dorado. Las acciones riesgosas no usan el color de la acción principal.
+  - Tamaños normal y `btn-sm`.
+- Revelación progresiva: `Disclosure`, `Fold`, `FactTag`, `Callout`, `Evidence` y `NextAction` (ver `ENQORA-EXPERIENCIA.md`).
+- Movimiento: entrada escalonada del contenido (`rise`), apertura de secciones (`unfold`), aparición de menús (`pop`) y profundidad sutil. Todo se desactiva con `prefers-reduced-motion`.
+- Barra superior: estado de seguridad, notificaciones con contador real y menú de perfil.
 - Tarjetas, paneles, formularios, tablas y listas con un solo lenguaje visual.
 - Estados obligatorios en cada pantalla: carga, éxito, error, advertencia y vacío.
 - Navegación: barra superior + navegación lateral cuando haya más de 4 secciones. Volver, Continuar y Cancelar donde corresponda.
@@ -88,4 +95,5 @@ El reloj ENQORA es el emblema del Centro de Control, sin distraer de las funcion
 - Hecho (Etapas 3 y 4): iconografía propia (`components/icons.tsx`), navegación lateral, estado de carga con el reloj ENQORA, movimiento reducido, foco visible.
 - Hecho: ENQORA MIRROR, la Ventana de Inteligencia (`components/mirror/`): cámara de inteligencia privada con núcleo 3D real (WebGL: cristal en placas con juntas de oro líquido, luz dorada central, espacio volumétrico) sobre pedestal ENQORA, agentes con nodo propio y filamentos de energía, y lectura del caso con datos reales. Ver `ENQORA-MIRROR.md`.
 - Hecho: rediseño premium del sistema (paleta azul casi negro y oro, navegación lateral con estado activo, barra inferior en teléfono) y de Centro de control, Casos, Empresas y Seguridad.
+- Hecho: rediseño élite con revelación progresiva: barra superior limpia, bienvenida personalizada, solo indicadores importantes, mosaicos de servicios, "Explora el análisis" en MIRROR, botones premium y experiencia móvil nativa.
 - Pendiente: retirar estilos en línea que quedan en las pantallas de acceso (Etapa 1).
