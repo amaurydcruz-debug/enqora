@@ -1,5 +1,5 @@
 import { Disclosure, FactTag } from "@/components/disclosure";
-import { IconActivity, IconCheck, IconDocument, IconShield, IconUsers } from "@/components/icons";
+import { Emblem } from "@/components/emblems";
 import { AGENT_KEYS, AGENTS, mirrorState, STAGES, type MirrorStep } from "@/lib/mirror";
 
 // Explorar el análisis: preguntas que el cliente puede abrir bajo demanda.
@@ -34,7 +34,7 @@ export function MirrorExplore({
       <h2 className="zone-title">Explora el análisis</h2>
       <div className="disclosures">
         <Disclosure
-          icon={<IconActivity size={18} />}
+          group="mirror-explore" emblem={<Emblem name="investigacion" size="sm" />}
           title="¿Qué está investigando ENQORA?"
           summary={`Etapa actual: ${STAGES[current].label}`}
           tone="blue"
@@ -54,7 +54,7 @@ export function MirrorExplore({
         </Disclosure>
 
         <Disclosure
-          icon={<IconDocument size={18} />}
+          group="mirror-explore" emblem={<Emblem name="documentos" size="sm" />}
           title="¿Qué documentos está revisando?"
           summary={documents.length ? (documents.length === 1 ? "1 documento en el expediente" : `${documents.length} documentos en el expediente`) : "Aún no hay documentos"}
           tone="blue"
@@ -73,7 +73,7 @@ export function MirrorExplore({
 
         {active.length ? (
           <Disclosure
-            icon={<IconUsers size={18} />}
+            group="mirror-explore" emblem={<Emblem name="agentes" size="sm" />}
             title="¿Qué agentes están trabajando?"
             summary={[counts.trabajando ? `${counts.trabajando} trabajando` : null, counts.completado ? `${counts.completado} completado${counts.completado > 1 ? "s" : ""}` : null].filter(Boolean).join(" · ") || "Con tareas registradas"}
             tone="blue"
@@ -91,7 +91,7 @@ export function MirrorExplore({
 
         {review.length ? (
           <Disclosure
-            icon={<IconCheck size={18} />}
+            group="mirror-explore" emblem={<Emblem name="diagnostico" size="sm" />}
             title="¿Qué conclusiones están pendientes?"
             summary={review.length === 1 ? "1 conclusión espera revisión profesional" : `${review.length} conclusiones esperan revisión profesional`}
             tone="gold"
@@ -110,7 +110,7 @@ export function MirrorExplore({
 
         {pendingAuthorizations ? (
           <Disclosure
-            icon={<IconShield size={18} />}
+            group="mirror-explore" emblem={<Emblem name="autorizaciones" size="sm" />}
             title="¿Qué autorizaciones se necesitan?"
             summary={pendingAuthorizations === 1 ? "1 autorización espera tu decisión" : `${pendingAuthorizations} autorizaciones esperan tu decisión`}
             tone="gold"

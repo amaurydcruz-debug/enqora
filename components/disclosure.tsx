@@ -18,6 +18,8 @@ export function Disclosure({
   summary,
   meta,
   icon,
+  emblem,
+  group,
   tone = "neutral",
   cta = "Explorar",
   open,
@@ -28,6 +30,8 @@ export function Disclosure({
   summary?: React.ReactNode;
   meta?: React.ReactNode;
   icon?: React.ReactNode;
+  emblem?: React.ReactNode; // emblema 3D ENQORA (reemplaza al icono)
+  group?: string; // mismo grupo = solo una abierta a la vez (atributo nativo «name» de <details>)
   tone?: Tone;
   cta?: string;
   open?: boolean;
@@ -35,9 +39,9 @@ export function Disclosure({
   children: React.ReactNode;
 }) {
   return (
-    <details className={`disclosure tone-${tone}`} open={open} id={id}>
+    <details className={`disclosure tone-${tone}`} open={open} id={id} {...(group ? ({ name: group } as object) : {})}>
       <summary>
-        {icon ? <span className="disc-icon" aria-hidden="true">{icon}</span> : null}
+        {emblem ? <span className="disc-emblem" aria-hidden="true">{emblem}</span> : icon ? <span className="disc-icon" aria-hidden="true">{icon}</span> : null}
         <span className="disc-text">
           <b>{title}</b>
           {summary ? <small>{summary}</small> : null}
