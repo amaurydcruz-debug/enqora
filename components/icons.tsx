@@ -105,3 +105,29 @@ export const IconSpark = (p: IconProps) => (
     <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6.3 6.3l2.5 2.5M15.2 15.2l2.5 2.5M6.3 17.7l2.5-2.5M15.2 8.8l2.5-2.5" />
   </Svg>
 );
+
+export const IconArrowRight = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </Svg>
+);
+
+export const IconPlus = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 5v14M5 12h14" />
+  </Svg>
+);
+
+export const IconMail = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="5.5" width="18" height="13" rx="2" />
+    <path d="m4 7.5 8 5.5 8-5.5" />
+  </Svg>
+);
+
+export const IconDocument = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 3h7l4 4v14H7z" />
+    <path d="M14 3v4h4M10 12h5M10 15.5h5" />
+  </Svg>
+);
