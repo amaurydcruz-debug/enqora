@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import type { Metadata } from "next";
 import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
@@ -6,6 +8,7 @@ import { Callout, Disclosure, FactTag, NextAction } from "@/components/disclosur
 import { ModuleIcon } from "@/components/module-icons";
 import { Emblem } from "@/components/emblems";
 import { clp, todayCL } from "@/lib/pricing";
+import { categoryByKey, INTENT_COOKIE } from "@/lib/discovery";
 import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
 import { acknowledgeAlertsAction } from "@/app/actions/security";
 import { activeCompany } from "@/lib/companies";
@@ -67,11 +70,14 @@ type Ev = { id: number; case_id: string; kind: string; metadata: Record<string, 
 // Centro de control: limpio por defecto. Lo importante a la vista; el detalle, cuando el cliente lo pide.
 export default async function PanelPage({ searchParams }: { searchParams: Promise<{ aviso?: string }> }) {
   const { aviso } = await searchParams;
+  // Servicio elegido en la puerta de entrada antes de registrarse.
+  const intent = categoryByKey((await cookies()).get(INTENT_COOKIE)?.value);
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
   const { active } = await activeCompany();
+  if (intent && active && active.role !== "viewer") redirect("/comenzar/continuar");
 
   const [{ count: pendingAlerts }, { data: me }] = await Promise.all([
     supabase.from("security_events").select("id", { count: "exact", head: true }).eq("event", "nuevo_dispositivo").is("acknowledged_at", null),
@@ -180,6 +186,15 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   return (
     <div className="page">
       {aviso && AVISOS[aviso] ? <Notice kind="ok">{AVISOS[aviso]}</Notice> : null}
+      {intent && !active ? (
+        <Callout
+          kind="info"
+          title={`Para comenzar con ${intent.title}, registra tu empresa`}
+          action={<Link href="/empresas/nueva" className="btn btn-gold btn-inline btn-sm">Registrar empresa</Link>}
+        >
+          Al terminar te llevaremos directo a la solicitud del servicio que elegiste.
+        </Callout>
+      ) : null}
 
       {/* Bienvenida y estado general */}
       <header className="welcome-hero">

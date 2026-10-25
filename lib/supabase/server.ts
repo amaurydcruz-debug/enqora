@@ -4,11 +4,14 @@ import { supabaseEnv } from "./env";
 
 // Cliente de Supabase para Server Components, Server Actions y Route Handlers.
 // La sesión vive en cookies httpOnly gestionadas por @supabase/ssr.
-export async function createClient() {
+// `headers` permite enviar encabezados adicionales a Supabase (p. ej., el identificador anónimo
+// del visitante para limitar consultas públicas).
+export async function createClient(options?: { headers?: Record<string, string> }) {
   const cookieStore = await cookies();
   const { url, key } = supabaseEnv();
 
   return createServerClient(url, key, {
+    ...(options?.headers ? { global: { headers: options.headers } } : {}),
     cookies: {
       getAll() {
         return cookieStore.getAll();

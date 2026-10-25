@@ -98,7 +98,8 @@ Toda información normativa registra: fuente oficial, fecha de consulta, publica
 | 4 | Núcleo operativo: equipo ENQORA, casos, tareas, expedientes y documentos (almacenamiento privado por empresa) | Hecho |
 | 5 | Centro de Mando: bandejas por perfil, aprobar / rechazar / devolver, mecanismo común de aprobaciones (casos, precios, excepciones), autorizaciones del cliente dentro del caso | Entregado (ver `ENQORA-APROBACIONES.md`) |
 | 6 | Catálogo de servicios y motor de precios: tarifas versionadas, referencias de mercado con fuente, cotizaciones, excepciones aprobadas en el Centro de Mando, aceptación del cliente | Entregado (ver `ENQORA-PRECIOS.md`) |
-| 7 | Diagnóstico gratuito + onboarding inteligente + Centro de control del cliente con su ruta | |
+| 7a | Puerta de entrada: bienvenida, consulta pública por RUT (empresas), galería de servicios y registro con el servicio elegido | Entregado (ver `ENQORA-ENTRADA.md`) |
+| 7 | Diagnóstico gratuito + onboarding inteligente + Centro de control del cliente con su ruta | Siguiente |
 | 8 | Planes y suscripciones (Plataforma y Contabilidad Profesional), propuesta mensual al cerrar un caso, pagos | |
 | 9 | Mandatos y representación; notificaciones (correo, WhatsApp) | |
 | 10 | Primer servicio completo: ENQORA CONTABILIDAD (documentos, conciliación, IVA/F29) | |
