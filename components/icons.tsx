@@ -26,6 +26,15 @@ export const IconClock = (p: IconProps) => (
   </Svg>
 );
 
+// Pagos: tarjeta con banda y chip.
+export const IconCard = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="5.5" width="18" height="13" rx="2.4" />
+    <path d="M3 9.8h18" />
+    <path d="M6.6 14.6h3.4" />
+  </Svg>
+);
+
 export const IconControl = (p: IconProps) => (
   <Svg {...p}>
     <path d="M4 15a8 8 0 1 1 16 0" />

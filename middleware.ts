@@ -38,7 +38,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Todo excepto archivos estáticos, imágenes de marca e iconos.
-    "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest|brand/).*)",
+    // Todo excepto archivos estáticos, imágenes de marca e iconos, y las rutas que llaman
+    // servidores externos sin sesión (pasarela de pago y tarea diaria), protegidas por su propia clave.
+    "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest|brand/|api/pagos/|api/cron/).*)",
   ],
 };

@@ -41,9 +41,11 @@ import { AGENT_KEYS, AGENTS, mirrorState, STAGES, type MirrorStep } from "@/lib/
 import type { Approval, ClientAuthorization } from "@/lib/approvals";
 import { quoteStatus, type MarketReference, type Quote, type Service, type Tariff } from "@/lib/pricing";
 import type { Diagnosis, Finding } from "@/lib/diagnosis";
+import { CHARGE_STATUSES, type Charge, type Plan, type PlanPrice, type PlanProposal } from "@/lib/billing";
 import { answerText, QUESTIONS, type Answers } from "@/lib/onboarding";
 import { Approvals } from "./approvals";
 import { DiagnosisEditor } from "./diagnosis-editor";
+import { PlanProposals } from "./plan-proposals";
 import { DiagnosisReport, type ServiceRef } from "./diagnosis-report";
 import { Quotes } from "./quotes";
 import { Authorizations } from "./authorizations";
@@ -94,6 +96,16 @@ const AVISOS: Record<string, string> = {
   situacion_eliminada: "Situación eliminada del borrador.",
   diagnostico_enviado: "Diagnóstico enviado a revisión profesional.",
   cotizacion_pedida: "Pediste la cotización. El equipo ENQORA la preparará y la verás en este caso.",
+  propuesta_creada: "Propuesta de plan registrada.",
+  propuesta_rechazada: "Registramos tu respuesta. Puedes contratar un plan cuando quieras desde Planes.",
+  propuesta_anulada: "Propuesta de plan anulada.",
+};
+
+const PLAN_ACTIONS: Record<string, string> = {
+  enviada: "envió una propuesta de plan mensual",
+  aceptada: "aceptó la propuesta de plan",
+  rechazada: "no aceptó la propuesta de plan",
+  anulada: "anuló la propuesta de plan",
 };
 
 const DIAG_ACTIONS: Record<string, string> = {
@@ -216,8 +228,24 @@ export default async function CasePage({
   const canCancel = !worker && !!memberRole && ["owner", "admin"].includes(memberRole) && ["recibido", "esperando_cliente"].includes(c.status);
   const myOpenTasks = tasks.filter((t) => t.assignee_id === user.id && t.status !== "hecha").length;
 
+  // Propuesta mensual y cobros del caso (M10). RLS: el cliente no recibe propuestas sin aprobar.
+  const canSeeBilling = (!!memberRole && ["owner", "admin", "accountant"].includes(memberRole)) || supervisor;
+  const [{ data: propRows }, { data: planRows }, { data: planPriceRows }, { data: chargeRows }] = await Promise.all([
+    supabase.from("plan_proposals").select("*").eq("case_id", id).order("created_at", { ascending: false }),
+    worker ? supabase.from("plans").select("*").eq("active", true).order("position") : Promise.resolve({ data: [] }),
+    worker ? supabase.from("plan_prices").select("*").eq("status", "vigente") : Promise.resolve({ data: [] }),
+    canSeeBilling ? supabase.from("charges").select("*").eq("case_id", id).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
+  ]);
+  const proposals = (propRows ?? []) as PlanProposal[];
+  const casePlans = (planRows ?? []) as Plan[];
+  const casePlanPrices = (planPriceRows ?? []) as PlanPrice[];
+  const caseCharges = (chargeRows ?? []) as Charge[];
+  const openCharges = caseCharges.filter((ch) => ["pendiente", "vencido"].includes(ch.status));
+  const openProposals = proposals.filter((pp) => pp.status === "enviada");
+
   // Nombres de las personas que aparecen en el caso.
   const people = new Set<string>();
+  proposals.forEach((pp) => pp.decided_by && people.add(pp.decided_by));
   events.forEach((e) => e.actor_id && people.add(e.actor_id));
   tasks.forEach((t) => t.assignee_id && people.add(t.assignee_id));
   docs.forEach((d) => d.uploaded_by && people.add(d.uploaded_by));
@@ -309,6 +337,10 @@ export default async function CasePage({
         return `${QUOTE_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una cotización"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
       case "diagnostico":
         return `${DIAG_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó el diagnóstico"}${e.metadata?.accion === "cotizacion_solicitada" ? ` «${e.metadata?.titulo ?? e.body ?? ""}»` : e.metadata?.version ? ` (versión ${e.metadata.version})` : ""}`;
+      case "plan":
+        return `${PLAN_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó la propuesta de plan"}${e.metadata?.titulo || e.body ? ` «${e.metadata?.titulo ?? e.body}»` : ""}`;
+      case "pago":
+        return `registró el pago del cobro ${e.metadata?.folio ?? ""}`;
       case "autorizacion":
         return `${AUTH_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una autorización"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
       default:
@@ -332,6 +364,7 @@ export default async function CasePage({
   const openQuotes = quotes.filter((q) => quoteStatus(q) === "enviada");
   const reviewQuotes = quotes.filter((q) => q.status === "pendiente_aprobacion" || q.status === "observada");
   const canDecide = !!memberRole && ["owner", "admin"].includes(memberRole);
+
   const { agents } = mirrorState(steps, c.status);
   const agentCount = (st: string) => AGENT_KEYS.filter((k) => agents[k] === st).length;
   const agentSummary = [
@@ -362,6 +395,7 @@ export default async function CasePage({
     cotizacion_creada: "cotizacion", cotizacion_aceptada: "cotizacion", cotizacion_rechazada: "cotizacion", cotizacion_anulada: "cotizacion",
     diagnostico_solicitado: "diagnostico", diagnostico_borrador: "diagnostico", diagnostico_guardado: "diagnostico",
     situacion_guardada: "diagnostico", situacion_eliminada: "diagnostico", diagnostico_enviado: "diagnostico", cotizacion_pedida: "diagnostico",
+    propuesta_creada: "plan", propuesta_rechazada: "plan", propuesta_anulada: "plan",
   };
 
   const timeline = (
@@ -733,6 +767,31 @@ export default async function CasePage({
         />
       ),
     },
+    ...(proposals.length || (worker && ["verificacion", "cerrado"].includes(c.status))
+      ? [{
+          id: "plan",
+          aliases: ["propuesta"],
+          title: "Plan mensual",
+          emblem: <Emblem name="planes" size="sm" />,
+          tone: (openProposals.length && canDecide ? "gold" : "default") as AccordionItem["tone"],
+          status: openProposals.length
+            ? <span className="status status-gold">Propuesta por decidir</span>
+            : <span>{proposals.some((pp) => pp.status === "aceptada") ? "Contratado" : proposals.length ? `${proposals.length} propuesta${proposals.length === 1 ? "" : "s"}` : "Sin propuesta"}</span>,
+          content: (
+            <PlanProposals
+              caseId={c.id}
+              proposals={proposals}
+              plans={casePlans}
+              prices={casePlanPrices}
+              names={names}
+              worker={worker}
+              canDecide={canDecide}
+              canPropose={["verificacion", "cerrado"].includes(c.status)}
+              isAgent={staffRole === "ai_agent"}
+            />
+          ),
+        } satisfies AccordionItem]
+      : []),
     {
       id: "proximas",
       aliases: ["autorizaciones", "aprobaciones"],
@@ -869,6 +928,24 @@ export default async function CasePage({
             action={<a href="#cotizacion" className="btn btn-gold btn-inline btn-sm">Ver cotización</a>}
           >
             Revisa el alcance, el precio y las condiciones antes de decidir.
+          </Callout>
+        ) : null}
+        {openProposals.length && canDecide ? (
+          <Callout
+            kind="info"
+            title="ENQORA te propone un plan mensual"
+            action={<a href="#plan" className="btn btn-ghost btn-inline btn-sm">Ver propuesta</a>}
+          >
+            Basado en lo que se resolvió en este caso y en las obligaciones que continúan. Tú decides.
+          </Callout>
+        ) : null}
+        {openCharges.length && !worker ? (
+          <Callout
+            kind="warn"
+            title={openCharges.length === 1 ? `Cobro ${openCharges[0].folio}: ${CHARGE_STATUSES[openCharges[0].status].label.toLowerCase()}` : `${openCharges.length} cobros por pagar en este caso`}
+            action={<Link href="/facturacion#cobros" className="btn btn-gold btn-inline btn-sm">Pagar</Link>}
+          >
+            Corresponde a la cotización aceptada. Puedes pagar en línea o por transferencia.
           </Callout>
         ) : null}
         {myOpenTasks && !worker ? (

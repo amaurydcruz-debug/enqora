@@ -436,6 +436,45 @@ const GLYPHS = {
       <circle cx={34} cy={14} r={8} fill="none" stroke="rgba(229,199,131,0.4)" strokeWidth={0.6} />
     </>
   ),
+  // Planes y pagos (M10)
+  planes: () => (
+    <>
+      <g transform="translate(4.3 9) scale(0.82)">
+      <Glow cx={24} cy={26} r={16} />
+      <Box x={-10} y={-10} w={20} d={20} h={3} />
+      <Box x={-7} y={-7} z={3} w={14} d={14} h={3} />
+      <Box x={-4} y={-4} z={6} w={8} d={8} h={4} top="url(#eq-gold)" left="url(#eq-gold-side)" right="url(#eq-gold-deep)" />
+      <Spark x={24} y={4.5} r={1.5} />
+      </g>
+    </>
+  ),
+  pagos: () => (
+    <>
+      <Glow cx={24} cy={27} r={16} />
+      <g transform="translate(2 4)">
+        <Box x={-10} y={-6} w={20} d={13} h={1.4} top="url(#eq-silver)" />
+        <Box x={-7} y={-4} z={1.4} w={4} d={3} h={0.6} top="url(#eq-gold)" left="url(#eq-gold-side)" right="url(#eq-gold-deep)" />
+        <polyline points={pts([iso(-9, 3, 1.5), iso(9, 3, 1.5)])} stroke="rgba(110,85,48,0.65)" strokeWidth={1.1} fill="none" />
+      </g>
+      <Disc cx={33} cy={33} rx={6.5} ry={2.6} h={2.4} />
+      <path d="M31.4 33 h3.2" stroke="rgba(110,85,48,0.9)" strokeWidth={0.8} strokeLinecap="round" />
+    </>
+  ),
+  cobros: () => (
+    <>
+      <Glow cx={24} cy={26} r={15} />
+      <g transform="translate(0 2)">
+        <Sheet x={-7} y={-6} z={0} w={13} d={16} />
+        <Sheet x={-7} y={-6} z={2} w={13} d={16} />
+        <Sheet x={-7} y={-6} z={4} w={13} d={16} />
+        {[0, 3, 6].map((k) => (
+          <polyline key={k} points={pts([iso(-4, -3 + k, 4.9), iso(3, -3 + k, 4.9)])} stroke="rgba(120,140,170,0.75)" strokeWidth={0.6} fill="none" />
+        ))}
+      </g>
+      <Disc cx={33} cy={31} rx={6} ry={2.4} h={2.4} />
+      <Disc cx={33} cy={27.5} rx={6} ry={2.4} h={2.4} />
+    </>
+  ),
 } satisfies Record<string, Glyph>;
 
 export type EmblemKey = keyof typeof GLYPHS;
@@ -448,6 +487,8 @@ const ALIAS: Record<string, EmblemKey> = {
   historial: "mensajes",
   "seguridad-empresa": "seguridad",
   actividad_reciente: "actividad",
+  facturacion: "pagos",
+  suscripcion: "planes",
 };
 export const isEmblem = (v: string): v is EmblemKey => v in GLYPHS || v in ALIAS;
 
