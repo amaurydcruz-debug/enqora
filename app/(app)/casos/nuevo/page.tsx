@@ -15,15 +15,17 @@ export default async function NewCasePage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="page narrow">
-      <div className="page-head">
-        <span className="eyebrow">Casos · {active.trade_name || active.legal_name}</span>
-        <h1>Nueva solicitud</h1>
-        <p>Explícalo con tus palabras. El equipo ENQORA investigará, te pedirá solo lo necesario y te mantendrá informado.</p>
-      </div>
-      <section className="card">
+      <Link href="/casos" className="back-link"><span aria-hidden="true">←</span> Tus solicitudes</Link>
+      <header className="hero">
+        <div className="hero-main">
+          <span className="eyebrow">Casos · {active.trade_name || active.legal_name}</span>
+          <h1>Nueva solicitud</h1>
+          <p className="hero-lead">Explícalo con tus palabras. El equipo ENQORA investigará, te pedirá solo lo necesario y te mantendrá informado.</p>
+        </div>
+      </header>
+      <section className="card form-card">
         <NewCaseForm companyId={active.id} defaultModule={isModule(modulo) ? modulo : "contabilidad"} />
       </section>
-      <p><Link href="/casos">← Volver a tus solicitudes</Link></p>
     </div>
   );
 }
