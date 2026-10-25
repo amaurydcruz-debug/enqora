@@ -98,16 +98,40 @@ export default async function SecurityPage({
   const pending = events.filter((e) => e.event === "nuevo_dispositivo" && !e.acknowledged_at);
   const others = sessions.filter((s) => !s.is_current);
 
+  const verified = !!user?.email_confirmed_at;
+
   return (
-    <div className="stack">
-      <div className="page-head">
-        <span className="eyebrow">ENQORA Shield</span>
-        <h1>Seguridad de la cuenta</h1>
-        <p>Controla quién y desde dónde se accede a ENQORA con tu cuenta.</p>
-      </div>
+    <div className="page">
+      <header className="hero">
+        <div className="hero-main">
+          <span className="eyebrow">ENQORA Shield</span>
+          <h1>Centro de seguridad</h1>
+          <p className="hero-lead">Controla quién y desde dónde se accede a ENQORA con tu cuenta.</p>
+        </div>
+      </header>
 
       {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
       {messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null}
+
+      {/* Estado de protección */}
+      <div className="shield-status" role="list" aria-label="Estado de protección">
+        <div className={`shield-item ${verified ? "is-ok" : "is-warn"}`} role="listitem">
+          <IconCheck size={18} />
+          <span><small>Correo</small><b>{verified ? "Verificado" : "Pendiente"}</b></span>
+        </div>
+        <div className={`shield-item ${totp.length ? "is-ok" : "is-warn"}`} role="listitem">
+          <IconShield size={18} />
+          <span><small>Dos pasos</small><b>{totp.length ? "Activo" : "Sin configurar"}</b></span>
+        </div>
+        <div className="shield-item" role="listitem">
+          <IconDevice size={18} />
+          <span><small>Sesiones abiertas</small><b>{sessionsAvailable ? sessions.length : "—"}</b></span>
+        </div>
+        <div className={`shield-item ${pending.length ? "is-warn" : "is-ok"}`} role="listitem">
+          <IconAlert size={18} />
+          <span><small>Alertas</small><b>{pending.length ? `${pending.length} por revisar` : "Ninguna"}</b></span>
+        </div>
+      </div>
 
       {pending.length ? (
         <div className="alert alert-warn alert-row" role="alert">
@@ -115,8 +139,9 @@ export default async function SecurityPage({
           <div>
             <b>{pending.length === 1 ? "Nuevo ingreso detectado" : `${pending.length} ingresos nuevos detectados`}</b>
             <p>
-              {pending.map((e) => `${deviceLabel(e.user_agent)} · ${fmt(e.created_at)}`).join(" — ")}. Si no fuiste tú,
-              cambia tu contraseña y cierra las demás sesiones.
+              {pending.map((e) => `${deviceLabel(e.user_agent)} · ${fmt(e.created_at)}`).join(" — ")}
+              <br />
+              Si no fuiste tú, cambia tu contraseña y cierra las demás sesiones.
             </p>
           </div>
           <form action={acknowledgeAlertsAction}>
@@ -126,133 +151,178 @@ export default async function SecurityPage({
         </div>
       ) : null}
 
-      <div className="grid">
-        <section className="card">
-          <h2 className="card-title"><IconShield /> Tu identidad</h2>
-          <div className="row"><span>Correo</span><span>{user?.email}</span></div>
-          <div className="row">
-            <span>Correo confirmado</span>
-            <span className={`badge ${user?.email_confirmed_at ? "badge-ok" : "badge-warn"}`}>
-              {user?.email_confirmed_at ? "Sí" : "Pendiente"}
-            </span>
+      <nav className="anchor-nav" aria-label="Secciones de seguridad">
+        <a href="#identidad">Identidad</a>
+        <a href="#dos-pasos">Dos pasos</a>
+        <a href="#sesiones">Sesiones</a>
+        <a href="#dispositivos">Dispositivos</a>
+        <a href="#actividad">Actividad</a>
+        <a href="#clave">Contraseña</a>
+      </nav>
+
+      <div className="settings">
+        <section className="setting" id="identidad">
+          <div className="setting-head">
+            <h2><IconShield size={18} /> Identidad</h2>
+            <p>La cuenta con la que ingresas a ENQORA.</p>
           </div>
-          <div className="row"><span>Último ingreso</span><span>{fmt(user?.last_sign_in_at)}</span></div>
-        </section>
-
-        <section className="card">
-          <h2 className="card-title"><IconCheck /> Verificación en dos pasos</h2>
-          {totp.map((f) => (
-            <div className="row" key={f.id}>
-              <span>{f.friendly_name ?? "Aplicación autenticadora"}</span>
-              <span className="badge badge-ok">Activo</span>
+          <dl className="setting-body facts">
+            <div><dt>Correo</dt><dd>{user?.email}</dd></div>
+            <div>
+              <dt>Verificación del correo</dt>
+              <dd><span className={`status status-${verified ? "ok" : "warn"}`}>{verified ? "Verificado" : "Pendiente"}</span></dd>
             </div>
-          ))}
-          <p className="mt-12">Las passkeys (huella o Face ID) se añadirán como método adicional en una próxima etapa.</p>
+            <div><dt>Último acceso</dt><dd>{fmt(user?.last_sign_in_at)}</dd></div>
+          </dl>
         </section>
-      </div>
 
-      <section className="card" id="sesiones">
-        <h2 className="card-title"><IconDevice /> Sesiones abiertas</h2>
-        <p>Dispositivos con una sesión activa en tu cuenta. Cerrar una sesión pide confirmar tu identidad.</p>
-        {sessionsAvailable ? (
-          <ul className="member-list">
-            {sessions.map((s) => (
-              <li key={s.id} className="member">
-                <div className="member-who">
-                  <b>
-                    {deviceLabel(s.user_agent)}{" "}
-                    {s.is_current ? <span className="badge badge-ok">Esta sesión</span> : null}
-                  </b>
-                  <span className="muted-line">
-                    Última actividad {fmt(s.last_active)} · inicio {fmt(s.created_at)}
-                    {s.ip ? ` · IP ${s.ip}` : ""}
-                  </span>
-                </div>
-                {!s.is_current ? (
-                  <form action={revokeSessionAction}>
-                    <input type="hidden" name="session_id" value={s.id} />
-                    <ConfirmSubmit message="¿Cerrar esta sesión? Ese dispositivo deberá ingresar de nuevo.">Cerrar</ConfirmSubmit>
-                  </form>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <Notice kind="info">La lista de sesiones no está disponible en este momento.</Notice>
-        )}
-        <div className="actions-row">
-          {others.length ? (
-            <form action={revokeOtherSessionsAction}>
-              <ConfirmSubmit message="¿Cerrar todas las demás sesiones? Solo quedará abierta esta.">
-                Cerrar las demás sesiones
-              </ConfirmSubmit>
-            </form>
-          ) : null}
-          <form action={signOutAction}>
-            <input type="hidden" name="scope" value="global" />
-            <ConfirmSubmit message="¿Cerrar sesión en todos los dispositivos, incluido este?" pendingText="Cerrando…">
-              <IconLogout size={16} /> Salir de todos los dispositivos
-            </ConfirmSubmit>
-          </form>
-        </div>
-      </section>
-
-      <div className="grid grid-wide">
-        <section className="card" id="dispositivos">
-          <h2 className="card-title"><IconDevice /> Dispositivos conocidos</h2>
-          <p>Navegadores desde los que ingresaste. Si uno nuevo ingresa a tu cuenta, te avisaremos.</p>
-          {devices.length ? (
-            <ul className="member-list">
-              {devices.map((d) => (
-                <li key={d.id} className="member">
-                  <div className="member-who">
-                    <b>{d.label}</b>
-                    <span className="muted-line">
-                      Último uso {fmt(d.last_seen)} · desde {fmt(d.first_seen)}
-                      {d.last_ip ? ` · IP ${d.last_ip}` : ""}
+        <section className="setting" id="dos-pasos">
+          <div className="setting-head">
+            <h2><IconCheck size={18} /> Verificación en dos pasos</h2>
+            <p>Cada ingreso exige un código de tu aplicación autenticadora.</p>
+          </div>
+          <div className="setting-body">
+            {totp.length ? (
+              <ul className="rows">
+                {totp.map((f) => (
+                  <li key={f.id} className="row-item">
+                    <span className="row-icon"><IconKey size={18} /></span>
+                    <span className="row-text">
+                      <b>{f.friendly_name ?? "Aplicación autenticadora"}</b>
+                      <small>Código de 6 dígitos (TOTP)</small>
                     </span>
-                  </div>
-                  <form action={forgetDeviceAction}>
-                    <input type="hidden" name="device_id" value={d.id} />
-                    <ConfirmSubmit message={`¿Olvidar ${d.label}? Si vuelve a ingresar, te avisaremos.`} variant="ghost">
-                      Olvidar
-                    </ConfirmSubmit>
-                  </form>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted-line">Se registrarán a partir de tu próximo ingreso.</p>
-          )}
+                    <span className="status status-ok">Activo</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty-inline">No hay métodos activos.</p>
+            )}
+            <p className="note">Las passkeys (huella o Face ID) se añadirán como método adicional en una próxima etapa.</p>
+          </div>
         </section>
 
-        <section className="card" id="actividad">
-          <h2 className="card-title"><IconActivity /> Actividad de seguridad</h2>
-          <p>Registro de tu cuenta. No se puede modificar ni borrar.</p>
-          {events.length ? (
-            <ul className="audit-list">
-              {events.map((e) => (
-                <li key={e.id}>
-                  <span className="audit-when">{fmt(e.created_at)}</span>
-                  <span>
-                    <b className={e.event === "nuevo_dispositivo" ? "text-warn" : undefined}>{EVENTOS[e.event] ?? e.event}</b>
-                    {e.user_agent ? ` · ${deviceLabel(e.user_agent)}` : ""}
-                    {e.ip ? ` · IP ${e.ip}` : ""}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="muted-line">Sin actividad registrada todavía.</p>
-          )}
+        <section className="setting" id="sesiones">
+          <div className="setting-head">
+            <h2><IconDevice size={18} /> Sesiones abiertas</h2>
+            <p>Dispositivos con una sesión activa en tu cuenta. Cerrar una sesión pide confirmar tu identidad.</p>
+          </div>
+          <div className="setting-body">
+            {sessionsAvailable ? (
+              <ul className="rows">
+                {sessions.map((s) => (
+                  <li key={s.id} className={`row-item${s.is_current ? " is-current" : ""}`}>
+                    <span className="row-icon"><IconDevice size={18} /></span>
+                    <span className="row-text">
+                      <b>{deviceLabel(s.user_agent)}</b>
+                      <small>
+                        Última actividad {fmt(s.last_active)} · inicio {fmt(s.created_at)}
+                        {s.ip ? ` · IP ${s.ip}` : ""}
+                      </small>
+                    </span>
+                    {s.is_current ? (
+                      <span className="status status-ok">Esta sesión</span>
+                    ) : (
+                      <form action={revokeSessionAction}>
+                        <input type="hidden" name="session_id" value={s.id} />
+                        <ConfirmSubmit message="¿Cerrar esta sesión? Ese dispositivo deberá ingresar de nuevo." variant="ghost">Cerrar</ConfirmSubmit>
+                      </form>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <Notice kind="info">La lista de sesiones no está disponible en este momento.</Notice>
+            )}
+            <div className="setting-actions">
+              {others.length ? (
+                <form action={revokeOtherSessionsAction}>
+                  <ConfirmSubmit message="¿Cerrar todas las demás sesiones? Solo quedará abierta esta.">
+                    Cerrar las demás sesiones
+                  </ConfirmSubmit>
+                </form>
+              ) : null}
+              <form action={signOutAction}>
+                <input type="hidden" name="scope" value="global" />
+                <ConfirmSubmit message="¿Cerrar sesión en todos los dispositivos, incluido este?" pendingText="Cerrando…">
+                  <IconLogout size={16} /> Salir de todos los dispositivos
+                </ConfirmSubmit>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <section className="setting" id="dispositivos">
+          <div className="setting-head">
+            <h2><IconDevice size={18} /> Dispositivos conocidos</h2>
+            <p>Navegadores desde los que ingresaste. Si uno nuevo ingresa a tu cuenta, te avisaremos.</p>
+          </div>
+          <div className="setting-body">
+            {devices.length ? (
+              <ul className="rows">
+                {devices.map((d) => (
+                  <li key={d.id} className="row-item">
+                    <span className="row-icon"><IconDevice size={18} /></span>
+                    <span className="row-text">
+                      <b>{d.label}</b>
+                      <small>
+                        Último uso {fmt(d.last_seen)} · desde {fmt(d.first_seen)}
+                        {d.last_ip ? ` · IP ${d.last_ip}` : ""}
+                      </small>
+                    </span>
+                    <form action={forgetDeviceAction}>
+                      <input type="hidden" name="device_id" value={d.id} />
+                      <ConfirmSubmit message={`¿Olvidar ${d.label}? Si vuelve a ingresar, te avisaremos.`} variant="ghost">
+                        Olvidar
+                      </ConfirmSubmit>
+                    </form>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="empty-inline">Se registrarán a partir de tu próximo ingreso.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="setting" id="actividad">
+          <div className="setting-head">
+            <h2><IconActivity size={18} /> Actividad de seguridad</h2>
+            <p>Registro de tu cuenta. No se puede modificar ni borrar.</p>
+          </div>
+          <div className="setting-body">
+            {events.length ? (
+              <ol className="feed feed-wide">
+                {events.map((e) => (
+                  <li key={e.id} className={e.event === "nuevo_dispositivo" && !e.acknowledged_at ? "is-warn" : undefined}>
+                    <span className="feed-dot" aria-hidden="true" />
+                    <span className="feed-text">
+                      <b>{EVENTOS[e.event] ?? e.event}</b>
+                      <small>
+                        {fmt(e.created_at)}
+                        {e.user_agent ? ` · ${deviceLabel(e.user_agent)}` : ""}
+                        {e.ip ? ` · IP ${e.ip}` : ""}
+                      </small>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <p className="empty-inline">Sin actividad registrada todavía.</p>
+            )}
+          </div>
+        </section>
+
+        <section className="setting" id="clave">
+          <div className="setting-head">
+            <h2><IconKey size={18} /> Cambiar contraseña</h2>
+            <p>Por seguridad te pediremos un código nuevo de tu aplicación autenticadora.</p>
+          </div>
+          <div className="setting-body setting-form">
+            <ChangePasswordForm />
+          </div>
         </section>
       </div>
-
-      <section className="card card-narrow" id="clave">
-        <h2 className="card-title"><IconKey /> Cambiar contraseña</h2>
-        <p>Por seguridad te pediremos un código nuevo de tu aplicación autenticadora.</p>
-        <ChangePasswordForm />
-      </section>
     </div>
   );
 }
