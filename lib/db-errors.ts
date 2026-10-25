@@ -33,6 +33,12 @@ const MESSAGES: Record<string, string> = {
   ENQ_FALTA_MOTIVO_DESCUENTO: "Todo descuento necesita un motivo (mínimo 10 caracteres).",
   ENQ_DEMASIADAS_CONSULTAS: "Hiciste muchas consultas seguidas. Intenta nuevamente en una hora.",
   ENQ_COTIZACION_VENCIDA: "La validez de esta cotización terminó. Pide al equipo ENQORA una nueva.",
+  ENQ_FALTA_ONBOARDING: "Antes de pedir tu diagnóstico gratuito, responde las preguntas sobre tu empresa.",
+  ENQ_DIAGNOSTICO_YA_USADO: "Tu empresa ya usó su diagnóstico gratuito. Puedes crear una nueva solicitud cuando quieras.",
+  ENQ_DIAGNOSTICO_INCOMPLETO: "Para enviar el diagnóstico agrega el resumen, el nivel de certeza y al menos una situación.",
+  ENQ_DIAGNOSTICO_NO_EDITABLE: "Este diagnóstico ya no se puede editar: está en revisión o fue entregado. Abre una nueva versión.",
+  ENQ_FUENTE_INVALIDA: "Revisa las fuentes: cada una necesita un título y, si tiene enlace, debe comenzar con https://.",
+  ENQ_YA_SOLICITADA: "Ya lo solicitaste. El equipo ENQORA te enviará la cotización en este caso.",
 };
 
 export function dbCode(error: DbErr): string | null {

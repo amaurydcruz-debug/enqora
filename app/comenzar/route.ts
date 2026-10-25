@@ -14,9 +14,9 @@ export async function GET(request: NextRequest) {
   const dest = request.nextUrl.clone();
   dest.search = "";
   if (user) {
-    // Ya tiene cuenta: directo a la solicitud con el servicio elegido.
-    dest.pathname = "/casos/nuevo";
-    if (category) dest.searchParams.set("modulo", category.module);
+    // Ya tiene cuenta: al diagnóstico gratuito con el servicio elegido.
+    dest.pathname = "/diagnostico";
+    if (category) dest.searchParams.set("servicio", category.key);
     return NextResponse.redirect(dest);
   }
 

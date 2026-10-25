@@ -19,6 +19,7 @@ const VIEWS = {
   aprobaciones: "Por aprobar",
   mios: "Mis casos",
   revision: "En revisión profesional",
+  diagnosticos: "Diagnósticos gratuitos",
   cliente: "Esperando al cliente",
   activos: "Todos los activos",
   sin_asignar: "Sin responsable",
@@ -79,6 +80,7 @@ export default async function CommandCenterPage({
     .filter((c) => {
       if (view === "mios") return mine.has(c.id) && !CLOSED.includes(c.status);
       if (view === "revision") return c.status === "revision_profesional";
+      if (view === "diagnosticos") return (c as { origin?: string }).origin === "diagnostico_gratuito" && !CLOSED.includes(c.status);
       if (view === "cliente") return ["esperando_cliente", "autorizacion_cliente"].includes(c.status);
       if (view === "sin_asignar") return !c.responsible_id && !CLOSED.includes(c.status);
       if (view === "cerrados") return CLOSED.includes(c.status);
@@ -167,7 +169,10 @@ export default async function CommandCenterPage({
                   <span className="cl-id mono">{c.folio}</span>
                   <span className="cl-main">
                     <b>{c.title}</b>
-                    <small>{MODULES[c.module]?.name ?? c.module} · {companies.get(c.company_id) ?? "—"}</small>
+                    <small>
+                      {(c as { origin?: string }).origin === "diagnostico_gratuito" ? "Diagnóstico gratuito · " : ""}
+                      {MODULES[c.module]?.name ?? c.module} · {companies.get(c.company_id) ?? "—"}
+                    </small>
                   </span>
                   <span className="cl-state">
                     <span className={`status status-${statusTone(c.status)}`}>{statusLabel(c.status)}</span>

@@ -82,4 +82,4 @@ Las preguntas aparecen solo si corresponden a su caso:
 
 ## Informes interactivos
 
-Los informes de diagnóstico se presentarán como situaciones numeradas ("Situación 01", con la acción "Ver análisis"), usando `Disclosure`, `FactTag`, `Evidence` y `NextAction`. Se activan cuando exista el diagnóstico real (Etapa 7). Hasta entonces no se muestran situaciones de ejemplo.
+Los informes de diagnóstico se presentarán como situaciones numeradas ("Situación 01", con la acción "Ver análisis"), usando `Disclosure`, `FactTag`, `Evidence` y `NextAction`. Activos desde la Etapa 7 (ver `ENQORA-DIAGNOSTICO.md`): solo muestran situaciones reales aprobadas por un profesional.

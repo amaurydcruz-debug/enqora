@@ -56,7 +56,7 @@ export function AgentsPanel({ steps, caseStatus }: { steps: MirrorStep[]; caseSt
                       {review.length
                         ? "La revisión de un profesional autorizado."
                         : caseStatus === "esperando_cliente"
-                          ? "Antecedentes tuyos: revisa las tareas pendientes del caso."
+                          ? "Tu respuesta: revisa el diagnóstico, las tareas y los mensajes del caso."
                           : "Nada pendiente de tu parte."}
                     </dd>
                   </div>
