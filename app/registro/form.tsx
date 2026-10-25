@@ -18,9 +18,9 @@ export function SignUpForm() {
       </div>
       <PasswordField withMeter />
       <PasswordField name="confirm" label="Repite la contraseña" />
-      <div className="field" style={{ flexDirection: "row", alignItems: "flex-start", gap: 10 }}>
-        <input id="terms" name="terms" type="checkbox" required style={{ marginTop: 4 }} />
-        <label htmlFor="terms" style={{ fontWeight: 400, color: "var(--silver-dim)" }}>
+      <div className="field field-check">
+        <input id="terms" name="terms" type="checkbox" required />
+        <label htmlFor="terms">
           Acepto que ENQORA trate mis datos para crear, verificar y proteger mi cuenta.
         </label>
       </div>

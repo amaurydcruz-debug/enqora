@@ -24,28 +24,25 @@ export function PasswordField({
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <div style={{ position: "relative" }}>
+      <div className="pw-wrap">
         <input
           id={id}
           name={name}
           type={show ? "text" : "password"}
-          className="input"
+          className="input pw-input"
           autoComplete={autoComplete}
           required
           minLength={withMeter ? PASSWORD_MIN : undefined}
           maxLength={PASSWORD_MAX}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          style={{ paddingRight: 64 }}
         />
         <button
           type="button"
           onClick={() => setShow((s) => !s)}
           aria-label={show ? "Ocultar contraseña" : "Mostrar contraseña"}
-          style={{
-            position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)",
-            background: "none", border: 0, color: "var(--silver-dim)", cursor: "pointer", fontSize: "0.78rem",
-          }}
+          aria-pressed={show}
+          className="pw-toggle"
         >
           {show ? "Ocultar" : "Ver"}
         </button>

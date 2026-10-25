@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
+import { EmblemDefs } from "@/components/emblems";
 import "./globals.css";
 
 const body = Inter({ subsets: ["latin"], variable: "--font-body", display: "swap" });
@@ -19,7 +20,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es-CL" className={`${body.variable} ${brand.variable}`}>
-      <body>{children}</body>
+      <body>
+        <EmblemDefs />
+        {children}
+      </body>
     </html>
   );
 }

@@ -34,7 +34,7 @@ export function EnrollTotp() {
       <div className="qr-box">
         <img src={current.qr} alt="Código QR para tu aplicación autenticadora" />
       </div>
-      <p className="hint" style={{ textAlign: "center", fontSize: "0.8rem", color: "var(--silver-dim)", margin: "0 0 6px" }}>
+      <p className="hint hint-center">
         ¿No puedes escanear? Ingresa esta clave manualmente:
       </p>
       <div className="secret">{current.secret}</div>

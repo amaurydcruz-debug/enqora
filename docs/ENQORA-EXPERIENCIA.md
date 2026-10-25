@@ -46,6 +46,18 @@ Otros componentes de la experiencia:
 
 Todos se construyen sobre `<details>/<summary>` nativos: accesibles con teclado y lector de pantalla, y funcionan sin JavaScript.
 
+## Panel de opciones (`components/accordion.tsx`)
+
+Componente oficial para mostrar información bajo demanda en toda ENQORA, salvo el Centro de control y Casos, que mantienen su organización.
+
+- **Una sola opción abierta por grupo.** Abrir otra cierra la anterior; tocar la abierta la cierra.
+- **Estado real de la interfaz**, reflejado en la URL (`#miembros`) para poder enlazar directo a una opción.
+- **Variante `tiles`:** mosaico de opciones; el contenido se despliega a todo el ancho bajo la fila elegida. En teléfono pasa a lista vertical.
+- **Variante `list`:** lista vertical.
+- **Cada opción tiene:** emblema propio, título, descripción breve, estado opcional e indicador de apertura.
+- **Contenido montado pero inerte** mientras está cerrado: los formularios no pierden lo escrito.
+- **Accesible:** botones con `aria-expanded`, regiones con nombre y navegación con flechas.
+
 ## Aplicación por pantalla
 
 | Pantalla | Visible siempre | Bajo demanda |

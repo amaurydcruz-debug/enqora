@@ -152,7 +152,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
     const n = activeByModule.get(m) ?? 0;
     return (
       <li className={`module${n ? " is-live" : ""}`}>
-        <span className="module-icon"><ModuleIcon module={m} /></span>
+        <ModuleIcon module={m} size="lg" />
         <span className="module-name">{MODULES[m].name.replace("ENQORA ", "")}</span>
         <span className="module-state">{n ? (n === 1 ? "1 caso activo" : `${n} casos activos`) : "Disponible"}</span>
         <span className="module-help">{MODULES[m].help}</span>
