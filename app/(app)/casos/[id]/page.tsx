@@ -40,7 +40,11 @@ import { MirrorStage } from "@/components/mirror/mirror-stage";
 import { AGENT_KEYS, AGENTS, mirrorState, STAGES, type MirrorStep } from "@/lib/mirror";
 import type { Approval, ClientAuthorization } from "@/lib/approvals";
 import { quoteStatus, type MarketReference, type Quote, type Service, type Tariff } from "@/lib/pricing";
+import type { Diagnosis, Finding } from "@/lib/diagnosis";
+import { answerText, QUESTIONS, type Answers } from "@/lib/onboarding";
 import { Approvals } from "./approvals";
+import { DiagnosisEditor } from "./diagnosis-editor";
+import { DiagnosisReport, type ServiceRef } from "./diagnosis-report";
 import { Quotes } from "./quotes";
 import { Authorizations } from "./authorizations";
 import { CommentForm } from "./comment-form";
@@ -83,6 +87,20 @@ const AVISOS: Record<string, string> = {
   cotizacion_aceptada: "Cotización aceptada. Quedó registrada con su versión y precio.",
   cotizacion_rechazada: "Registramos que no aceptas la cotización. El equipo la revisará contigo.",
   cotizacion_anulada: "Cotización anulada.",
+  diagnostico_solicitado: "Recibimos tu solicitud de diagnóstico gratuito. El equipo ENQORA la revisará y te avisará aquí cuando el informe esté listo.",
+  diagnostico_borrador: "Borrador del diagnóstico abierto.",
+  diagnostico_guardado: "Resumen del diagnóstico guardado.",
+  situacion_guardada: "Situación guardada en el borrador.",
+  situacion_eliminada: "Situación eliminada del borrador.",
+  diagnostico_enviado: "Diagnóstico enviado a revisión profesional.",
+  cotizacion_pedida: "Pediste la cotización. El equipo ENQORA la preparará y la verás en este caso.",
+};
+
+const DIAG_ACTIONS: Record<string, string> = {
+  solicitado: "solicitó el diagnóstico gratuito",
+  borrador: "abrió un borrador del diagnóstico",
+  publicado: "entregó el diagnóstico",
+  cotizacion_solicitada: "pidió cotizar la situación",
 };
 
 const APPROVAL_ACTIONS: Record<string, string> = {
@@ -163,6 +181,19 @@ export default async function CasePage({
     // RLS: el cliente solo recibe las cotizaciones ya enviadas.
     supabase.from("quotes").select("*").eq("case_id", id).order("created_at", { ascending: false }),
   ]);
+  // Diagnóstico (RLS: el cliente solo recibe la versión publicada).
+  const { data: diagRows } = await supabase.from("diagnoses").select("*").eq("case_id", id).order("version", { ascending: false });
+  const diagnoses = (diagRows ?? []) as Diagnosis[];
+  const published = diagnoses.find((d) => d.status === "publicado") ?? null;
+  const openDiag = diagnoses.find((d) => d.status === "borrador" || d.status === "en_revision") ?? null;
+  const diagIds = [published?.id, openDiag?.id].filter(Boolean) as string[];
+  const { data: findingRows } = diagIds.length
+    ? await supabase.from("diagnosis_findings").select("*").in("diagnosis_id", diagIds).order("position")
+    : { data: [] };
+  const findings = (findingRows ?? []) as Finding[];
+  const publishedFindings = published ? findings.filter((f) => f.diagnosis_id === published.id) : [];
+  const openFindings = openDiag ? findings.filter((f) => f.diagnosis_id === openDiag.id) : [];
+
   const steps = (stepsRes.data ?? []) as MirrorStep[];
   const approvals = (approvalsRes.data ?? []) as Approval[];
   const authorizations = (authRes.data ?? []) as ClientAuthorization[];
@@ -195,6 +226,7 @@ export default async function CasePage({
   approvals.forEach((a) => [a.requested_by, a.decided_by].forEach((u) => u && people.add(u)));
   authorizations.forEach((a) => [a.requested_by, a.decided_by, a.revoked_by].forEach((u) => u && people.add(u)));
   quotes.forEach((q) => [q.created_by, q.decided_by].forEach((u) => u && people.add(u)));
+  if (published?.published_by) people.add(published.published_by);
 
   let allStaff: Staff[] = [];
   if (supervisor) {
@@ -237,6 +269,22 @@ export default async function CasePage({
     : { data: [] };
   const references = (refRows ?? []) as MarketReference[];
 
+  // Servicios citados en el diagnóstico (el equipo, además, elige entre todo el catálogo).
+  const findingServiceIds = [...new Set(findings.map((f) => f.service_id).filter(Boolean))] as string[];
+  const { data: svcRows } = worker
+    ? await supabase.from("services").select("id, code, name").order("code")
+    : findingServiceIds.length
+      ? await supabase.from("services").select("id, code, name").in("id", findingServiceIds)
+      : { data: [] };
+  const serviceRefs = (svcRows ?? []) as ServiceRef[];
+  const serviceMap = new Map(serviceRefs.map((s) => [s.id, s]));
+
+  // Perfil del onboarding: contexto para el equipo que trabaja el caso.
+  const { data: onbRow } = worker
+    ? await supabase.from("company_onboarding").select("answers").eq("company_id", c.company_id).maybeSingle()
+    : { data: null };
+  const onboarding = ((onbRow as { answers: Answers } | null)?.answers ?? null) as Answers | null;
+
   const describe = (e: Event) => {
     switch (e.kind) {
       case "creado":
@@ -259,6 +307,8 @@ export default async function CasePage({
         return `${APPROVAL_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una aprobación"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
       case "cotizacion":
         return `${QUOTE_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una cotización"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
+      case "diagnostico":
+        return `${DIAG_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó el diagnóstico"}${e.metadata?.accion === "cotizacion_solicitada" ? ` «${e.metadata?.titulo ?? e.body ?? ""}»` : e.metadata?.version ? ` (versión ${e.metadata.version})` : ""}`;
       case "autorizacion":
         return `${AUTH_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una autorización"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
       default:
@@ -291,11 +341,17 @@ export default async function CasePage({
     agentCount("inactivo") ? `${agentCount("inactivo")} en espera` : null,
   ].filter(Boolean).join(" · ");
   const responsible = c.responsible_id ? nameOf(c.responsible_id) : null;
-  const diagnosisState = c.status === "cerrado" && c.result_summary
-    ? { tone: "ok", text: "Resultado verificado" }
-    : reviewSteps.length
-      ? { tone: "gold", text: "En revisión profesional" }
-      : { tone: "muted", text: "Aún no disponible" };
+  const freeDiagnosis = (c as CaseRow & { origin?: string }).origin === "diagnostico_gratuito";
+  const diagnosisState = worker && openDiag
+    ? { tone: openDiag.status === "en_revision" ? "gold" : "muted", text: openDiag.status === "en_revision" ? `v${openDiag.version} en revisión` : `Borrador v${openDiag.version}` }
+    : published
+      ? { tone: "ok", text: `Entregado · v${published.version}` }
+      : c.status === "cerrado" && c.result_summary
+        ? { tone: "ok", text: "Resultado verificado" }
+        : reviewSteps.length || openDiag
+          ? { tone: "gold", text: "En revisión profesional" }
+          : { tone: "muted", text: freeDiagnosis ? "En preparación" : "Aún no disponible" };
+  const canRequestQuote = !worker && !isClosed && !!memberRole && ["owner", "admin", "accountant"].includes(memberRole);
 
   // Sección que se abre sola tras una acción, para ver su resultado.
   const OPEN_AFTER: Record<string, string> = {
@@ -304,6 +360,8 @@ export default async function CasePage({
     aprobacion_anulada: "proximas", autorizacion_solicitada: "proximas", autorizada: "proximas", autorizacion_rechazada: "proximas",
     autorizacion_revocada: "proximas", autorizacion_anulada: "proximas",
     cotizacion_creada: "cotizacion", cotizacion_aceptada: "cotizacion", cotizacion_rechazada: "cotizacion", cotizacion_anulada: "cotizacion",
+    diagnostico_solicitado: "diagnostico", diagnostico_borrador: "diagnostico", diagnostico_guardado: "diagnostico",
+    situacion_guardada: "diagnostico", situacion_eliminada: "diagnostico", diagnostico_enviado: "diagnostico", cotizacion_pedida: "diagnostico",
   };
 
   const timeline = (
@@ -544,6 +602,17 @@ export default async function CasePage({
             {c.due_date ? <div><dt>Fecha límite</dt><dd>{fmtDate(c.due_date)}</dd></div> : null}
             {worker ? <div><dt>Prioridad</dt><dd>{PRIORITIES[c.priority]}</dd></div> : null}
           </dl>
+          {freeDiagnosis ? <p className="muted-line">Primera consulta gratuita (diagnóstico gratuito).</p> : null}
+          {worker && onboarding ? (
+            <details className="onb-answers">
+              <summary>Perfil de la empresa (respuestas del onboarding)</summary>
+              <dl>
+                {QUESTIONS.filter((q) => onboarding[q.key] !== undefined).map((q) => (
+                  <div key={q.key}><dt>{q.title}</dt><dd>{answerText(q.key, onboarding[q.key])}</dd></div>
+                ))}
+              </dl>
+            </details>
+          ) : null}
           {c.description ? (
             <div className="sub-block">
               <h4 className="sub-title">Tu solicitud</h4>
@@ -583,8 +652,30 @@ export default async function CasePage({
       title: "Diagnóstico y recomendaciones",
       emblem: <Emblem name="diagnostico" size="sm" />,
       status: <span className={`status status-${diagnosisState.tone}`}>{diagnosisState.text}</span>,
+      tone: published && !worker && c.status === "esperando_cliente" ? "gold" : "default",
       content: (
         <>
+          {published ? (
+            <>
+              <DiagnosisReport
+                caseId={c.id}
+                diagnosis={published}
+                findings={publishedFindings}
+                services={serviceMap}
+                approverName={published.published_by ? nameOf(published.published_by) : null}
+                canRequestQuote={canRequestQuote}
+              />
+              <div className="panel-actions">
+                <a href={`/casos/${c.id}/diagnostico`} target="_blank" rel="noopener" className="btn btn-ghost btn-inline btn-sm">Versión para imprimir o guardar en PDF</a>
+              </div>
+            </>
+          ) : null}
+          {worker ? (
+            <div className="sub-block">
+              {published ? <h4 className="sub-title">Nueva versión</h4> : null}
+              <DiagnosisEditor caseId={c.id} open={openDiag} published={published} openFindings={openFindings} services={serviceRefs} isClosed={isClosed} />
+            </div>
+          ) : null}
           {c.status === "cerrado" && c.result_summary ? (
             <div className="result-box">
               <FactTag kind="verificado" />
@@ -592,7 +683,7 @@ export default async function CasePage({
               <p className="pre">{c.result_summary}</p>
             </div>
           ) : null}
-          {reviewSteps.length ? (
+          {!worker && !published && reviewSteps.length ? (
             <div className="sub-block">
               <FactTag kind="revision" />
               <ul className="explore-list">
@@ -605,9 +696,11 @@ export default async function CasePage({
               </ul>
             </div>
           ) : null}
-          {!(c.status === "cerrado" && c.result_summary) ? (
+          {!worker && !published && !(c.status === "cerrado" && c.result_summary) ? (
             <p className="panel-lead">
-              El diagnóstico con sus recomendaciones se publicará aquí cuando un profesional autorizado lo valide.
+              {freeDiagnosis
+                ? "Tu diagnóstico gratuito se publicará aquí cuando un profesional autorizado lo apruebe: situaciones numeradas, con su normativa y fuente, alternativas, riesgos, costo estimado y nivel de certeza."
+                : "El diagnóstico con sus recomendaciones se publicará aquí cuando un profesional autorizado lo valide."}{" "}
               Ninguna conclusión se presenta como confirmada antes de esa revisión.
             </p>
           ) : null}
@@ -758,6 +851,15 @@ export default async function CasePage({
             action={<a href="#autorizaciones" className="btn btn-gold btn-inline btn-sm">Revisar</a>}
           >
             ENQORA no actuará ante ninguna institución sin tu autorización explícita.
+          </Callout>
+        ) : null}
+        {published && !worker && c.status === "esperando_cliente" ? (
+          <Callout
+            kind="warn"
+            title="Tu diagnóstico está listo"
+            action={<a href="#diagnostico" className="btn btn-gold btn-inline btn-sm">Ver diagnóstico</a>}
+          >
+            Revisado y aprobado por un profesional ENQORA. Explora cada situación y decide cómo seguir.
           </Callout>
         ) : null}
         {openQuotes.length && canDecide ? (

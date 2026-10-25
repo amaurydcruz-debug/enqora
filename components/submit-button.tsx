@@ -15,6 +15,8 @@ export function SubmitButton({
   doneText,
   errorText,
   disabled = false,
+  name,
+  value,
 }: {
   children: React.ReactNode;
   pendingText?: string;
@@ -24,12 +26,16 @@ export function SubmitButton({
   doneText?: string;
   errorText?: string;
   disabled?: boolean;
+  name?: string; // para formularios con más de una acción
+  value?: string;
 }) {
   const { pending } = useFormStatus();
   const state = pending ? "busy" : status;
   return (
     <button
       type="submit"
+      name={name}
+      value={value}
       className={`btn btn-${variant} ${className}`}
       disabled={pending || disabled}
       aria-busy={pending}

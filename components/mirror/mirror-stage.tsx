@@ -15,7 +15,7 @@ const STAGE_STATE_LABEL: Record<StageState, string> = {
   pendiente: "Pendiente",
   en_curso: "En curso",
   completado: "Completado",
-  requiere_info: "Requiere información",
+  requiere_info: "Requiere tu respuesta",
   esperando_autorizacion: "Esperando autorización",
   revision: "Revisión profesional",
 };

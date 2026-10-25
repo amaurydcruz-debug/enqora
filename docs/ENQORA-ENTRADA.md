@@ -14,7 +14,7 @@ La portada pública (`/`) es un escaparate de ENQORA. Quien ya inició sesión v
 4. **Registro y contratación:**
    - «Comenzar con…» pasa por `/comenzar?servicio=…`, que guarda la elección en una cookie segura por 7 días.
    - La elección se conserva durante el registro, la verificación del correo y el segundo factor.
-   - Si el cliente aún no tiene empresa, el Centro de control le pide registrarla. Al crearla, llega directo a la solicitud del servicio elegido (`/comenzar/continuar`).
+   - Si el cliente aún no tiene empresa, el Centro de control le pide registrarla. Al crearla, llega directo al onboarding y diagnóstico gratuito del servicio elegido (`/comenzar/continuar` → `/diagnostico`).
    - Se usa el mismo registro y la misma autenticación de siempre; no hay un segundo sistema.
 
 ## Consulta por RUT: reglas

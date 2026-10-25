@@ -21,7 +21,7 @@ export const ON_APPROVE_STATUSES: Record<string, string> = {
   autorizacion_cliente: "Pedir autorización al cliente",
   en_ejecucion: "Pasar a ejecución",
   verificacion: "Pasar a verificación",
-  esperando_cliente: "Pedir antecedentes al cliente",
+  esperando_cliente: "Esperar la respuesta del cliente",
   en_investigacion: "Volver a investigación",
   diagnostico: "Diagnóstico preparado",
 };

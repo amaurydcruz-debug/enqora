@@ -9,6 +9,7 @@ import { ModuleIcon } from "@/components/module-icons";
 import { Emblem } from "@/components/emblems";
 import { clp, todayCL } from "@/lib/pricing";
 import { categoryByKey, INTENT_COOKIE } from "@/lib/discovery";
+import { isComplete, suggestRoutes, type Answers } from "@/lib/onboarding";
 import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
 import { acknowledgeAlertsAction } from "@/app/actions/security";
 import { activeCompany } from "@/lib/companies";
@@ -31,6 +32,7 @@ export const metadata: Metadata = { title: "Centro de control" };
 const AVISOS: Record<string, string> = {
   mfa: "Segundo factor activado. Tu cuenta quedó protegida con verificación en dos pasos.",
   clave: "Contraseña actualizada. Cerramos las demás sesiones abiertas de tu cuenta.",
+  onboarding: "Guardamos tus respuestas. Esta es tu ruta sugerida.",
 };
 
 const TZ = "America/Santiago";
@@ -50,6 +52,8 @@ const EVENT_TEXT: Record<string, string> = {
   documento: "Documento agregado",
   asignacion: "Equipo asignado",
   tarea: "Tarea actualizada",
+  diagnostico: "Diagnóstico actualizado",
+  cotizacion: "Cotización actualizada",
 };
 const AUTH_TEXT: Record<string, string> = {
   solicitada: "Autorización solicitada",
@@ -89,14 +93,29 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const { data: caseRows } = active
     ? await supabase
         .from("cases")
-        .select("id, folio, module, title, status, updated_at, created_at")
+        .select("id, folio, module, title, status, origin, updated_at, created_at")
         .eq("company_id", active.id)
         .order("updated_at", { ascending: false })
         .limit(60)
     : { data: [] };
-  const cases = (caseRows ?? []) as CaseRow[];
+  const cases = (caseRows ?? []) as (CaseRow & { origin?: string })[];
   const caseIds = cases.map((c) => c.id);
   const caseById = new Map(cases.map((c) => [c.id, c]));
+
+  // Onboarding y diagnósticos entregados (RLS: el cliente solo recibe los publicados).
+  const [{ data: onbRow }, { data: diagRows }] = active
+    ? await Promise.all([
+        supabase.from("company_onboarding").select("answers, completed").eq("company_id", active.id).maybeSingle(),
+        caseIds.length
+          ? supabase.from("diagnoses").select("case_id, version, published_at").eq("status", "publicado").in("case_id", caseIds)
+          : Promise.resolve({ data: [] }),
+      ])
+    : [{ data: null }, { data: [] }];
+  const answers = ((onbRow as { answers: Answers } | null)?.answers ?? {}) as Answers;
+  const onboarded = isComplete(answers);
+  const routes = onboarded ? suggestRoutes(answers).slice(0, 3) : [];
+  const delivered = new Set(((diagRows ?? []) as { case_id: string }[]).map((d) => d.case_id));
+  const freeCase = cases.find((c) => c.origin === "diagnostico_gratuito" && c.status !== "cancelado") ?? null;
 
   const [authRes, taskRes, evRes, quoteRes] =
     active && caseIds.length
@@ -305,7 +324,27 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                     </NextAction>
                   </Disclosure>
                 ))}
-                {waitingInfo.map((c) => (
+                {waitingInfo.filter((c) => delivered.has(c.id)).map((c) => (
+                  <Disclosure
+                    key={c.id}
+                    tone="gold"
+                    group="atencion"
+                    emblem={<Emblem name="diagnostico" size="sm" />}
+                    title={c.title}
+                    summary={`Diagnóstico · ${c.folio}`}
+                    meta={<span className="status status-warn">Tu diagnóstico está listo</span>}
+                  >
+                    <p className="disc-lead">
+                      Un profesional ENQORA revisó y aprobó tu diagnóstico. Explora cada situación, su fuente y lo que costaría
+                      resolverla; si quieres avanzar, pide la cotización desde la misma situación.
+                    </p>
+                    <NextAction
+                      title="Revisa tu diagnóstico"
+                      action={<Link href={`/casos/${c.id}#diagnostico`} className="btn btn-gold btn-inline btn-sm">Ver diagnóstico</Link>}
+                    />
+                  </Disclosure>
+                ))}
+                {waitingInfo.filter((c) => !delivered.has(c.id)).map((c) => (
                   <Disclosure
                     key={c.id}
                     tone="gold"
@@ -341,6 +380,70 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
               </div>
             </section>
           ) : null}
+
+          {/* Tu ruta ENQORA (Etapa 7): onboarding, rutas sugeridas y diagnóstico gratuito */}
+          <section className="zone" id="ruta">
+            <div className="zone-head">
+              <h2 className="zone-title">Tu ruta ENQORA</h2>
+              {onboarded && canCreate ? <Link href="/diagnostico" className="link-arrow">Actualizar respuestas <IconArrowRight size={15} /></Link> : null}
+            </div>
+            {!onboarded ? (
+              <div className="route-card">
+                <Emblem name="diagnostico" size="lg" />
+                <div className="route-card-text">
+                  <b>Tu diagnóstico gratuito te espera</b>
+                  <p className="muted-line">
+                    Responde unas preguntas por opciones sobre tu empresa (2 a 3 minutos). Te mostraremos por dónde empezar y el
+                    equipo ENQORA preparará tu primera consulta gratuita.
+                  </p>
+                </div>
+                {canCreate ? <Link href="/diagnostico" className="btn btn-gold btn-inline">Comenzar</Link> : null}
+              </div>
+            ) : (
+              <div className="route-grid">
+                <div className="route-card route-card-free">
+                  <Emblem name="diagnostico" size="lg" />
+                  <div className="route-card-text">
+                    {freeCase ? (
+                      <>
+                        <b>Diagnóstico gratuito · <span className="mono">{freeCase.folio}</span></b>
+                        <span className={`status status-${delivered.has(freeCase.id) ? "ok" : statusTone(freeCase.status)}`}>
+                          {delivered.has(freeCase.id) ? "Entregado" : statusLabel(freeCase.status)}
+                        </span>
+                        <p className="muted-line">{delivered.has(freeCase.id) ? "Revisado y aprobado por un profesional ENQORA." : NEXT_STEP[freeCase.status] ?? ""}</p>
+                      </>
+                    ) : (
+                      <>
+                        <b>Pide tu diagnóstico gratuito</b>
+                        <p className="muted-line">Un informe por situaciones, con fuentes, alternativas, riesgos y costo estimado.</p>
+                      </>
+                    )}
+                  </div>
+                  {freeCase ? (
+                    <Link href={`/casos/${freeCase.id}#diagnostico`} className="btn btn-ghost btn-inline btn-sm">Ver diagnóstico</Link>
+                  ) : canCreate ? (
+                    <Link href="/diagnostico" className="btn btn-gold btn-inline btn-sm">Pedir diagnóstico</Link>
+                  ) : null}
+                </div>
+                {routes.length ? (
+                  <ol className="route-list route-list-panel">
+                    {routes.map((r, i) => (
+                      <li key={r.category} className="route-item">
+                        <span className="route-n">{String(i + 1).padStart(2, "0")}</span>
+                        <Emblem name={categoryByKey(r.category)?.emblem ?? r.module} size="sm" />
+                        <span className="route-text">
+                          <b>{r.title}</b>
+                          <small>{r.reason}</small>
+                        </span>
+                        {canCreate ? <Link href={`/casos/nuevo?modulo=${r.module}`} className="module-cta">Solicitar <IconArrowRight size={14} /></Link> : null}
+                      </li>
+                    ))}
+                    <li className="route-note"><FactTag kind="interpretacion" /> Sugerencias según tus respuestas; no son un diagnóstico.</li>
+                  </ol>
+                ) : null}
+              </div>
+            )}
+          </section>
 
           {/* Casos en curso: lo esencial */}
           <section className="zone">
