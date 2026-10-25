@@ -34,6 +34,9 @@ export type Company = {
   tax_regime: Regime;
   rut_verified: boolean;
   created_at: string;
+  // Domicilio (migración 0007). Opcionales: si la migración aún no se aplicó, no vienen.
+  address?: string | null;
+  commune?: string | null;
 };
 
 export type MyCompany = Company & { role: Role };
@@ -42,3 +45,13 @@ export const canManage = (role: Role | null | undefined) => role === "owner" || 
 
 export const isRole = (v: unknown): v is Role => typeof v === "string" && v in ROLES;
 export const isRegime = (v: unknown): v is Regime => typeof v === "string" && v in REGIMES;
+
+// Iniciales para el emblema de la empresa (sin sufijos societarios).
+export const companyInitials = (name: string) =>
+  name
+    .replace(/\b(SpA|Ltda\.?|S\.A\.|EIRL|Limitada)\b/gi, "")
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") || "E";

@@ -5,7 +5,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
 import { selectCompanyAction } from "@/app/actions/companies";
 import { activeCompany } from "@/lib/companies";
-import { REGIMES, ROLES } from "@/lib/company-constants";
+import { companyInitials, REGIMES, ROLES } from "@/lib/company-constants";
 import { messageForCode } from "@/lib/db-errors";
 import { formatRut } from "@/lib/rut";
 import { createClient } from "@/lib/supabase/server";
@@ -16,14 +16,6 @@ const AVISOS: Record<string, string> = {
   saliste: "Saliste de la empresa. Ya no tienes acceso a su información.",
 };
 
-const initials = (name: string) =>
-  name
-    .replace(/\b(SpA|Ltda\.?|S\.A\.|EIRL|Limitada)\b/gi, "")
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("") || "E";
 
 type Member = { company_id: string; user_id: string; role: string };
 type Profile = { id: string; email: string; full_name: string | null };
@@ -89,7 +81,7 @@ export default async function CompaniesPage({
             return (
               <li key={c.id} className={`company-sheet${isActive ? " is-active" : ""}`}>
                 <div className="sheet-id">
-                  <span className="monogram monogram-lg" aria-hidden="true">{initials(name)}</span>
+                  <span className="monogram monogram-lg" aria-hidden="true">{companyInitials(name)}</span>
                   <div className="sheet-name">
                     <span className="sheet-tags">
                       {isActive ? <span className="status status-ok">Empresa activa</span> : null}

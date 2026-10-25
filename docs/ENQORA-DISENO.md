@@ -34,7 +34,7 @@ Debe transmitir inteligencia empresarial, seguridad financiera, tecnología avan
 - **Pantallas principales:**
   - **Centro de control:** composición asimétrica. Lo principal es el estado de la empresa, los casos activos y las acciones pendientes; al costado, la protección de la cuenta, la actividad y los accesos.
   - **Casos:** filtros por estado y una línea por caso con folio, nombre, empresa, estado, próximo paso, responsable y fecha.
-  - **Empresas:** ficha empresarial con monograma y datos en columnas.
+  - **Empresas:** ficha empresarial con monograma y datos en columnas. La ficha de una empresa es un panel de siete opciones en mosaico (M03); solo una se abre a la vez.
   - **Seguridad:** centro de seguridad con el estado de protección y secciones de dos columnas.
 
 ## Sistema de diseño

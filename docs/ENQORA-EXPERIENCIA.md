@@ -66,6 +66,7 @@ Componente oficial para mostrar información bajo demanda en toda ENQORA, salvo 
 | Centro de control | Bienvenida personalizada, 3 indicadores, alertas, "Requiere tu atención", 3 casos, 4 servicios | Detalle de cada pendiente, todos los servicios, actividad reciente |
 | Casos | Filtros y casos que necesitan acción | Grupos En curso y Finalizados |
 | Empresas | Nombre, RUT, estado de verificación, acciones | Datos de la empresa |
+| Ficha de empresa | Emblema, nombre comercial, razón social, RUT, estado, rol y resumen breve | Siete opciones en mosaico, una abierta a la vez: datos (lectura y luego «Editar datos»), miembros y permisos (acciones con «Administrar»), invitar, actividad (últimas 5 y «Explorar actividad»), seguridad y autorizaciones, documentos y configuración |
 | Seguridad | Estado de protección y alertas | Cada sección (identidad, dos pasos, sesiones, dispositivos, actividad, contraseña) |
 | Caso | Encabezado, progreso, MIRROR, autorizaciones | Explora el análisis, historial, expediente, tareas, equipo |
 

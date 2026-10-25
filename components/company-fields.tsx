@@ -5,7 +5,15 @@ import { REGIMES, type Company } from "@/lib/company-constants";
 import { formatRut, isValidRut } from "@/lib/rut";
 
 // Campos del formulario de empresa (registro y edición).
-export function CompanyFields({ company, rutEditable }: { company?: Company; rutEditable: boolean }) {
+export function CompanyFields({
+  company,
+  rutEditable,
+  withAddress = false,
+}: {
+  company?: Company;
+  rutEditable: boolean;
+  withAddress?: boolean;
+}) {
   const [rut, setRut] = useState(company ? formatRut(company.rut) : "");
   const rutState = !rut ? null : isValidRut(rut) ? "ok" : rut.replace(/[^0-9kK]/g, "").length >= 8 ? "bad" : null;
 
@@ -19,7 +27,7 @@ export function CompanyFields({ company, rutEditable }: { company?: Company; rut
           value={rut} onChange={(e) => setRut(formatRut(e.target.value))}
         />
         {rutEditable ? (
-          <span className="hint" style={rutState === "bad" ? { color: "#e9a49c" } : undefined}>
+          <span className={`hint${rutState === "bad" ? " hint-bad" : ""}`}>
             {rutState === "ok" ? "RUT válido." : rutState === "bad" ? "El dígito verificador no coincide." : "Con o sin puntos y guion."}
           </span>
         ) : (
@@ -40,6 +48,20 @@ export function CompanyFields({ company, rutEditable }: { company?: Company; rut
         <input id="activity" name="activity" className="input" maxLength={200} defaultValue={company?.activity ?? ""}
           placeholder="Venta al por menor de alimentos" />
       </div>
+      {withAddress ? (
+        <div className="field-pair">
+          <div className="field">
+            <label htmlFor="address">Domicilio <span className="optional">(opcional)</span></label>
+            <input id="address" name="address" className="input" maxLength={200} defaultValue={company?.address ?? ""}
+              placeholder="Av. Providencia 1234, oficina 56" autoComplete="street-address" />
+          </div>
+          <div className="field">
+            <label htmlFor="commune">Comuna <span className="optional">(opcional)</span></label>
+            <input id="commune" name="commune" className="input" maxLength={80} defaultValue={company?.commune ?? ""}
+              placeholder="Providencia" />
+          </div>
+        </div>
+      ) : null}
       <div className="field">
         <label htmlFor="tax_regime">Régimen tributario</label>
         <select id="tax_regime" name="tax_regime" className="input" defaultValue={company?.tax_regime ?? "por_definir"}>
