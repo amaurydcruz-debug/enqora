@@ -761,7 +761,7 @@ select.input option { background: var(--bg-2); color: var(--text); }
    ===================================================================== */
 @media (max-width: 1180px) {
   .case-line { grid-template-columns: 116px minmax(0, 1.6fr) minmax(0, 1.2fr) 110px 18px; }
-  .case-line .cl-meta:first-of-type { display: none; }
+  .case-line .cl-state + .cl-meta { display: none; }
 }
 
 @media (max-width: 1060px) {
@@ -1865,3 +1865,28 @@ details.setting > summary:hover h2 { color: var(--gold-bright); }
 .acc-compact.acc-tiles { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
 .ws .callout { padding-top: 10px; padding-bottom: 10px; }
 @media (max-width: 720px) { .agent-st { white-space: normal; text-align: right; max-width: 38%; font-size: 0.7rem; } }
+
+/* =====================================================================
+   M05 · Emblemas en Centro de control, Casos y Seguridad
+   ===================================================================== */
+@media (min-width: 1181px) {
+  .case-line { grid-template-columns: 32px 120px minmax(0, 1.6fr) minmax(0, 1.25fr) minmax(0, 0.9fr) 110px 18px; }
+}
+.case-line .emblem, .case-row .emblem { --e: 32px; }
+.case-row { align-items: center; }
+.case-row > .emblem { flex-shrink: 0; }
+.case-row-main { flex: 1; }
+.disc-emblem { display: inline-flex; flex-shrink: 0; }
+.disc-emblem .emblem { --e: 40px; }
+.disclosure[open] .disc-emblem .emblem svg, .disclosure summary:hover .disc-emblem .emblem svg { transform: translateY(-1px) rotate(-4deg) scale(1.06); }
+.shield-item .emblem { --e: 38px; }
+@media (min-width: 721px) and (max-width: 1180px) {
+  .case-line { grid-template-columns: 32px 116px minmax(0, 1.6fr) minmax(0, 1.2fr) 110px 18px; }
+}
+@media (max-width: 720px) {
+  .case-line { grid-template-columns: 32px minmax(0, 1fr) 18px; }
+  .case-line .emblem { grid-column: 1; grid-row: 1 / span 3; align-self: start; }
+  .case-line .cl-id, .case-line .cl-main, .case-line .cl-state { grid-column: 2; }
+  .case-line .cl-go { grid-column: 3; }
+}
+@media (max-width: 720px) { .case-row > .emblem { display: none; } }

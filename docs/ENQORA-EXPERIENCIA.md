@@ -44,7 +44,7 @@ Otros componentes de la experiencia:
 - `components/user-menu.tsx`: menú de perfil (nombre, correo, rol, empresa, seguridad, cerrar sesión). Se cierra con Escape o al tocar fuera.
 - `components/mirror/mirror-explore.tsx`: "Explora el análisis" de MIRROR.
 
-Todos se construyen sobre `<details>/<summary>` nativos: accesibles con teclado y lector de pantalla, y funcionan sin JavaScript.
+`Disclosure` acepta `emblem` (emblema 3D) y `group` (mismo grupo = una abierta a la vez, con el atributo nativo `name`). Todos se construyen sobre `<details>/<summary>` nativos: accesibles con teclado y lector de pantalla, y funcionan sin JavaScript.
 
 ## Panel de opciones (`components/accordion.tsx`)
 
@@ -63,11 +63,11 @@ Componente oficial para mostrar información bajo demanda en toda ENQORA, salvo 
 | Pantalla | Visible siempre | Bajo demanda |
 | --- | --- | --- |
 | Barra superior | Logotipo (teléfono), estado de seguridad, notificaciones, perfil | Menú de perfil |
-| Centro de control | Bienvenida personalizada, 3 indicadores, alertas, "Requiere tu atención", 3 casos, 4 servicios | Detalle de cada pendiente, todos los servicios, actividad reciente |
-| Casos | Filtros y casos que necesitan acción | Grupos En curso y Finalizados |
+| Centro de control | Bienvenida personalizada, 3 indicadores, alertas, "Requiere tu atención", 3 casos, 4 servicios | Detalle de cada pendiente, todos los servicios, actividad reciente. Los asuntos de «Requiere tu atención» llevan emblema y se abren de a uno |
+| Casos | Filtros y casos que necesitan acción | Grupos En curso y Finalizados. Cada caso muestra el emblema de su servicio; un grupo abierto a la vez |
 | Empresas | Nombre, RUT, estado de verificación, acciones | Datos de la empresa |
 | Ficha de empresa | Emblema, nombre comercial, razón social, RUT, estado, rol y resumen breve | Siete opciones en mosaico, una abierta a la vez: datos (lectura y luego «Editar datos»), miembros y permisos (acciones con «Administrar»), invitar, actividad (últimas 5 y «Explorar actividad»), seguridad y autorizaciones, documentos y configuración |
-| Seguridad | Estado de protección y alertas | Cada sección (identidad, dos pasos, sesiones, dispositivos, actividad, contraseña) |
+| Seguridad | Estado de protección (con emblemas) y alertas | Panel de opciones (una abierta a la vez): identidad, dos pasos, sesiones, dispositivos, actividad y contraseña; con alertas pendientes se abre la actividad |
 | Caso (MIRROR) | Encabezado compacto, núcleo MIRROR al centro, etapa actual con su frase y progreso real, avisos de autorizaciones o tareas | «Ver proceso completo» (nueve etapas con estado real) y el panel de exploración: qué investiga ENQORA, documentos, agentes y responsables, historial y mensajes, tareas, expediente, diagnóstico, próximas acciones (y gestión del caso para el equipo); una opción abierta a la vez |
 
 ## MIRROR: lo que el cliente puede explorar

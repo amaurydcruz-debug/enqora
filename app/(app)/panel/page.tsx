@@ -4,7 +4,8 @@ import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
 import { Callout, Disclosure, FactTag, NextAction } from "@/components/disclosure";
 import { ModuleIcon } from "@/components/module-icons";
-import { IconActivity, IconArrowRight, IconBuilding, IconCheck, IconPlus, IconShield } from "@/components/icons";
+import { Emblem } from "@/components/emblems";
+import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
 import { acknowledgeAlertsAction } from "@/app/actions/security";
 import { activeCompany } from "@/lib/companies";
 import { REGIMES, ROLES } from "@/lib/company-constants";
@@ -234,7 +235,8 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                   <Disclosure
                     key={a.id}
                     tone="gold"
-                    icon={<IconShield size={18} />}
+                    group="atencion"
+                    emblem={<Emblem name="autorizaciones" size="sm" />}
                     title={a.title}
                     summary={`Autorización · ${caseById.get(a.case_id)?.folio ?? ""}`}
                     meta={<span className="status status-warn">Espera tu decisión</span>}
@@ -259,7 +261,8 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                   <Disclosure
                     key={c.id}
                     tone="gold"
-                    icon={<IconActivity size={18} />}
+                    group="atencion"
+                    emblem={<Emblem name="expediente" size="sm" />}
                     title={c.title}
                     summary={`Antecedentes · ${c.folio}`}
                     meta={<span className="status status-warn">Esperando tus antecedentes</span>}
@@ -274,7 +277,8 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                 {myTasks.map((t) => (
                   <Disclosure
                     key={t.id}
-                    icon={<IconCheck size={18} />}
+                    group="atencion"
+                    emblem={<Emblem name="tareas" size="sm" />}
                     title={t.title}
                     summary={`Tarea · ${caseById.get(t.case_id)?.folio ?? ""}`}
                     meta={t.due_date ? <span className="status status-gold">Vence {fmt(`${t.due_date}T12:00:00Z`)}</span> : null}
@@ -301,6 +305,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                 {open.slice(0, 3).map((c) => (
                   <li key={c.id}>
                     <Link href={`/casos/${c.id}`} className={`case-row${NEEDS_CLIENT.includes(c.status) ? " needs-you" : ""}`}>
+                      <ModuleIcon module={c.module} size="sm" />
                       <span className="case-row-main">
                         <span className="case-row-top">
                           <span className="mono case-folio">{c.folio}</span>
@@ -331,7 +336,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
               {shownModules.map((m) => <ModuleTile key={m} m={m} />)}
             </ul>
             {moreModules.length ? (
-              <details className="more">
+              <details className="more" {...({ name: "panel-mas" } as object)}>
                 <summary>Ver todos los servicios</summary>
                 <ul className="modules">
                   {moreModules.map((m) => <ModuleTile key={m} m={m} />)}
@@ -342,7 +347,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
 
           {/* Detalle secundario: plegado */}
           {events.length ? (
-            <details className="more">
+            <details className="more" {...({ name: "panel-mas" } as object)}>
               <summary>Actividad reciente</summary>
               <ol className="feed">
                 {events.map((e) => (

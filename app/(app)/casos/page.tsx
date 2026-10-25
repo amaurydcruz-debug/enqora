@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
+import { ModuleIcon } from "@/components/module-icons";
 import { activeCompany } from "@/lib/companies";
 import { CLOSED, MODULES, NEEDS_CLIENT, NEXT_STEP, statusLabel, statusTone, type CaseRow } from "@/lib/cases";
 import { createClient } from "@/lib/supabase/server";
@@ -112,6 +113,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
               <details
                 key={g.key}
                 className="case-group"
+                {...({ name: "case-groups" } as object)}
                 open={view !== "todos" || g.key === "accion" || (g.key === "curso" && !needsYou.length)}
               >
                 <summary className="group-title">{g.title}<span>{g.items.length}</span></summary>
@@ -120,6 +122,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
                     {g.items.map((c) => (
                       <li key={c.id}>
                         <Link href={`/casos/${c.id}`} className={`case-line${NEEDS_CLIENT.includes(c.status) ? " needs-you" : ""}`}>
+                          <ModuleIcon module={c.module} size="sm" />
                           <span className="cl-id mono">{c.folio}</span>
                           <span className="cl-main">
                             <b>{c.title}</b>
