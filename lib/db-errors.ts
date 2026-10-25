@@ -27,6 +27,11 @@ const MESSAGES: Record<string, string> = {
   ENQ_FALTA_OBSERVACION: "Para rechazar o devolver, explica el motivo (mínimo 10 caracteres).",
   ENQ_AUTORIZACION_VENCIDA: "El plazo de esta autorización ya venció. ENQORA deberá enviarte una nueva solicitud.",
   ENQ_FALTA_CONFIRMACION: "Para autorizar, marca la casilla de confirmación.",
+  ENQ_CODIGO_DUPLICADO: "Ya existe un servicio con ese código.",
+  ENQ_SIN_TARIFA: "Ese servicio aún no tiene una tarifa vigente publicada.",
+  ENQ_SERVICIO_INACTIVO: "Ese servicio no está activo en el catálogo.",
+  ENQ_FALTA_MOTIVO_DESCUENTO: "Todo descuento necesita un motivo (mínimo 10 caracteres).",
+  ENQ_COTIZACION_VENCIDA: "La validez de esta cotización terminó. Pide al equipo ENQORA una nueva.",
 };
 
 export function dbCode(error: DbErr): string | null {

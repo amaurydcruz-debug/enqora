@@ -1801,7 +1801,7 @@ details.setting > summary:hover h2 { color: var(--gold-bright); }
 .acc-compact.acc-tiles .acc-status { grid-column: 2; grid-row: 2; color: var(--text-3); }
 .acc-compact.acc-tiles .acc-chevron { grid-column: 3; grid-row: 1 / span 2; }
 .acc-compact.acc-tiles .acc-option.is-open::after { left: 14%; right: 14%; }
-.ws-options .acc-body { max-height: min(62vh, 640px); overflow: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(154, 168, 189, 0.3) transparent; }
+.ws-options .acc-body { scrollbar-width: thin; scrollbar-color: rgba(154, 168, 189, 0.3) transparent; }
 .acc-body > .card { background: none; border: 0; box-shadow: none; padding: 0; margin-bottom: 0; }
 .acc-body > .card > h2 { font-size: 0.8rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); font-weight: 600; margin-bottom: 8px; }
 .acc-body > .card > h2 svg { display: none; }
@@ -1934,3 +1934,85 @@ details.setting > summary:hover h2 { color: var(--gold-bright); }
 .invite-card { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .invite-card h2 { margin-top: 4px; }
 .invite-card p { margin: 0; }
+
+/* =====================================================================
+   M07 · Catálogo, tarifas y cotizaciones
+   ===================================================================== */
+.form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0 14px; }
+.form-grid .field-wide { grid-column: span 2; }
+.check-row { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 4px 0 14px; }
+.catalog-form { padding-top: 10px; }
+.catalog-body { display: flex; flex-direction: column; gap: 22px; }
+.catalog-body > section { display: flex; flex-direction: column; gap: 10px; }
+.catalog-body .sub-title, .quote-terms h5, .quote-refs h5 { margin: 0; font-size: 0.74rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.catalog-status { display: inline-flex; align-items: center; gap: 8px; }
+.catalog-status b { color: var(--text); font-family: var(--font-brand), sans-serif; font-weight: 600; }
+.catalog-status small, .tariff-price small { color: var(--text-3); font-weight: 400; }
+details.inline-more { align-self: flex-start; width: 100%; }
+details.inline-more > summary { display: inline-flex; }
+.tariff-list, .ref-list, .quote-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.tariff { border: 1px solid var(--hairline); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: rgba(255, 255, 255, 0.015); }
+.tariff.st-vigente { border-color: rgba(100, 199, 174, 0.35); }
+.tariff.st-borrador { border-color: rgba(229, 199, 131, 0.35); border-style: dashed; }
+.tariff.st-retirada { opacity: 0.7; }
+.tariff-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.tariff-head b { color: var(--text); }
+.tariff-price { margin-left: auto; font-family: var(--font-brand), sans-serif; font-weight: 600; color: var(--gold-bright); font-size: 1.05rem; }
+.tariff-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px 18px; margin: 0; }
+.tariff-facts div { display: flex; flex-direction: column; gap: 2px; }
+.tariff-facts dt { font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); }
+.tariff-facts dd { margin: 0; color: var(--text-2); font-size: 0.86rem; }
+.ref-list li { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--hairline); }
+.ref-list li.is-stale { opacity: 0.65; }
+.ref-main { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 220px; }
+.ref-main b { color: var(--text); }
+.ref-main small { color: var(--text-3); font-size: 0.8rem; }
+.ref-link { font-size: 0.78rem; overflow-wrap: anywhere; }
+
+/* Cotización */
+.quotes { display: flex; flex-direction: column; gap: 16px; }
+.quote {
+  border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px;
+  border: 1px solid var(--hairline);
+  background: linear-gradient(160deg, rgba(20, 40, 74, 0.45), rgba(8, 15, 29, 0.6));
+}
+.quote.st-enviada { border-color: rgba(229, 199, 131, 0.5); box-shadow: 0 0 0 1px rgba(229, 199, 131, 0.1), 0 18px 40px rgba(0, 0, 0, 0.3); }
+.quote.st-aceptada { border-color: rgba(100, 199, 174, 0.45); }
+.quote.st-anulada, .quote.st-vencida, .quote.st-rechazada { opacity: 0.75; }
+.quote-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.quote-title { display: flex; flex-direction: column; gap: 2px; }
+.quote-title .mono { color: var(--gold); font-size: 0.76rem; }
+.quote-title b { color: var(--text); font-size: 1.02rem; }
+.quote-price { display: flex; flex-direction: column; gap: 2px; }
+.quote-final { font-family: var(--font-brand), sans-serif; font-weight: 600; font-size: 2rem; color: var(--text); letter-spacing: 0.01em; line-height: 1.1; }
+.quote.st-enviada .quote-final { color: var(--gold-bright); }
+.quote-final-note { font-size: 0.82rem; color: var(--text-3); }
+.quote-lines { margin: 0; display: flex; flex-direction: column; border-top: 1px solid var(--hairline); }
+.quote-lines div { display: flex; justify-content: space-between; gap: 14px; padding: 8px 0; border-bottom: 1px solid var(--hairline); font-size: 0.88rem; }
+.quote-lines dt { color: var(--text-2); }
+.quote-lines dt small { color: var(--text-3); }
+.quote-lines dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.quote-lines .is-strong dd { font-weight: 600; }
+.quote-lines .is-final dt, .quote-lines .is-final dd { color: var(--gold-bright); font-weight: 700; }
+.quote-terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 20px; }
+.quote-terms > div { display: flex; flex-direction: column; gap: 4px; }
+.quote-terms p { margin: 0; color: var(--text-2); font-size: 0.88rem; }
+.quote-refs { padding: 12px 14px; border-radius: 12px; border: 1px dashed var(--hairline-strong); display: flex; flex-direction: column; gap: 8px; }
+.quote-refs h5 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.quote-refs ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.quote-refs li { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 0.84rem; color: var(--text-2); }
+.quote-refs a { font-size: 0.78rem; }
+.quote-decide { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; border-top: 1px solid var(--hairline); }
+.quote-accept { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; padding-top: 10px; }
+.quote-accept .check-inline { color: var(--text-2); align-items: flex-start; line-height: 1.5; }
+.quote-accept .check-inline input { margin-top: 4px; }
+.quote-form { padding-top: 10px; }
+.quote-preview { margin: 6px 0 14px; padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(100, 199, 174, 0.35); background: rgba(100, 199, 174, 0.05); display: flex; flex-direction: column; gap: 8px; }
+.quote-preview.needs-review { border-color: rgba(229, 199, 131, 0.5); background: var(--gold-soft); }
+.quote-route { margin: 0; font-size: 0.84rem; color: var(--text-2); }
+@media (max-width: 720px) {
+  .form-grid { grid-template-columns: 1fr; }
+  .form-grid .field-wide { grid-column: auto; }
+  .quote-final { font-size: 1.6rem; }
+  .tariff-price { margin-left: 0; }
+}

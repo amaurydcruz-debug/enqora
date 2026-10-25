@@ -102,11 +102,12 @@ export default async function CommandCenterPage({
           <h1>Casos ENQORA</h1>
           <p className="hero-lead">{supervisor ? "Supervisión de todos los casos, asignaciones y plazos." : "Tus casos asignados."}</p>
         </div>
-        {role === "enqora_admin" ? (
-          <div className="hero-actions">
+        <div className="hero-actions">
+          <Link href="/mando/catalogo" className="btn btn-ghost btn-inline">Catálogo y precios</Link>
+          {role === "enqora_admin" ? (
             <Link href="/mando/equipo" className="btn btn-ghost btn-inline"><IconUsers size={18} /> Equipo ENQORA</Link>
-          </div>
-        ) : null}
+          ) : null}
+        </div>
       </header>
 
       <div className="kpis kpis-mando">
