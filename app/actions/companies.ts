@@ -54,18 +54,33 @@ export async function updateCompanyAction(_: CompanyFormState, fd: FormData): Pr
   const id = uuid(fd, "company_id");
   const legalName = text(fd, "legal_name", 160);
   const regime = text(fd, "tax_regime", 40);
+  const address = text(fd, "address", 200);
+  const commune = text(fd, "commune", 80);
   if (!id) return { error: "Empresa no válida." };
   if (legalName.length < 2) return { error: "Ingresa la razón social de la empresa." };
   if (!isRegime(regime)) return { error: "Selecciona un régimen tributario." };
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("update_company", {
+  const base = {
     p_company: id,
     p_legal_name: legalName,
     p_trade_name: text(fd, "trade_name", 120),
     p_activity: text(fd, "activity", 200),
     p_tax_regime: regime,
-  });
+  };
+  const { error } = await supabase.rpc("update_company", { ...base, p_address: address, p_commune: commune });
+
+  // Si la base aún no tiene la migración 0007 (domicilio), se guardan los demás datos igual.
+  if (error && (error as { code?: string }).code === "PGRST202") {
+    const { error: legacy } = await supabase.rpc("update_company", base);
+    if (legacy) return { error: dbMessage(legacy) };
+    revalidatePath(`/empresas/${id}`);
+    return {
+      ok: address || commune
+        ? "Datos actualizados. El domicilio se podrá guardar cuando se active la actualización 0007 de la base de datos."
+        : "Datos de la empresa actualizados.",
+    };
+  }
   if (error) return { error: dbMessage(error) };
 
   revalidatePath(`/empresas/${id}`);
