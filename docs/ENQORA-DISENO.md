@@ -2,18 +2,40 @@
 
 Regla permanente del proyecto. Todo módulo nuevo la cumple antes de publicarse.
 
-## Identidad visual (estable desde el inicio)
+## Identidad visual (rediseño premium, oct 2026)
+
+Azul casi negro con profundidad, iluminación azul sutil y oro como acento. Nada de grandes superficies de azul brillante ni de neón.
 
 | Token | Color | Uso |
 | --- | --- | --- |
-| `--night` | `#101B2D` | Fondo principal, paneles |
-| `--gold` | `#C6A66B` | Acciones principales y premium |
-| `--silver` | `#D9E0EA` | Texto, bordes metálicos |
-| `--ivory` | `#F4F0E8` | Títulos y texto destacado |
-| `--verified` | `#39796B` | Operaciones verificadas |
-| `--risk` | rojo | Solo riesgos reales y errores |
+| `--bg` | `#050914` | Fondo principal |
+| `--bg-2` | `#080F1D` | Fondo secundario |
+| `--surface` | `#0B1425` | Superficie elevada |
+| `--surface-2` | `#101D34` | Superficie activa |
+| `--blue-deep` | `#14284A` | Profundidad |
+| `--blue` | `#3C76D2` | Solo reflejos, foco y elemento activo |
+| `--gold` / `--gold-bright` | `#C6A66B` / `#E5C783` | Acento premium: acción principal, indicador activo, lo que espera al cliente |
+| `--text` / `--text-2` / `--text-3` | `#F3F5FA` / `#C3CCDA` / `#9AA8BD` | Títulos / texto / texto secundario |
+| `--ok` | `#64C7AE` | Éxito y verificado |
+| `--danger` | `#E47C82` | Solo riesgos reales y errores |
 
-Debe transmitir prestigio, confianza, inteligencia, precisión y seguridad financiera.
+Los nombres anteriores (`--night`, `--silver`, `--ivory`…) siguen funcionando y apuntan a la nueva paleta.
+
+Debe transmitir inteligencia empresarial, seguridad financiera, tecnología avanzada, exclusividad, confianza y precisión.
+
+### Composición
+
+- **Superficies por capas:** franja de indicadores, paneles y fichas. Los bordes son finos y aparecen solo donde aportan estructura. No se encierra todo en tarjetas.
+- **Navegación lateral propia:**
+  - Contenido: logotipo, empresa activa, secciones según permisos y usuario.
+  - Elemento activo: reflejo azul con indicador dorado.
+  - **Teléfono:** barra superior y barra inferior compacta.
+- **Estados:** punto de color y texto (`.status`). Se distinguen por su estado, no por decoración.
+- **Pantallas principales:**
+  - **Centro de control:** composición asimétrica. Lo principal es el estado de la empresa, los casos activos y las acciones pendientes; al costado, la protección de la cuenta, la actividad y los accesos.
+  - **Casos:** filtros por estado y una línea por caso con folio, nombre, empresa, estado, próximo paso, responsable y fecha.
+  - **Empresas:** ficha empresarial con monograma y datos en columnas.
+  - **Seguridad:** centro de seguridad con el estado de protección y secciones de dos columnas.
 
 ## Sistema de diseño
 
@@ -65,4 +87,5 @@ El reloj ENQORA es el emblema del Centro de Control, sin distraer de las funcion
 - Hecho: tokens de color, tipografía (Montserrat + Inter), botones, tarjetas, formularios, insignias, avisos, diseño adaptable.
 - Hecho (Etapas 3 y 4): iconografía propia (`components/icons.tsx`), navegación lateral, estado de carga con el reloj ENQORA, movimiento reducido, foco visible.
 - Hecho: ENQORA MIRROR, la Ventana de Inteligencia (`components/mirror/`): cámara de inteligencia privada con núcleo 3D real (WebGL: cristal en placas con juntas de oro líquido, luz dorada central, espacio volumétrico) sobre pedestal ENQORA, agentes con nodo propio y filamentos de energía, y lectura del caso con datos reales. Ver `ENQORA-MIRROR.md`.
+- Hecho: rediseño premium del sistema (paleta azul casi negro y oro, navegación lateral con estado activo, barra inferior en teléfono) y de Centro de control, Casos, Empresas y Seguridad.
 - Pendiente: retirar estilos en línea que quedan en las pantallas de acceso (Etapa 1).
