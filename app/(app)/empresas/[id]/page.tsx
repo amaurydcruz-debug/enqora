@@ -16,7 +16,9 @@ import { createClient } from "@/lib/supabase/server";
 import { ActivityPanel, type ActivityView } from "./activity-panel";
 import { CompanyDataPanel } from "./company-form";
 import { InviteForm } from "./invite-form";
+import { MandatesPanel } from "./mandates-panel";
 import { MembersPanel, type MemberView } from "./members-panel";
+import type { Mandate } from "@/lib/mandates";
 
 export const metadata: Metadata = { title: "Empresa" };
 
@@ -28,10 +30,14 @@ const AVISOS: Record<string, string> = {
   rol: "Rol actualizado.",
   eliminado: "Miembro quitado de la empresa.",
   revocada: "Invitación revocada.",
+  mandato_aceptado: "Listo. Ahora firma el mandato y sube el documento.",
+  mandato_revocado: "Mandato revocado. ENQORA ya no puede actuar con él.",
 };
 
 // Sección que se abre sola tras una acción, para que el resultado quede a la vista.
-const OPEN_AFTER: Record<string, string> = { rol: "miembros", eliminado: "miembros", revocada: "invitar", unido: "miembros" };
+const OPEN_AFTER: Record<string, string> = {
+  rol: "miembros", eliminado: "miembros", revocada: "invitar", unido: "miembros", mandato_aceptado: "mandatos", mandato_revocado: "mandatos",
+};
 
 const EVENTOS: Record<string, { text: string; kind: ActivityView["kind"] }> = {
   "empresa.creada": { text: "registró la empresa", kind: "datos" },
@@ -100,7 +106,7 @@ export default async function CompanyPage({
   if (!myRole) notFound();
   const manager = canManage(myRole);
 
-  const [{ data: profileRows }, { data: docRows, count: docCount }, { data: authRows }, { active }] = await Promise.all([
+  const [{ data: profileRows }, { data: docRows, count: docCount }, { data: authRows }, { active }, { data: mandateRows }] = await Promise.all([
     supabase.from("profiles").select("id, email, full_name").in("id", members.map((m) => m.user_id)),
     supabase
       .from("case_documents")
@@ -116,7 +122,11 @@ export default async function CompanyPage({
       .order("requested_at", { ascending: false })
       .limit(30),
     activeCompany(),
+    // RLS: solo Propietario y Administradores ven los mandatos (nunca los borradores internos).
+    supabase.from("mandates").select("*").eq("company_id", id).order("created_at", { ascending: false }).limit(30),
   ]);
+  const mandates = (mandateRows ?? []) as Mandate[];
+  const mandatesToSign = mandates.filter((m) => m.status === "pendiente_firma").length;
   const profiles = new Map(((profileRows ?? []) as Profile[]).map((p) => [p.id, p]));
   const docs = (docRows ?? []) as Doc[];
   const auths = (authRows ?? []) as Authorization[];
@@ -310,6 +320,18 @@ export default async function CompanyPage({
           </div>
         </>
       ),
+    },
+    {
+      id: "mandatos",
+      aliases: ["representacion"],
+      title: "Mandatos y representación",
+      description: "Qué puede hacer ENQORA en tu nombre y ante quién",
+      emblem: <Emblem name="legal" />,
+      tone: mandatesToSign && manager ? "gold" : "default",
+      status: mandatesToSign
+        ? <span className="status status-gold">{mandatesToSign === 1 ? "1 por firmar" : `${mandatesToSign} por firmar`}</span>
+        : <span>{mandates.some((m) => m.status === "vigente") ? `${mandates.filter((m) => m.status === "vigente").length} vigente${mandates.filter((m) => m.status === "vigente").length === 1 ? "" : "s"}` : "Sin mandatos"}</span>,
+      content: <MandatesPanel companyId={id} mandates={mandates} canManage={manager} />,
     },
     {
       id: "documentos",

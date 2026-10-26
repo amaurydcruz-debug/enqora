@@ -1,6 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { activeCompany } from "@/lib/companies";
 import { ROLES } from "@/lib/company-constants";
@@ -11,6 +13,7 @@ import { UserMenu } from "@/components/user-menu";
 import { IconAlert, IconBuilding, IconShield } from "@/components/icons";
 import { STAFF_ROLES } from "@/lib/cases";
 import { myStaffRole } from "@/lib/staff";
+import { flushDeliveries } from "@/lib/notify-delivery";
 
 // Área privada. El middleware ya exige sesión con segundo factor (aal2);
 // aquí se comprueba de nuevo en el servidor como segunda barrera.
@@ -53,16 +56,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
   ]);
 
-  // Avisos reales: autorizaciones que esperan a la empresa y, para el equipo, aprobaciones por decidir.
-  const [{ count: pendingAuth }, { data: inbox }] = await Promise.all([
-    active
-      ? supabase.from("client_authorizations").select("id", { count: "exact", head: true }).eq("company_id", active.id).eq("status", "pendiente")
-      : Promise.resolve({ count: 0 }),
-    staffRole && staffRole !== "ai_agent" ? supabase.rpc("approval_inbox") : Promise.resolve({ data: [] }),
-  ]);
-  const toApprove = Array.isArray(inbox) ? inbox.length : 0;
-  const notices = (pendingAuth ?? 0) + toApprove;
-  const noticesHref = toApprove && !pendingAuth ? "/mando?vista=aprobaciones" : "/panel#atencion";
+  // Avisos reales: notificaciones sin leer (autorizaciones, cotizaciones, cobros, aprobaciones…).
+  const { count: unread } = await supabase
+    .from("notifications")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .is("read_at", null);
+  const notices = unread ?? 0;
+  const noticesHref = "/notificaciones";
+
+  // Después de responder: envía los avisos pendientes por correo o WhatsApp (si están configurados).
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host") ?? ""}`;
+  after(() => flushDeliveries(origin));
 
   const companyName = active ? active.trade_name || active.legal_name : null;
   const roleLabel = staffRole ? STAFF_ROLES[staffRole] : active ? ROLES[active.role] : "Sin empresa";

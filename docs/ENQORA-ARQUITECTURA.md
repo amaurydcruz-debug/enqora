@@ -40,8 +40,8 @@ Futuros módulos (licitaciones, comercio exterior, inmobiliario…) se agregan s
 4. Expedientes y documentos — **hecho** (Etapa 4)
 5. Casos, tareas y seguimiento — **hecho** (Etapa 4)
 6. Equipo ENQORA: profesionales, gestores y agentes IA — **hecho** (Etapa 4; agentes IA conectados más adelante)
-7. Autorizaciones del cliente — **hecho** (Etapa 5); mandatos y representación en Etapa 9
-8. Notificaciones (app, correo, WhatsApp) — pendiente
+7. Autorizaciones del cliente — **hecho** (Etapa 5); mandatos, representación y trámites — **hecho** (Etapa 9)
+8. Notificaciones (app, correo, WhatsApp) — **hecho** (Etapa 9)
 9. Centro de Mando — **hecho** (Etapas 4 y 5): bandejas por perfil y mecanismo común de aprobaciones
 
 Cada módulo es configuración y contenido sobre este núcleo, no una aplicación aparte: catálogo de servicios → diagnóstico → ruta de trabajo → expediente → agentes IA → profesional responsable → gestor → seguimiento → autorización del cliente → auditoría.
@@ -101,7 +101,7 @@ Toda información normativa registra: fuente oficial, fecha de consulta, publica
 | 7a | Puerta de entrada: bienvenida, consulta pública por RUT (empresas), galería de servicios y registro con el servicio elegido | Entregado (ver `ENQORA-ENTRADA.md`) |
 | 7 | Diagnóstico gratuito + onboarding inteligente + Centro de control del cliente con su ruta | Entregado (ver `ENQORA-DIAGNOSTICO.md`) |
 | 8 | Planes y suscripciones (Plataforma y Contabilidad Profesional), propuesta mensual al cerrar un caso, pagos | Entregado (ver `ENQORA-PLANES-PAGOS.md`) |
-| 9 | Mandatos y representación; notificaciones (correo, WhatsApp) | |
+| 9 | Mandatos y representación; notificaciones (correo, WhatsApp) | Entregado (ver `ENQORA-MANDATOS-NOTIFICACIONES.md`) |
 | 10 | Primer servicio completo: ENQORA CONTABILIDAD (documentos, conciliación, IVA/F29) | |
 | 11+ | CREATE, FORMALIZA, BRAND, agentes de investigación, IDEA, GESTIÓN, CRECE, LEGAL | |
 

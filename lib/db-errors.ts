@@ -47,6 +47,15 @@ const MESSAGES: Record<string, string> = {
   ENQ_CLAVE_SERVICIO: "La clave de servicio no es válida.",
   ENQ_PASARELA_NO_CONFIGURADA: "El pago en línea aún no está habilitado. Puedes pagar por transferencia.",
   ENQ_PASARELA_ERROR: "No pudimos conectar con la pasarela de pago. Intenta nuevamente o paga por transferencia.",
+  ENQ_MANDATO_NO_EDITABLE: "Este mandato ya no se puede modificar en su estado actual.",
+  ENQ_MANDATO_SIN_ACEPTAR: "Antes de subir el documento firmado, revisa el mandato e indica quién firma.",
+  ENQ_VERIFICACION_INCOMPLETA: "Para dejar vigente el mandato, todos los puntos de la verificación deben estar comprobados.",
+  ENQ_SIN_MANDATO_VIGENTE: "No hay un mandato vigente de la empresa que cubra esta institución hoy.",
+  ENQ_SIN_AUTORIZACION_VIGENTE: "Falta una autorización vigente del cliente para este caso.",
+  ENQ_ACTUACION_NO_VERIFICADA: "La actuación debe estar habilitada (mandato y autorización vigentes) antes de registrarla.",
+  ENQ_TELEFONO_NO_VERIFICADO: "Para recibir avisos por WhatsApp primero verifica tu número.",
+  ENQ_CODIGO_VENCIDO: "El código venció. Pide uno nuevo.",
+  ENQ_CODIGO_INCORRECTO: "El código no es correcto.",
   ENQ_YA_SOLICITADA: "Ya lo solicitaste. El equipo ENQORA te enviará la cotización en este caso.",
 };
 
