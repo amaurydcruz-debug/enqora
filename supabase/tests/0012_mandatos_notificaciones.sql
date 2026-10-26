@@ -198,14 +198,14 @@ select set_config('t.key', public.rotate_service_token(), true);
 reset role;
 set local role anon;
 select set_config('request.jwt.claims', '{"role":"anon"}', true);
-create temp table envios on commit drop as select * from public.claim_deliveries(current_setting('t.key'), 50);
-select pg_temp.check((select count(*) from envios where channel = 'whatsapp' and recipient = '+56912345678') >= 1, 'WhatsApp va al teléfono verificado');
-select pg_temp.check((select count(*) from envios where channel = 'email' and recipient = 'ana12@prueba-enqora.cl' and title like 'Nuevo mensaje%') = 1,
+select set_config('t.envios', (select coalesce(jsonb_agg(to_jsonb(e)), '[]'::jsonb) from public.claim_deliveries(current_setting('t.key'), 50) e)::text, true);
+select pg_temp.check((select count(*) from (select e ->> 'id' as id, e ->> 'channel' as channel, e ->> 'recipient' as recipient, e ->> 'title' as title from jsonb_array_elements(current_setting('t.envios')::jsonb) e) envios where channel = 'whatsapp' and recipient = '+56912345678') >= 1, 'WhatsApp va al teléfono verificado');
+select pg_temp.check((select count(*) from (select e ->> 'id' as id, e ->> 'channel' as channel, e ->> 'recipient' as recipient, e ->> 'title' as title from jsonb_array_elements(current_setting('t.envios')::jsonb) e) envios where channel = 'email' and recipient = 'ana12@prueba-enqora.cl' and title like 'Nuevo mensaje%') = 1,
   'el aviso creado antes de cambiar las preferencias conserva su envío por correo');
 select pg_temp.check((select count(*) from public.claim_deliveries(current_setting('t.key'), 50)) = 0, 'un envío tomado no se toma dos veces');
-select public.finish_delivery(current_setting('t.key'), (select id from envios limit 1), true);
+select public.finish_delivery(current_setting('t.key'), (select (current_setting('t.envios')::jsonb -> 0 ->> 'id')::bigint), true);
 reset role;
-select pg_temp.check((select status from public.notification_deliveries where id = (select id from envios limit 1)) = 'enviado', 'queda enviado');
+select pg_temp.check((select status from public.notification_deliveries where id = (select (current_setting('t.envios')::jsonb -> 0 ->> 'id')::bigint)) = 'enviado', 'queda enviado');
 
 -- 7) Tarea diaria: mandatos vencidos
 update public.mandates set status = 'vigente', valid_until = (now() at time zone 'America/Santiago')::date - 1,
