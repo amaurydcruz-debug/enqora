@@ -102,7 +102,7 @@ Toda información normativa registra: fuente oficial, fecha de consulta, publica
 | 7 | Diagnóstico gratuito + onboarding inteligente + Centro de control del cliente con su ruta | Entregado (ver `ENQORA-DIAGNOSTICO.md`) |
 | 8 | Planes y suscripciones (Plataforma y Contabilidad Profesional), propuesta mensual al cerrar un caso, pagos | Entregado (ver `ENQORA-PLANES-PAGOS.md`) |
 | 9 | Mandatos y representación; notificaciones (correo, WhatsApp) | Entregado (ver `ENQORA-MANDATOS-NOTIFICACIONES.md`) |
-| 10 | Primer servicio completo: ENQORA CONTABILIDAD (documentos, conciliación, IVA/F29) | |
+| 10 | Primer servicio completo: ENQORA CONTABILIDAD (documentos, conciliación, IVA/F29) | Entregado (ver `ENQORA-CONTABILIDAD.md`) |
 | 11+ | CREATE, FORMALIZA, BRAND, agentes de investigación, IDEA, GESTIÓN, CRECE, LEGAL | |
 
 Ver también `docs/ENQORA-COMERCIAL.md` (precios, diagnóstico gratuito y conversión), `docs/ENQORA-DISENO.md` (sistema visual), `docs/ENQORA-ORQUESTACION.md` (orquestación) y `docs/ENQORA-EXPERIENCIA.md` (revelación progresiva).

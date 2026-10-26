@@ -2445,3 +2445,35 @@ details.inline-more > summary { display: inline-flex; }
   .sign-box span { border-color: #111; }
 }
 .check-stack { display: flex; flex-direction: column; gap: 10px; }
+
+/* =====================================================================
+   M12 · ENQORA Contabilidad
+   ===================================================================== */
+.period-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: 12px; }
+.period-tile {
+  display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 16px; text-decoration: none; color: inherit;
+  border: 1px solid var(--hairline-strong); background: linear-gradient(160deg, rgba(20, 40, 74, 0.45), rgba(8, 15, 29, 0.6));
+  transition: border-color 0.2s, transform 0.2s;
+}
+.period-tile:hover, .period-tile:focus-visible { border-color: rgba(229, 199, 131, 0.45); transform: translateY(-1px); }
+.period-tile.is-empty { background: rgba(255, 255, 255, 0.015); border-color: var(--hairline); }
+.period-tile b { color: var(--text); font-size: 1.02rem; }
+.period-tile small { color: var(--text-3); font-size: 0.82rem; }
+.table-scroll { overflow-x: auto; border: 1px solid var(--hairline); border-radius: 14px; max-width: 100%; }
+.ledger-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; min-width: 640px; }
+.ledger-table th { text-align: left; font-size: 0.64rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); font-weight: 600;
+  padding: 10px 12px; border-bottom: 1px solid var(--hairline-strong); background: rgba(255, 255, 255, 0.02); white-space: nowrap; }
+.ledger-table td { padding: 9px 12px; border-bottom: 1px solid var(--hairline); color: var(--text-2); vertical-align: top; }
+.ledger-table td small { color: var(--text-3); }
+.ledger-table tr:last-child td { border-bottom: 0; }
+.ledger-table .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--text); }
+.ledger-table tr.is-negative .num { color: var(--danger); }
+.ledger-table tr.is-total td { color: var(--text); font-weight: 600; background: rgba(255, 255, 255, 0.02); }
+.ledger-table tr.is-final td { color: var(--gold-bright); font-weight: 700; background: var(--gold-soft); }
+.f29-table { min-width: 520px; }
+.flag-list { margin: 6px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+.inline-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.inline-form .input-sm { max-width: 220px; }
+.recon-pair { align-items: flex-start; width: 100%; }
+.recon-form { display: flex; flex-direction: column; gap: 10px; }
+.over-limit { color: var(--gold-bright); }
