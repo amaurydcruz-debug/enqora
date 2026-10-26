@@ -46,6 +46,8 @@ import { answerText, QUESTIONS, type Answers } from "@/lib/onboarding";
 import { Approvals } from "./approvals";
 import { DiagnosisEditor } from "./diagnosis-editor";
 import { PlanProposals } from "./plan-proposals";
+import { CaseActions } from "./case-actions";
+import type { CaseAction, Mandate } from "@/lib/mandates";
 import { DiagnosisReport, type ServiceRef } from "./diagnosis-report";
 import { Quotes } from "./quotes";
 import { Authorizations } from "./authorizations";
@@ -99,7 +101,21 @@ const AVISOS: Record<string, string> = {
   propuesta_creada: "Propuesta de plan registrada.",
   propuesta_rechazada: "Registramos tu respuesta. Puedes contratar un plan cuando quieras desde Planes.",
   propuesta_anulada: "Propuesta de plan anulada.",
+  actuacion_planificada: "Actuación planificada. Se habilitará cuando el mandato y la autorización estén vigentes.",
+  actuacion_habilitada: "Actuación habilitada: mandato y autorización vigentes comprobados.",
+  actuacion_ejecutada: "Resultado registrado. El cliente lo verá en su caso.",
+  actuacion_fallida: "Registramos que la actuación no se completó.",
+  actuacion_cancelada: "Actuación cancelada.",
 };
+
+const ACTUACION_ACTIONS: Record<string, string> = {
+  planificada: "planificó el trámite",
+  verificada: "habilitó el trámite",
+  ejecutada: "realizó el trámite",
+  fallida: "registró que no se completó el trámite",
+  cancelada: "canceló el trámite",
+};
+const canDecide0 = (role: string | null) => !!role && ["owner", "admin"].includes(role);
 
 const PLAN_ACTIONS: Record<string, string> = {
   enviada: "envió una propuesta de plan mensual",
@@ -237,6 +253,15 @@ export default async function CasePage({
     canSeeBilling ? supabase.from("charges").select("*").eq("case_id", id).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
   ]);
   const proposals = (propRows ?? []) as PlanProposal[];
+
+  // Actuaciones ante instituciones (M11). RLS: el cliente ve las de su caso; los mandatos solo el equipo y los administradores.
+  const [{ data: actRows }, { data: manRows }] = await Promise.all([
+    supabase.from("case_actions").select("*").eq("case_id", id).order("created_at", { ascending: false }),
+    worker ? supabase.from("mandates").select("*").eq("company_id", c.company_id).in("status", ["vigente", "pendiente_firma", "en_verificacion"])
+      : canDecide0(memberRole) ? supabase.from("mandates").select("*").eq("company_id", c.company_id) : Promise.resolve({ data: [] }),
+  ]);
+  const caseActions = (actRows ?? []) as CaseAction[];
+  const caseMandates = (manRows ?? []) as Mandate[];
   const casePlans = (planRows ?? []) as Plan[];
   const casePlanPrices = (planPriceRows ?? []) as PlanPrice[];
   const caseCharges = (chargeRows ?? []) as Charge[];
@@ -254,6 +279,7 @@ export default async function CasePage({
   approvals.forEach((a) => [a.requested_by, a.decided_by].forEach((u) => u && people.add(u)));
   authorizations.forEach((a) => [a.requested_by, a.decided_by, a.revoked_by].forEach((u) => u && people.add(u)));
   quotes.forEach((q) => [q.created_by, q.decided_by].forEach((u) => u && people.add(u)));
+  caseActions.forEach((a) => [a.planned_by, a.verified_by, a.executed_by].forEach((u) => u && people.add(u)));
   if (published?.published_by) people.add(published.published_by);
 
   let allStaff: Staff[] = [];
@@ -341,6 +367,8 @@ export default async function CasePage({
         return `${PLAN_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó la propuesta de plan"}${e.metadata?.titulo || e.body ? ` «${e.metadata?.titulo ?? e.body}»` : ""}`;
       case "pago":
         return `registró el pago del cobro ${e.metadata?.folio ?? ""}`;
+      case "actuacion":
+        return `${ACTUACION_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó un trámite"} «${e.metadata?.titulo ?? ""}»`;
       case "autorizacion":
         return `${AUTH_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una autorización"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
       default:
@@ -396,6 +424,8 @@ export default async function CasePage({
     diagnostico_solicitado: "diagnostico", diagnostico_borrador: "diagnostico", diagnostico_guardado: "diagnostico",
     situacion_guardada: "diagnostico", situacion_eliminada: "diagnostico", diagnostico_enviado: "diagnostico", cotizacion_pedida: "diagnostico",
     propuesta_creada: "plan", propuesta_rechazada: "plan", propuesta_anulada: "plan",
+    actuacion_planificada: "actuaciones", actuacion_habilitada: "actuaciones", actuacion_ejecutada: "actuaciones",
+    actuacion_fallida: "actuaciones", actuacion_cancelada: "actuaciones",
   };
 
   const timeline = (
@@ -788,6 +818,31 @@ export default async function CasePage({
               canDecide={canDecide}
               canPropose={["verificacion", "cerrado"].includes(c.status)}
               isAgent={staffRole === "ai_agent"}
+            />
+          ),
+        } satisfies AccordionItem]
+      : []),
+    ...(caseActions.length || worker
+      ? [{
+          id: "actuaciones",
+          aliases: ["tramites"],
+          title: "Trámites ante instituciones",
+          emblem: <Emblem name="legal" size="sm" />,
+          status: caseActions.some((a) => a.status === "verificada")
+            ? <span className="status status-gold">Habilitado</span>
+            : <span>{caseActions.length ? `${caseActions.filter((a) => a.status === "ejecutada").length} de ${caseActions.filter((a) => a.status !== "cancelada").length} realizados` : "Sin trámites"}</span>,
+          content: (
+            <CaseActions
+              caseId={c.id}
+              actions={caseActions}
+              mandates={caseMandates}
+              authorizations={authorizations}
+              names={names}
+              worker={worker}
+              canVerify={supervisor || staffRole === "lawyer_pro" || c.responsible_id === user.id}
+              isAgent={staffRole === "ai_agent"}
+              isClosed={isClosed}
+              userId={user.id}
             />
           ),
         } satisfies AccordionItem]
