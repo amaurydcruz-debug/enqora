@@ -26,6 +26,14 @@ export const IconClock = (p: IconProps) => (
   </Svg>
 );
 
+// Contabilidad: libro con columnas.
+export const IconLedger = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="4" y="3.5" width="16" height="17" rx="2" />
+    <path d="M9 3.5v17M12 8h5M12 12h5M12 16h3" />
+  </Svg>
+);
+
 // Pagos: tarjeta con banda y chip.
 export const IconCard = (p: IconProps) => (
   <Svg {...p}>

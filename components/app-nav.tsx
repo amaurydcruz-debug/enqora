@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconActivity, IconBuilding, IconCard, IconControl, IconShield, IconUsers } from "@/components/icons";
+import { IconActivity, IconBuilding, IconCard, IconControl, IconLedger, IconShield, IconUsers } from "@/components/icons";
 
 // Navegación principal ENQORA. Marca la sección activa según la ruta actual.
 // "side": navegación lateral de escritorio · "bottom": barra compacta inferior en teléfono.
@@ -13,6 +13,7 @@ const ICONS = {
   empresas: IconBuilding,
   seguridad: IconShield,
   pagos: IconCard,
+  contabilidad: IconLedger,
   mando: IconUsers,
 } as const;
 
@@ -23,6 +24,7 @@ export type NavItem = {
   icon: keyof typeof ICONS;
   group: "empresa" | "equipo";
   alert?: string; // texto accesible cuando hay algo pendiente
+  bottom?: boolean; // false: no aparece en la barra inferior del teléfono
 };
 
 export function AppNav({ items, variant }: { items: NavItem[]; variant: "side" | "bottom" }) {
@@ -32,7 +34,7 @@ export function AppNav({ items, variant }: { items: NavItem[]; variant: "side" |
   if (variant === "bottom") {
     return (
       <nav className="bottom-nav" aria-label="Principal">
-        {items.map((it) => {
+        {items.filter((it) => it.bottom !== false).map((it) => {
           const Icon = ICONS[it.icon];
           const active = isActive(it.href);
           return (

@@ -82,6 +82,6 @@ Variables de entorno en Vercel (nunca en el repositorio):
 
 ## Pendiente
 
-- Aplicar los límites de los planes (documentos y operaciones) cuando exista ENQORA CONTABILIDAD (M12).
+- Los documentos del período se comparan con el límite del plan en ENQORA CONTABILIDAD (aviso, sin bloqueo).
 - Emitir la boleta o factura electrónica de cada pago, con un proveedor autorizado por el SII.
 - Notificar por correo los cobros por pagar, vencidos y pagados (M11).

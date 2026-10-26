@@ -56,6 +56,10 @@ const MESSAGES: Record<string, string> = {
   ENQ_TELEFONO_NO_VERIFICADO: "Para recibir avisos por WhatsApp primero verifica tu número.",
   ENQ_CODIGO_VENCIDO: "El código venció. Pide uno nuevo.",
   ENQ_CODIGO_INCORRECTO: "El código no es correcto.",
+  ENQ_PERIODO_DECLARADO: "Este período ya tiene su F29 aprobado o presentado: sus documentos no se pueden modificar.",
+  ENQ_MONTO_NO_COINCIDE: "El monto del movimiento no coincide con el total del documento.",
+  ENQ_YA_CONCILIADO: "Ese movimiento o documento ya está conciliado.",
+  ENQ_F29_NO_EDITABLE: "El F29 de este período ya no se puede modificar en su estado actual.",
   ENQ_YA_SOLICITADA: "Ya lo solicitaste. El equipo ENQORA te enviará la cotización en este caso.",
 };
 
