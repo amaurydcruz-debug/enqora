@@ -139,10 +139,18 @@ export function RutLookup() {
             <>
               <h3>Estamos sincronizando las fuentes oficiales</h3>
               <p className="lookup-note">
-                El conector de ENQORA está descargando las nóminas públicas del SII; la consulta queda disponible apenas termine la primera carga.
-                Mientras tanto, puedes revisar la situación de tu empresa directamente en el{" "}
-                <a href="https://www.sii.cl" target="_blank" rel="noopener noreferrer">sitio del SII</a> o conocer los servicios ENQORA.
+                Tu consulta puso en marcha el conector de ENQORA con las nóminas públicas del SII. La primera carga toma unos minutos;
+                vuelve a consultar este RUT en un rato.
               </p>
+              <div className="lookup-deep">
+                <b>Mientras tanto, puedes verlo tú mismo en el SII</b>
+                <span>
+                  El SII ofrece gratis la «Consulta de situación tributaria de terceros»: muestra la razón social, las actividades
+                  vigentes, si la empresa está autorizada a emitir documentos y si tiene observaciones. La haces directamente en el sitio del SII.
+                </span>
+                <a href="https://www.sii.cl/como_se_hace_para/situacion_trib_terceros.html" target="_blank" rel="noopener noreferrer"
+                  className="btn btn-ghost btn-inline btn-sm">Abrir la consulta del SII</a>
+              </div>
             </>
           )}
           {r.estado !== "sin_datos" ? (
