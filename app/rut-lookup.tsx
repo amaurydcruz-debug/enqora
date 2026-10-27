@@ -14,12 +14,25 @@ const fmtDate = (d?: string | null) =>
 export function RutLookup() {
   const [state, action, pending] = useActionState(lookupRutAction, undefined);
   const [rut, setRut] = useState("");
+  const [localError, setLocalError] = useState<string | null>(null);
   const valid = isValidRut(rut);
   const r = state?.result;
 
   return (
     <div className="lookup">
-      <form action={action} className="lookup-form">
+      <form
+        action={action}
+        className="lookup-form"
+        onSubmit={(e) => {
+          // Nunca un botón «muerto»: si el RUT no es válido, se explica por qué no se consulta.
+          if (!valid) {
+            e.preventDefault();
+            setLocalError(rut.trim()
+              ? "El RUT no es válido: revisa el número y el dígito verificador (ej.: 76.123.456-7)."
+              : "Ingresa el RUT de una empresa para consultar.");
+          } else setLocalError(null);
+        }}
+      >
         <label htmlFor="rut" className="lookup-label">RUT de la empresa</label>
         <div className="lookup-row">
           <input
@@ -31,10 +44,10 @@ export function RutLookup() {
             placeholder="76.123.456-7"
             maxLength={12}
             value={rut}
-            onChange={(e) => setRut(formatRut(e.target.value))}
+            onChange={(e) => { setRut(formatRut(e.target.value)); setLocalError(null); }}
             aria-describedby="rut-hint"
           />
-          <button type="submit" className="btn btn-gold lookup-btn" disabled={pending || !valid} aria-busy={pending}>
+          <button type="submit" className="btn btn-gold lookup-btn" disabled={pending} aria-busy={pending}>
             {pending ? "Consultando…" : "Consultar"}
           </button>
         </div>
@@ -47,7 +60,8 @@ export function RutLookup() {
 
       {pending ? <EnqoraClockLoader mode="datos" label="Buscando en la información pública del SII" /> : null}
 
-      {!pending && state?.error ? <p className="lookup-error" role="alert">{state.error}</p> : null}
+      {localError ? <p className="lookup-error" role="alert">{localError}</p> : null}
+      {!pending && !localError && state?.error ? <p className="lookup-error" role="alert">{state.error}</p> : null}
 
       {!pending && r ? (
         <section className="lookup-result" aria-live="polite">
