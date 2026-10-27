@@ -2,9 +2,14 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { AuthCard, Notice } from "@/components/auth-card";
 import { safeNext } from "@/lib/safe-next";
+import { indexable } from "@/lib/site";
 import { SignInForm } from "./form";
 
-export const metadata: Metadata = { title: "Ingresar" };
+export const metadata: Metadata = {
+  title: "Ingresar",
+  description: "Ingresa a ENQORA con tu correo y segundo factor de seguridad.",
+  robots: indexable() ? { index: true, follow: true } : { index: false, follow: false },
+};
 
 const AVISOS: Record<string, string> = {
   salida: "Cerraste sesión correctamente.",

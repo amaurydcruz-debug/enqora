@@ -3,7 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import { activeCompany } from "@/lib/companies";
 import { ROLES } from "@/lib/company-constants";
 import { formatRut } from "@/lib/rut";
@@ -37,15 +37,13 @@ const Bell = () => (
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) redirect("/ingresar");
 
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   if (aal?.currentLevel !== "aal2") redirect(aal?.nextLevel === "aal2" ? "/mfa/verificar" : "/mfa/configurar");
 
-  const [{ active }, { count: alerts }, staffRole, { data: me }] = await Promise.all([
+  const [{ active }, { count: alerts }, staffRole, { data: me }, { count: unread }] = await Promise.all([
     activeCompany(),
     supabase
       .from("security_events")
@@ -54,14 +52,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       .is("acknowledged_at", null),
     myStaffRole(),
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    // Avisos reales: notificaciones sin leer (autorizaciones, cotizaciones, cobros, aprobaciones…).
+    supabase.from("notifications").select("id", { count: "exact", head: true }).eq("user_id", user.id).is("read_at", null),
   ]);
-
-  // Avisos reales: notificaciones sin leer (autorizaciones, cotizaciones, cobros, aprobaciones…).
-  const { count: unread } = await supabase
-    .from("notifications")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .is("read_at", null);
   const notices = unread ?? 0;
   const noticesHref = "/notificaciones";
 

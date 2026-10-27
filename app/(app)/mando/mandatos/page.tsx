@@ -13,7 +13,7 @@ import { messageForCode } from "@/lib/db-errors";
 import { INSTITUTIONS, instList, MANDATE_KINDS, MANDATE_STATUSES, VERIFY_CHECKS, type Mandate } from "@/lib/mandates";
 import { formatRut } from "@/lib/rut";
 import { myStaffRole } from "@/lib/staff";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Mandatos" };
 
@@ -35,9 +35,7 @@ export default async function MandatesAdminPage({ searchParams }: { searchParams
   if (!role) notFound();
   const sp = await searchParams;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   const canVerify = role === "lawyer_pro" || role === "enqora_admin";
   const human = role !== "ai_agent";
 

@@ -3,7 +3,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabaseEnv } from "./env";
 
 // Rutas accesibles sin sesión.
-const PUBLIC_PREFIXES = ["/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth", "/comenzar"];
+const PUBLIC_PREFIXES = ["/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth", "/comenzar", "/privacidad", "/terminos"];
+// Páginas legales: siempre visibles, con o sin sesión y en cualquier etapa del segundo factor.
+const ALWAYS = ["/privacidad", "/terminos"];
 // Rutas que solo tienen sentido sin sesión.
 const GUEST_ONLY = ["/ingresar", "/registro"];
 
@@ -59,8 +61,8 @@ export async function updateSession(request: NextRequest) {
   const hasFactor = aal?.nextLevel === "aal2";
   const isAal2 = aal?.currentLevel === "aal2";
 
-  // Cerrar sesión y confirmaciones por correo siempre deben funcionar.
-  if (path.startsWith("/auth")) return response;
+  // Cerrar sesión, confirmaciones por correo y páginas legales siempre deben funcionar.
+  if (path.startsWith("/auth") || startsWithAny(path, ALWAYS)) return response;
 
   // 1) Tiene MFA pero no lo validó en esta sesión → pedir código.
   if (hasFactor && !isAal2) {

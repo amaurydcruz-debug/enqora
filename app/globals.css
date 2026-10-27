@@ -2510,3 +2510,40 @@ details.inline-more > summary { display: inline-flex; }
 .intake-fields { min-width: 0; border: 1px solid var(--hairline); border-radius: 14px; padding: 12px 14px 4px; margin: 0 0 16px; }
 .intake-fields legend { font-size: 0.84rem; color: var(--text-2); font-weight: 500; padding: 0 6px; }
 .intake-fields .field-wide { grid-column: 1 / -1; }
+
+/* =====================================================================
+   M14 · Publicación: páginas legales, errores y estado del sistema
+   ===================================================================== */
+.legal-links { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.82rem; }
+.legal-links a { color: var(--text-3); text-decoration: none; }
+.legal-links a:hover, .legal-links a:focus-visible { color: var(--gold-bright); text-decoration: underline; }
+.auth-legal { justify-content: center; margin-top: 18px; }
+.legal-shell { min-height: 100vh; display: flex; flex-direction: column; }
+.legal-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding: 16px clamp(16px, 4vw, 48px); border-bottom: 1px solid var(--hairline); }
+.legal-logo { height: 40px; width: auto; display: block; }
+.legal-main { width: 100%; max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+.legal-main h1 { margin: 6px 0 10px; font-size: clamp(1.6rem, 4vw, 2.2rem); color: var(--text); }
+.legal-lead { color: var(--text-2); margin: 0 0 6px; }
+.legal-meta { color: var(--text-3); font-size: 0.84rem; margin: 0 0 18px; }
+.legal-body { color: var(--text-2); line-height: 1.65; overflow-wrap: anywhere; }
+.legal-body h2 { color: var(--text); font-size: 1.08rem; margin: 30px 0 10px; }
+.legal-body ul { padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.legal-body a { color: var(--gold-bright); }
+.legal-identity { list-style: none; padding: 12px 14px !important; border: 1px solid var(--hairline-strong); border-radius: 12px; background: rgba(255, 255, 255, 0.02); }
+.error-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+.error-actions .btn { flex: 1 1 180px; }
+.error-card .error-actions .btn { flex: 0 1 auto; }
+.error-ref { margin: 16px 0 0; font-size: 0.8rem; color: var(--text-3); }
+.status-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.status-head h2 { margin: 0; }
+.status-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.status-list li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--hairline); min-width: 0; }
+.status-list li > span:nth-child(2) { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.status-list b { color: var(--text); font-weight: 500; }
+.status-list small { color: var(--text-3); font-size: 0.82rem; overflow-wrap: anywhere; }
+.status-dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; flex: none; background: var(--text-3); }
+.status-list .is-ok .status-dot { background: var(--ok); }
+.status-list .is-missing .status-dot { background: var(--danger); }
+.status-list .is-optional .status-dot { background: var(--gold); }
+.auth-shell { align-content: center; gap: 0; }

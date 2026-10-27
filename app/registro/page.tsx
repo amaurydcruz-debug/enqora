@@ -2,11 +2,16 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { AuthCard } from "@/components/auth-card";
+import { indexable } from "@/lib/site";
 import { Emblem } from "@/components/emblems";
 import { categoryByKey, INTENT_COOKIE } from "@/lib/discovery";
 import { SignUpForm } from "./form";
 
-export const metadata: Metadata = { title: "Crear cuenta" };
+export const metadata: Metadata = {
+  title: "Crear cuenta",
+  description: "Crea tu cuenta ENQORA: contabilidad, impuestos y gestión de tu empresa con profesionales y agentes inteligentes.",
+  robots: indexable() ? { index: true, follow: true } : { index: false, follow: false },
+};
 
 export default async function SignUpPage({ searchParams }: { searchParams: Promise<{ servicio?: string }> }) {
   const sp = await searchParams;

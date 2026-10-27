@@ -14,7 +14,7 @@ import {
 } from "@/app/actions/security";
 import { messageForCode } from "@/lib/db-errors";
 import { deviceLabel } from "@/lib/request-info";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import { ChangePasswordForm } from "./change-password";
 
 export const metadata: Metadata = { title: "Seguridad" };
@@ -69,9 +69,7 @@ export default async function SecurityPage({
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   const [factorsRes, sessionsRes, devicesRes, eventsRes] = await Promise.all([
     supabase.auth.mfa.listFactors(),

@@ -7,7 +7,7 @@ import { ModuleIcon } from "@/components/module-icons";
 import { CLOSED, MODULES, PRIORITIES, STAFF_ROLES, statusLabel, statusTone, type CaseRow } from "@/lib/cases";
 import { APPROVAL_KINDS, APPROVER_ROLES, type InboxItem } from "@/lib/approvals";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Centro de Mando" };
 
@@ -42,9 +42,7 @@ export default async function CommandCenterPage({
   const sp = await searchParams;
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   // RLS: el equipo solo recibe los casos asignados; la supervisión, todos.
   // La bandeja de aprobaciones la calcula la base según el perfil (cuatro ojos incluidos).
@@ -110,6 +108,7 @@ export default async function CommandCenterPage({
           <Link href="/mando/mandatos" className="btn btn-ghost btn-inline">Mandatos</Link>
           <Link href="/mando/datos-publicos" className="btn btn-ghost btn-inline">Datos públicos</Link>
           {supervisor ? <Link href="/mando/cobros" className="btn btn-ghost btn-inline">Cobros y pagos</Link> : null}
+          {supervisor ? <Link href="/mando/estado" className="btn btn-ghost btn-inline">Estado del sistema</Link> : null}
           {role === "enqora_admin" ? (
             <Link href="/mando/equipo" className="btn btn-ghost btn-inline"><IconUsers size={18} /> Equipo ENQORA</Link>
           ) : null}

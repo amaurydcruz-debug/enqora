@@ -19,6 +19,10 @@ export function AuthCard({
         {children}
         {footer ? <div className="auth-foot">{footer}</div> : null}
       </section>
+      <nav className="legal-links auth-legal" aria-label="Información legal">
+        <a href="/terminos">Términos del servicio</a>
+        <a href="/privacidad">Privacidad</a>
+      </nav>
     </main>
   );
 }
