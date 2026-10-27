@@ -700,7 +700,7 @@ export default async function CasePage({
           <dl className="data-grid">
             <div><dt>Folio</dt><dd className="mono">{c.folio}</dd></div>
             <div><dt>Servicio</dt><dd>{MODULES[c.module]?.name ?? c.module}</dd></div>
-            <div><dt>Empresa</dt><dd>{company ? `${company.trade_name || company.legal_name} · ${formatRut(company.rut)}` : "—"}</dd></div>
+            <div><dt>Empresa</dt><dd>{company ? `${company.trade_name || company.legal_name} · ${formatRut(company.rut)}` : "—"}{company ? <> · <Link href={`/empresas/${c.company_id}/cumplimiento`}>Cumplimiento</Link></> : null}</dd></div>
             <div><dt>Creado</dt><dd>{fmt(c.created_at)}</dd></div>
             <div><dt>Profesional responsable</dt><dd>{responsible ?? "Por asignar"}</dd></div>
             {c.due_date ? <div><dt>Fecha límite</dt><dd>{fmtDate(c.due_date)}</dd></div> : null}

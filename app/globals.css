@@ -2652,3 +2652,35 @@ details.inline-more > summary { display: inline-flex; }
 .news-list b { color: var(--text); }
 .news-list small { color: var(--text-3); font-size: 0.82rem; overflow-wrap: anywhere; }
 .news-list a { color: var(--gold-bright); font-size: 0.82rem; margin-top: auto; }
+
+/* =====================================================================
+   M17 · Expediente de cumplimiento y calendario de obligaciones
+   ===================================================================== */
+.company-links { margin: 10px 0 0; }
+.ob-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.ob-row { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 12px; padding: 10px 0; border-top: 1px solid var(--hairline); min-width: 0; }
+.ob-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1 1 260px; }
+.ob-main > .badge { align-self: flex-start; }
+.ob-main b { color: var(--text); font-weight: 500; }
+.ob-main small { color: var(--text-3); font-size: 0.8rem; overflow-wrap: anywhere; }
+.ob-main .ob-note { font-style: italic; }
+.ob-vencida .ob-main b { color: #f0a8ac; }
+.ob-edit { flex: 1 1 100%; }
+.ob-edit > summary { cursor: pointer; font-size: 0.82rem; color: var(--gold-bright); }
+.ob-tools { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hairline); }
+.ob-tools details > summary { cursor: pointer; }
+.ob-list.compact .ob-row { padding: 8px 0; }
+.matrix { display: flex; flex-direction: column; gap: 18px; }
+.matrix-stage h3 { margin: 0 0 8px; font-size: 0.95rem; color: var(--text); display: flex; gap: 8px; align-items: baseline; }
+.matrix-stage h3 span { font-size: 0.72rem; letter-spacing: 0.16em; color: var(--gold); }
+.matrix-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.matrix-item { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--hairline-strong); min-width: 0; }
+.matrix-item.item-obtenido, .matrix-item.item-presentado { border-color: rgba(100, 199, 174, 0.3); }
+.matrix-item.item-vencido, .matrix-item.item-observado { border-color: rgba(228, 124, 130, 0.35); }
+.matrix-item.item-no_aplica { opacity: 0.6; }
+.matrix-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.matrix-head b { color: var(--text); font-weight: 500; }
+.matrix-data { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr)); gap: 6px 14px; margin: 0; }
+.matrix-data dt { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+.matrix-data dd { margin: 1px 0 0; color: var(--text-2); font-size: 0.85rem; overflow-wrap: anywhere; }
+.field-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-3); }

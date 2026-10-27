@@ -433,6 +433,9 @@ export default async function CompanyPage({
               .filter(Boolean)
               .join(" · ")}
           </p>
+          <p className="company-links">
+            <Link href={`/empresas/${company.id}/cumplimiento`} className="btn btn-ghost btn-inline btn-sm">Cumplimiento y vencimientos <IconArrowRight size={14} /></Link>
+          </p>
         </div>
       </header>
 

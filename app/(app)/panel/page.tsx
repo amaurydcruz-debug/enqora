@@ -127,6 +127,13 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
     .filter((n) => !n.rubros?.length || (rubro && n.rubros.includes(rubro))).slice(0, 4);
   const benefits = active ? benefitsFor(profile, rubro).slice(0, 3) : [];
 
+  // Próximos vencimientos del calendario de obligaciones (M17).
+  const { data: obRows } = active
+    ? await supabase.from("obligations").select("id, title, due_date, status").eq("company_id", active.id)
+        .in("status", ["pendiente", "preparada", "vencida"]).order("due_date").limit(4)
+    : { data: [] };
+  const dueSoon = (obRows ?? []) as { id: string; title: string; due_date: string; status: string }[];
+
   const [authRes, taskRes, evRes, quoteRes] =
     active && caseIds.length
       ? await Promise.all([
@@ -543,6 +550,33 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
               <p className="empty-inline">No tienes casos en curso.</p>
             )}
           </section>
+
+          {/* Próximos vencimientos (M17) */}
+          {active ? (
+            <section className="zone" id="vencimientos">
+              <div className="zone-head">
+                <h2 className="zone-title">Próximos vencimientos</h2>
+                <Link href={`/empresas/${active.id}/cumplimiento#calendario`} className="link-arrow">Ver calendario y cumplimiento <IconArrowRight size={15} /></Link>
+              </div>
+              {dueSoon.length ? (
+                <ul className="ob-list compact">
+                  {dueSoon.map((o) => (
+                    <li key={o.id} className={`ob-row ob-${o.status}`}>
+                      <div className="ob-main">
+                        <span className={`badge ${o.status === "vencida" ? "badge-risk" : o.status === "preparada" ? "badge-gold" : "badge-muted"}`}>
+                          {o.status === "vencida" ? "Vencida" : o.status === "preparada" ? "Preparada" : "Pendiente"}
+                        </span>
+                        <b>{o.title}</b>
+                        <small>Vence {new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${o.due_date}T00:00:00Z`))}</small>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="empty-inline">Aún no hay obligaciones en tu calendario. Puedes generarlo en <Link href={`/empresas/${active.id}/cumplimiento#calendario`}>Cumplimiento</Link>.</p>
+              )}
+            </section>
+          ) : null}
 
           {/* Novedades y beneficios que podrían aplicar (M16) */}
           {news.length || benefits.length ? (
