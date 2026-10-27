@@ -54,6 +54,11 @@ import { Authorizations } from "./authorizations";
 import { CommentForm } from "./comment-form";
 import { MirrorConsole } from "./mirror-console";
 import { UploadDocument } from "./upload";
+import { AgentRunner } from "./agent-runner";
+import { AgentProposals, type AgentProposal, type AgentRun } from "./agent-proposals";
+import { applyRouteAction } from "@/app/actions/agents";
+import { agentsEnabled } from "@/lib/agents";
+import { MODULE_ROUTES } from "@/lib/module-routes";
 
 export const metadata: Metadata = { title: "Caso" };
 
@@ -106,6 +111,9 @@ const AVISOS: Record<string, string> = {
   actuacion_ejecutada: "Resultado registrado. El cliente lo verá en su caso.",
   actuacion_fallida: "Registramos que la actuación no se completó.",
   actuacion_cancelada: "Actuación cancelada.",
+  propuesta_aceptada: "Propuesta del agente aceptada y aplicada.",
+  propuesta_descartada: "Propuesta del agente descartada.",
+  ruta_aplicada: "Ruta del módulo aplicada: se crearon las tareas que faltaban.",
 };
 
 const ACTUACION_ACTIONS: Record<string, string> = {
@@ -268,8 +276,18 @@ export default async function CasePage({
   const openCharges = caseCharges.filter((ch) => ["pendiente", "vencido"].includes(ch.status));
   const openProposals = proposals.filter((pp) => pp.status === "enviada");
 
+  // Agentes IA (M13). RLS: solo el equipo que trabaja el caso ve ejecuciones y propuestas.
+  const [{ data: runRows }, { data: agentPropRows }] = await Promise.all([
+    worker ? supabase.from("agent_runs").select("*").eq("case_id", id).order("created_at", { ascending: false }).limit(10) : Promise.resolve({ data: [] }),
+    worker ? supabase.from("agent_proposals").select("id, run_id, position, kind, payload, status").eq("case_id", id).order("position") : Promise.resolve({ data: [] }),
+  ]);
+  const agentRuns = (runRows ?? []) as AgentRun[];
+  const agentProposals = ((agentPropRows ?? []) as AgentProposal[]).filter((p) => agentRuns.some((r) => r.id === p.run_id));
+  const pendingAgentProposals = agentProposals.filter((p) => p.status === "pendiente").length;
+
   // Nombres de las personas que aparecen en el caso.
   const people = new Set<string>();
+  agentRuns.forEach((r) => r.requested_by && people.add(r.requested_by));
   proposals.forEach((pp) => pp.decided_by && people.add(pp.decided_by));
   events.forEach((e) => e.actor_id && people.add(e.actor_id));
   tasks.forEach((t) => t.assignee_id && people.add(t.assignee_id));
@@ -376,6 +394,11 @@ export default async function CasePage({
     }
   };
 
+  const route = MODULE_ROUTES[c.module] ?? null;
+  const intakeAnswers = Object.entries(c.intake ?? {})
+    .filter(([, v]) => typeof v === "string" && v)
+    .map(([k, v]) => [route?.intake.find((f) => f.key === k)?.label ?? k, v] as [string, string]);
+
   const flowIndex = FLOW.indexOf(c.status as (typeof FLOW)[number]);
   const taskPeople = [
     ...assignments.map((a) => a.user_id),
@@ -426,6 +449,7 @@ export default async function CasePage({
     propuesta_creada: "plan", propuesta_rechazada: "plan", propuesta_anulada: "plan",
     actuacion_planificada: "actuaciones", actuacion_habilitada: "actuaciones", actuacion_ejecutada: "actuaciones",
     actuacion_fallida: "actuaciones", actuacion_cancelada: "actuaciones",
+    propuesta_aceptada: "agentes", propuesta_descartada: "agentes", ruta_aplicada: "tareas",
   };
 
   const timeline = (
@@ -520,10 +544,20 @@ export default async function CasePage({
       aliases: ["equipo"],
       title: "Agentes y responsables",
       emblem: <Emblem name="agentes" size="sm" />,
-      status: <span>{agentSummary.split(" · ").slice(0, 2).join(" · ")}</span>,
+      tone: worker && pendingAgentProposals ? "gold" : "default",
+      status: worker && pendingAgentProposals
+        ? <span className="status status-gold">{pendingAgentProposals} propuesta{pendingAgentProposals === 1 ? "" : "s"} por revisar</span>
+        : <span>{agentSummary.split(" · ").slice(0, 2).join(" · ")}</span>,
       content: (
         <>
           <AgentsPanel steps={steps} caseStatus={c.status} />
+          {worker ? (
+            <div className="sub-block">
+              <h4 className="sub-title">Agentes IA (equipo)</h4>
+              {!isClosed ? <AgentRunner caseId={c.id} enabled={agentsEnabled()} /> : null}
+              <AgentProposals caseId={c.id} runs={agentRuns} proposals={agentProposals} nameOf={nameOf} canDecide={!isClosed && staffRole !== "ai_agent"} />
+            </div>
+          ) : null}
           <div className="sub-block">
             <h4 className="sub-title">Responsables ENQORA</h4>
             {assignments.length ? (
@@ -630,6 +664,13 @@ export default async function CasePage({
           ) : (
             <p className="muted-line">Sin tareas.</p>
           )}
+          {worker && !isClosed && MODULE_ROUTES[c.module]?.tasks.length ? (
+            <form action={applyRouteAction} className="route-apply">
+              <input type="hidden" name="case_id" value={c.id} />
+              <span className="muted-line">Ruta estándar de {MODULES[c.module]?.name ?? c.module}: {MODULE_ROUTES[c.module].tasks.length} tareas (se omiten las que ya existen).</span>
+              <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Aplicar ruta del módulo</SubmitButton>
+            </form>
+          ) : null}
           {worker && !isClosed ? (
             <form action={createTaskAction} className="mini-form">
               <input type="hidden" name="case_id" value={c.id} />
@@ -681,6 +722,23 @@ export default async function CasePage({
             <div className="sub-block">
               <h4 className="sub-title">Tu solicitud</h4>
               <p className="pre">{c.description}</p>
+            </div>
+          ) : null}
+          {intakeAnswers.length ? (
+            <div className="sub-block">
+              <h4 className="sub-title">Respuestas iniciales</h4>
+              <dl className="data-grid">
+                {intakeAnswers.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+              </dl>
+            </div>
+          ) : null}
+          {route?.documents.length && c.status !== "cancelado" ? (
+            <div className="sub-block">
+              <h4 className="sub-title">Documentos que normalmente se necesitan</h4>
+              <ul className="doc-checklist">
+                {route.documents.map((d) => <li key={d}>{d}</li>)}
+              </ul>
+              <p className="muted-line">Es una guía general: el equipo te pedirá solo lo que tu caso requiera. Súbelos en «Documentos del caso». Nunca subas contraseñas ni claves.</p>
             </div>
           ) : null}
           {c.status !== "cancelado" ? (
