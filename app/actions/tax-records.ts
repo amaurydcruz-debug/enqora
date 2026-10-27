@@ -51,7 +51,8 @@ export async function reviewTaxRecordAction(fd: FormData) {
   redirect(`/empresas/${company}/hoja-de-vida?${error ? `error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}` : "aviso=revisada"}#analisis`);
 }
 
-// Centro de Mando → Datos públicos: dispara el conector sin esperar a la tarea diaria.
+// Centro de Mando → Datos públicos: ejecuta un tramo del conector y muestra su resultado
+// (si queda trabajo, el conector sigue solo por tramos hasta completar la carga).
 export async function syncPublicDataAction() {
   if ((await myStaffRole()) !== "enqora_admin") redirect("/mando");
   const secret = process.env.CRON_SECRET;
@@ -59,12 +60,29 @@ export async function syncPublicDataAction() {
   const h = await headers();
   const host = h.get("x-forwarded-host") ?? h.get("host");
   const proto = h.get("x-forwarded-proto") ?? "https";
-  if (host) {
-    // Solo se inicia: el conector sigue solo, por tramos, hasta completar la carga.
-    await fetch(`${proto}://${host}/api/cron/nomina`, {
-      headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(3_000),
-    }).catch(() => undefined);
+  let estado = "error";
+  let detalle = "";
+  if (!host) detalle = "No se pudo determinar la dirección del sitio.";
+  else {
+    try {
+      const res = await fetch(`${proto}://${host}/api/cron/nomina?origen=manual`, {
+        headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(55_000),
+      });
+      const data = (await res.json().catch(() => null)) as { estado?: string; detalle?: string; filas?: number } | null;
+      if (data?.estado) {
+        estado = data.estado;
+        detalle = data.detalle ?? (data.filas ? `${data.filas.toLocaleString("es-CL")} filas cargadas en este tramo.` : "");
+      } else {
+        detalle = res.status === 401
+          ? "El servidor rechazó la ejecución: revisa CRON_SECRET en Vercel y vuelve a desplegar."
+          : `El conector respondió ${res.status}. Si la protección de despliegues de Vercel está activa en producción, desactívala para /api/cron.`;
+      }
+    } catch (e) {
+      // Si el tramo sigue trabajando más de 55 s, continúa en segundo plano.
+      estado = e instanceof Error && e.name === "TimeoutError" ? "continua" : "error";
+      detalle = estado === "continua" ? "La carga sigue en segundo plano." : e instanceof Error ? e.message : "Error";
+    }
   }
   revalidatePath("/mando/datos-publicos");
-  redirect("/mando/datos-publicos?aviso=sincronizando");
+  redirect(`/mando/datos-publicos?resultado=${encodeURIComponent(estado)}&detalle=${encodeURIComponent(detalle.slice(0, 400))}`);
 }

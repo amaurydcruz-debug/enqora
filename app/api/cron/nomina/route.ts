@@ -1,10 +1,11 @@
 import { after, NextResponse, type NextRequest } from "next/server";
-import { runPublicSync } from "@/lib/public-sync";
+import { runPublicSync, type SyncReport } from "@/lib/public-sync";
 import { createClient } from "@/lib/supabase/server";
 
 // Conector automático con las nóminas públicas del SII (vercel.json → crons, cada día).
 // Vercel envía «Authorization: Bearer CRON_SECRET». Si la carga no termina en esta ejecución,
 // el propio servidor encadena la siguiente hasta completarla (cada una sigue desde su cursor).
+// Cada ejecución queda registrada (Centro de Mando → Datos públicos), también cuando falla.
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -14,11 +15,22 @@ export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const service = process.env.ENQORA_SERVICE_TOKEN;
   if (!secret || !service || request.headers.get("authorization") !== `Bearer ${secret}`) {
-    return NextResponse.json({ ok: false }, { status: 401 });
+    return NextResponse.json({ ok: false, estado: "error", detalle: "Falta CRON_SECRET o ENQORA_SERVICE_TOKEN" }, { status: 401 });
   }
+  const origin = request.nextUrl.searchParams.get("origen") === "manual" ? "manual" : "automatica";
   const supabase = await createClient();
-  const report = await runPublicSync(supabase, service, Date.now() + BUDGET_MS);
+  let report: SyncReport;
+  try {
+    report = await runPublicSync(supabase, service, Date.now() + BUDGET_MS);
+  } catch (e) {
+    report = { estado: "error", detalle: e instanceof Error ? e.message.slice(0, 400) : "Error inesperado" };
+  }
   if (report.estado === "error") console.error("[ENQORA nómina SII]", report.conjunto, report.detalle);
+  const { error: logErr } = await supabase.rpc("svc_log_public_sync", {
+    p_token: service, p_origin: origin, p_result: report.estado, p_dataset: report.conjunto ?? null,
+    p_rows: report.filas ?? 0, p_cursor: report.cursor ?? null, p_detail: report.detalle ?? null,
+  });
+  if (logErr) console.error("[ENQORA nómina SII] registro", logErr.message);
 
   // Encadenar: queda trabajo (carga a medias) o puede haber otro conjunto con versión nueva.
   const step = Number(request.nextUrl.searchParams.get("paso") ?? "0") || 0;

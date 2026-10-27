@@ -11,6 +11,8 @@ import { createClient } from "@/lib/supabase/server";
 import { PublicDataImporter } from "./importer";
 
 export const metadata: Metadata = { title: "Datos públicos" };
+// «Sincronizar ahora» espera el resultado de un tramo del conector.
+export const maxDuration = 60;
 
 type Import = {
   id: string; dataset: string; source_url: string; published_on: string; file_name: string | null;
@@ -21,8 +23,13 @@ type Import = {
 const DATASETS: Record<string, string> = {
   razon_social: "Razón social (PJ)", actividades: "Actividades económicas (PJ)", empresas: "Nómina de empresas (PJ)",
 };
-const AVISOS: Record<string, string> = {
-  sincronizando: "Sincronización iniciada: el servidor descarga las nóminas del SII y avanza por tramos. Recarga en unos minutos.",
+type Run = { id: number; ran_at: string; origin: string; result: string; dataset: string | null; rows_loaded: number; cursor_line: number | null; detail: string | null };
+const RESULT: Record<string, { label: string; tone: string; text: string }> = {
+  al_dia: { label: "Al día", tone: "ok", text: "Las nóminas ya están al día: el SII no ha publicado una versión nueva." },
+  continua: { label: "Avanzando", tone: "gold", text: "Carga en marcha: el conector sigue solo, por tramos. Recarga esta página en unos minutos." },
+  completada: { label: "Completada", tone: "ok", text: "Carga completada. El conector revisa ahora las demás nóminas." },
+  ocupado: { label: "En curso", tone: "gold", text: "Ya hay una carga avanzando en este momento." },
+  error: { label: "Error", tone: "risk", text: "El conector no pudo completar el tramo." },
 };
 const STATUS: Record<string, { label: string; tone: string }> = {
   en_curso: { label: "En curso", tone: "gold" }, completada: { label: "Completada", tone: "ok" }, cancelada: { label: "Detenida", tone: "muted" },
@@ -33,14 +40,19 @@ const fmtDate = (d: string) =>
   new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`));
 
 // Datos públicos del SII para la consulta por RUT de la puerta de entrada.
-export default async function PublicDataPage({ searchParams }: { searchParams: Promise<{ aviso?: string; error?: string }> }) {
+export default async function PublicDataPage({ searchParams }: { searchParams: Promise<{ resultado?: string; detalle?: string; error?: string }> }) {
   const sp = await searchParams;
   const role = await myStaffRole();
   if (!role) notFound();
   const admin = role === "enqora_admin";
   const supabase = await createClient();
-  const { data } = await supabase.from("public_data_imports").select("*").order("started_at", { ascending: false }).limit(20);
+  const [{ data }, { data: runRows }] = await Promise.all([
+    supabase.from("public_data_imports").select("*").order("started_at", { ascending: false }).limit(20),
+    supabase.from("public_sync_runs").select("*").order("ran_at", { ascending: false }).limit(10),
+  ]);
   const imports = (data ?? []) as Import[];
+  const runs = (runRows ?? []) as Run[];
+  const res = sp.resultado ? RESULT[sp.resultado] : null;
   const current = (ds: string) => imports.find((i) => i.dataset === ds && i.status === "completada");
   const running = imports.find((i) => i.status === "en_curso" && i.mode === "automatica");
   const failed = imports.find((i) => i.mode === "automatica" && i.last_error && (i.status === "en_curso" || i.status === "cancelada"));
@@ -71,7 +83,7 @@ export default async function PublicDataPage({ searchParams }: { searchParams: P
         })}
       </div>
 
-      {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
+      {res ? <Notice kind={sp.resultado === "error" ? "error" : "ok"}>{res.text}{sp.detalle ? ` ${sp.detalle}` : ""}</Notice> : null}
       {sp.error === "sin_configurar" ? <Notice kind="error">Falta configurar CRON_SECRET y ENQORA_SERVICE_TOKEN en Vercel.</Notice> : null}
 
       <Callout kind="info" title="Actualización automática">
@@ -92,9 +104,25 @@ export default async function PublicDataPage({ searchParams }: { searchParams: P
           <p className="muted-line">Sin cargas en curso.</p>
         )}
         {failed?.last_error ? <p className="lookup-error">Último problema ({DATASETS[failed.dataset]}): {failed.last_error}</p> : null}
+        {runs.length ? (
+          <>
+            <h3>Últimas ejecuciones</h3>
+            <ul className="ref-list" role="list">
+              {runs.map((r) => (
+                <li key={r.id}>
+                  <span className="ref-main">
+                    <b>{fmt(r.ran_at)} · {r.origin === "manual" ? "manual" : "automática"}{r.dataset ? ` · ${DATASETS[r.dataset]}` : ""}</b>
+                    <small>{r.rows_loaded ? `${r.rows_loaded.toLocaleString("es-CL")} filas · ` : ""}{r.detail ?? RESULT[r.result]?.text ?? ""}</small>
+                  </span>
+                  <span className={`status status-${RESULT[r.result]?.tone ?? "muted"}`}>{RESULT[r.result]?.label ?? r.result}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : <p className="muted-line">El conector aún no se ha ejecutado. Pulsa «Sincronizar ahora» para la primera carga.</p>}
         {admin ? (
           <form action={syncPublicDataAction} className="inline-form">
-            <SubmitButton className="btn-inline btn-sm" pendingText="Iniciando…">Sincronizar ahora</SubmitButton>
+            <SubmitButton className="btn-inline btn-sm" pendingText="Conectando con el SII… (hasta 1 minuto)">Sincronizar ahora</SubmitButton>
           </form>
         ) : null}
       </section>
