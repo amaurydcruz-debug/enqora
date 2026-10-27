@@ -6,7 +6,7 @@ automáticamente la mayoría de estos puntos. Muestra si cada clave existe, nunc
 
 ## 1. Base de datos (Supabase → SQL Editor)
 
-1. Ejecutar las migraciones en orden: `0002` … `0015`. Cada una tiene su prueba en `supabase/tests/`
+1. Ejecutar las migraciones en orden: `0002` … `0016`. Cada una tiene su prueba en `supabase/tests/`
    (debe responder «TODAS LAS PRUEBAS OK» y deshace sus datos).
 2. `0015_publicacion.sql` agrega índices, la limpieza diaria y el estado del sistema.
 3. Plan de Supabase con **copias de seguridad diarias** (Pro o superior). Para datos tributarios se
@@ -45,6 +45,7 @@ compilar: tras cambiarlas, **Redeploy**.
 | `FLOW_API_KEY`, `FLOW_SECRET_KEY`, `FLOW_API_URL` | Para pago en línea | Producción: `https://www.flow.cl/api` |
 | `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `WHATSAPP_TEMPLATE`, `WHATSAPP_OTP_TEMPLATE` | Opcional | Avisos por WhatsApp |
 | `ANTHROPIC_API_KEY` (`ANTHROPIC_MODEL`, `ANTHROPIC_WEB_SEARCH`) | Opcional | Agentes IA |
+| `OPENAI_API_KEY` (`OPENAI_MODEL`, `OPENAI_WEB_SEARCH`) | Si hay agentes | Auditoría independiente de las propuestas (M15) |
 
 Otros ajustes en Vercel:
 - **Domains:** dominio propio con HTTPS.

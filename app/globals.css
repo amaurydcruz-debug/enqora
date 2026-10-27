@@ -2547,3 +2547,25 @@ details.inline-more > summary { display: inline-flex; }
 .status-list .is-missing .status-dot { background: var(--danger); }
 .status-list .is-optional .status-dot { background: var(--gold); }
 .auth-shell { align-content: center; gap: 0; }
+
+/* =====================================================================
+   M15 · Auditoría independiente de agentes
+   ===================================================================== */
+.audit-box { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--hairline-strong); background: rgba(255, 255, 255, 0.02); min-width: 0; }
+.audit-box .pre { margin: 0; font-size: 0.86rem; color: var(--text-2); overflow-wrap: anywhere; }
+.audit-box.audit-aprobar { border-color: rgba(100, 199, 174, 0.35); background: var(--ok-soft); }
+.audit-box.audit-escalar, .audit-box.audit-fallida { border-color: rgba(228, 124, 130, 0.35); background: var(--danger-soft); }
+.audit-box.audit-corregir, .audit-box.audit-investigar, .audit-box.audit-falta_dato { border-color: rgba(229, 199, 131, 0.3); background: var(--warn-soft); }
+.audit-checks summary { cursor: pointer; font-size: 0.8rem; color: var(--text-3); }
+.audit-checks ul { margin: 6px 0 0; padding-left: 18px; font-size: 0.8rem; display: flex; flex-direction: column; gap: 3px; overflow-wrap: anywhere; }
+.audit-checks .is-ok { color: var(--text-3); }
+.audit-checks .is-bad { color: var(--gold-bright); }
+.audit-actions { display: flex; flex-direction: column; gap: 8px; }
+.audit-notes { margin: 0; padding: 8px 12px 8px 26px; border-radius: 10px; background: rgba(229, 199, 131, 0.06); font-size: 0.82rem; color: var(--text-2);
+  display: flex; flex-direction: column; gap: 4px; overflow-wrap: anywhere; }
+.audit-notes em { color: var(--text-3); font-style: normal; }
+.calc-list { margin: 2px 0 0; padding-left: 18px; font-size: 0.8rem; color: var(--text-3); overflow-wrap: anywhere; }
+.calc-list b { color: var(--text-2); font-weight: 500; text-transform: capitalize; }
+.proposal-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.override-form { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.proposal-reemplazada { opacity: 0.55; }

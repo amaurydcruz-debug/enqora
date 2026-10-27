@@ -55,7 +55,8 @@ import { CommentForm } from "./comment-form";
 import { MirrorConsole } from "./mirror-console";
 import { UploadDocument } from "./upload";
 import { AgentRunner } from "./agent-runner";
-import { AgentProposals, type AgentProposal, type AgentRun } from "./agent-proposals";
+import { AgentProposals, type AgentAudit, type AgentProposal, type AgentRun } from "./agent-proposals";
+import { auditEnabled } from "@/lib/audit";
 import { applyRouteAction } from "@/app/actions/agents";
 import { agentsEnabled } from "@/lib/agents";
 import { MODULE_ROUTES } from "@/lib/module-routes";
@@ -257,7 +258,7 @@ export default async function CasePage({
     // Actuaciones ante instituciones (M11). RLS: el cliente ve las de su caso; los mandatos solo el equipo y los administradores.
     { data: actRows }, { data: manRows },
     // Agentes IA (M13). RLS: solo el equipo que trabaja el caso ve ejecuciones y propuestas.
-    { data: runRows }, { data: agentPropRows },
+    { data: runRows }, { data: agentPropRows }, { data: auditRows },
     { data: allStaffRows },
     // Catálogo para cotizar (equipo) y referencias de mercado de los servicios cotizados.
     { data: sv }, { data: tf }, { data: refRows },
@@ -274,7 +275,8 @@ export default async function CasePage({
     worker ? supabase.from("mandates").select("*").eq("company_id", c.company_id).in("status", ["vigente", "pendiente_firma", "en_verificacion"])
       : canDecide0(memberRole) ? supabase.from("mandates").select("*").eq("company_id", c.company_id) : none,
     worker ? supabase.from("agent_runs").select("*").eq("case_id", id).order("created_at", { ascending: false }).limit(10) : none,
-    worker ? supabase.from("agent_proposals").select("id, run_id, position, kind, payload, status").eq("case_id", id).order("position") : none,
+    worker ? supabase.from("agent_proposals").select("id, run_id, position, kind, payload, status, audit_verdict, audit_severity, audit_notes, override_note").eq("case_id", id).order("position") : none,
+    worker ? supabase.from("agent_audits").select("id, run_id, status, decision, summary, checks, auditor, input_tokens, output_tokens, web_searches, error, created_at").eq("case_id", id).order("created_at", { ascending: false }).limit(30) : none,
     supervisor ? supabase.from("staff_members").select("user_id, role, active").eq("active", true) : none,
     worker && !isClosed ? supabase.from("services").select("*").eq("active", true).order("code") : none,
     worker && !isClosed ? supabase.from("service_tariffs").select("*").eq("status", "vigente") : none,
@@ -297,6 +299,7 @@ export default async function CasePage({
   const agentRuns = (runRows ?? []) as AgentRun[];
   const agentProposals = ((agentPropRows ?? []) as AgentProposal[]).filter((p) => agentRuns.some((r) => r.id === p.run_id));
   const pendingAgentProposals = agentProposals.filter((p) => p.status === "pendiente").length;
+  const agentAudits = (auditRows ?? []) as AgentAudit[];
 
   // Nombres de las personas que aparecen en el caso.
   const people = new Set<string>();
@@ -544,8 +547,9 @@ export default async function CasePage({
           {worker ? (
             <div className="sub-block">
               <h4 className="sub-title">Agentes IA (equipo)</h4>
-              {!isClosed ? <AgentRunner caseId={c.id} enabled={agentsEnabled()} /> : null}
-              <AgentProposals caseId={c.id} runs={agentRuns} proposals={agentProposals} nameOf={nameOf} canDecide={!isClosed && staffRole !== "ai_agent"} />
+              {!isClosed ? <AgentRunner caseId={c.id} enabled={agentsEnabled()} auditOn={auditEnabled()} /> : null}
+              <AgentProposals caseId={c.id} runs={agentRuns} proposals={agentProposals} audits={agentAudits} nameOf={nameOf}
+                canDecide={!isClosed && staffRole !== "ai_agent"} supervisor={supervisor} auditOn={auditEnabled()} />
             </div>
           ) : null}
           <div className="sub-block">

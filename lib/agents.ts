@@ -1,5 +1,7 @@
 import "server-only";
 import { AGENTS, STAGES, type AgentKey } from "@/lib/mirror";
+import { knowledgeFor } from "@/lib/knowledge";
+import { CALCULATOR_TOOLS, runCalculator } from "@/lib/tax-calc";
 
 // Agentes IA de ENQORA (M13): llaman a la API de Claude con los antecedentes reales del caso y
 // devuelven PROPUESTAS que una persona del equipo acepta o descarta. Nunca actúan por sí solos,
@@ -51,8 +53,14 @@ export function systemPrompt(agent: AgentKey, webSearch: boolean) {
     "- Nunca pidas ni sugieras compartir ClaveÚnica, clave tributaria del SII, contraseñas ni claves bancarias. ENQORA actúa ante instituciones solo con mandato verificado.",
     "- No fijes precios ni honorarios; no prometas resultados; no afirmes que algo es ilegal sin fundamento.",
     "- Las preguntas al cliente deben ser concretas y responderse sin conocimientos técnicos.",
+    "- Toda cifra (IVA, retenciones, multas, intereses) se obtiene con las herramientas calcular_*; declara cada cálculo en 'calculos' de la situación. Si falta un dato (UF, UTM, tasa diaria del SII), no lo supongas: pídelo.",
+    "- Distingue lo verificado de lo que es hipótesis. Una situación sin fuente oficial debe llevar certeza 'baja'.",
+    "- Considera la fecha de los hechos: si la norma cambió (por ejemplo, intereses desde 2025), aplica la vigente a esa fecha y dilo.",
+    "- Un auditor independiente revisará tu resultado: fuentes, fechas, cálculos y coherencia. Si recibes observaciones de auditoría, corrígelas una por una o explica por qué no corresponden.",
     `- Etapas posibles para los pasos: ${STAGES.slice(0, 7).map((s) => `${s.key} (${s.label})`).join(", ")}.`,
     "Cuando termines, llama UNA vez a la herramienta registrar_resultado con todo tu trabajo. Puedes devolver listas vacías si no corresponde proponer algo.",
+    "",
+    knowledgeFor(agent),
   ].join("\n");
 }
 
@@ -100,6 +108,18 @@ export const RESULT_TOOL = {
             riesgo: { ...str(1800), description: "Riesgo de no actuar, sin exagerar." },
             certeza: { type: "string", enum: ["alta", "media", "baja"] },
             falta: { ...str(1800), description: "Qué antecedentes faltan para confirmarlo." },
+            calculos: {
+              type: "array", maxItems: 8, description: "Cálculos hechos con las herramientas calcular_*, con sus entradas y resultado exactos.",
+              items: {
+                type: "object",
+                properties: {
+                  herramienta: { type: "string", enum: CALCULATOR_TOOLS.map((t) => t.name) },
+                  entradas: { type: "object" },
+                  resultado: { type: "object" },
+                },
+                required: ["herramienta", "entradas", "resultado"],
+              },
+            },
           },
           required: ["titulo", "situacion", "nivel_riesgo", "certeza"],
         },
@@ -148,10 +168,12 @@ export function toProposals(input: unknown): { summary: string; proposals: Propo
       const url = s(f.url, 400);
       return { titulo: s(f.titulo, 200), articulo: s(f.articulo, 120), vigencia: s(f.vigencia, 80), url: URL_RE.test(url) ? url : "" };
     }).filter((f) => f.titulo.length >= 3);
+    const calculos = arr(h.calculos, 8).map(obj).filter((c) => typeof c.herramienta === "string")
+      .map((c) => ({ herramienta: s(c.herramienta, 60), entradas: obj(c.entradas), resultado: obj(c.resultado) }));
     out.push({
       kind: "hallazgo",
       payload: {
-        titulo, situacion, normativa: s(h.normativa, 4000), fuentes, causas: s(h.causas, 2000), correcciones: s(h.correcciones, 4000),
+        calculos, titulo, situacion, normativa: s(h.normativa, 4000), fuentes, causas: s(h.causas, 2000), correcciones: s(h.correcciones, 4000),
         beneficios: s(h.beneficios, 2000), nivel_riesgo: oneOf(h.nivel_riesgo, ["bajo", "medio", "alto"] as const, "medio"),
         riesgo: s(h.riesgo, 2000), certeza: oneOf(h.certeza, ["alta", "media", "baja"] as const, "baja"), falta: s(h.falta, 2000),
       },
@@ -173,7 +195,7 @@ export function toProposals(input: unknown): { summary: string; proposals: Propo
 // Llamada a la API de Claude
 // ---------------------------------------------------------------------
 
-type Block = { type: string; name?: string; input?: unknown; [k: string]: unknown };
+type Block = { type: string; id?: string; name?: string; input?: unknown; [k: string]: unknown };
 type ApiResponse = {
   content?: Block[];
   stop_reason?: string;
@@ -193,7 +215,9 @@ export type AgentResult = {
   error?: string;
 };
 
-export async function runAgent(agent: AgentKey, context: unknown, instruction: string | null, signal: AbortSignal): Promise<AgentResult> {
+export async function runAgent(
+  agent: AgentKey, context: unknown, instruction: string | null, signal: AbortSignal, correction?: string | null,
+): Promise<AgentResult> {
   const key = process.env.ANTHROPIC_API_KEY;
   const model = MODEL();
   const searchVersion = WEB_SEARCH();
@@ -203,13 +227,15 @@ export async function runAgent(agent: AgentKey, context: unknown, instruction: s
   });
   if (!key) return fail("Falta configurar ANTHROPIC_API_KEY");
 
-  const tools: unknown[] = [RESULT_TOOL];
+  const tools: unknown[] = [RESULT_TOOL, ...CALCULATOR_TOOLS];
   if (searchVersion) tools.push({ type: searchVersion, name: "web_search", max_uses: 4, allowed_domains: OFFICIAL_DOMAINS });
 
   const userText = [
+    `Fecha de hoy: ${new Date().toISOString().slice(0, 10)}.`,
     `Antecedentes del caso (JSON):\n${JSON.stringify(context)}`,
     instruction ? `Indicación del profesional a cargo: ${instruction}` : "Analiza el caso desde tu especialidad y propone lo que corresponda.",
-  ].join("\n\n");
+    correction ? `OBSERVACIONES DE LA AUDITORÍA A TU PROPUESTA ANTERIOR (corrígelas una por una):\n${correction}` : "",
+  ].filter(Boolean).join("\n\n");
   const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: userText }];
 
   const call = async (toolChoice: unknown) => {
@@ -226,21 +252,43 @@ export async function runAgent(agent: AgentKey, context: unknown, instruction: s
     usage.searches += data.usage?.server_tool_use?.web_search_requests ?? 0;
     return data;
   };
+  const findResult = (d: ApiResponse) => d.content?.find((b) => b.type === "tool_use" && b.name === RESULT_TOOL.name);
 
   try {
     let data = await call({ type: "auto" });
-    // La búsqueda web puede pausar el turno: se reenvía para que continúe.
-    for (let i = 0; i < 3 && data.stop_reason === "pause_turn"; i++) {
+    // Ciclo de trabajo: búsqueda web (pause_turn) y calculadoras deterministas (tool_use).
+    for (let i = 0; i < 8 && !findResult(data); i++) {
+      if (data.stop_reason === "pause_turn") {
+        messages.push({ role: "assistant", content: data.content ?? [] });
+        data = await call({ type: "auto" });
+        continue;
+      }
+      const calls = (data.content ?? []).filter((b) => b.type === "tool_use" && b.name !== RESULT_TOOL.name);
+      if (data.stop_reason !== "tool_use" || !calls.length) break;
       messages.push({ role: "assistant", content: data.content ?? [] });
+      messages.push({
+        role: "user",
+        content: calls.map((b) => {
+          const r = runCalculator(String(b.name), b.input);
+          return { type: "tool_result", tool_use_id: b.id, content: JSON.stringify(r), ...(r.ok ? {} : { is_error: true }) };
+        }),
+      });
       data = await call({ type: "auto" });
     }
-    let use = data.content?.find((b) => b.type === "tool_use" && b.name === RESULT_TOOL.name);
+    let use = findResult(data);
     if (!use) {
       // Terminó sin registrar: se le pide que registre su resultado.
       messages.push({ role: "assistant", content: data.content?.length ? data.content : [{ type: "text", text: "(sin respuesta)" }] });
-      messages.push({ role: "user", content: "Registra ahora tu resultado con la herramienta registrar_resultado." });
+      const pending = (data.content ?? []).filter((b) => b.type === "tool_use");
+      messages.push({
+        role: "user",
+        content: [
+          ...pending.map((b) => ({ type: "tool_result", tool_use_id: b.id, content: "Sin tiempo para más cálculos: registra tu resultado.", is_error: true })),
+          { type: "text", text: "Registra ahora tu resultado con la herramienta registrar_resultado." },
+        ],
+      });
       data = await call({ type: "tool", name: RESULT_TOOL.name });
-      use = data.content?.find((b) => b.type === "tool_use" && b.name === RESULT_TOOL.name);
+      use = findResult(data);
     }
     if (!use) return fail("El agente no entregó un resultado");
     const { summary, proposals } = toProposals(use.input);
