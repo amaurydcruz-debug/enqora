@@ -82,7 +82,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       group: "empresa",
       alert: alerts ? `${alerts} alertas de seguridad` : undefined,
     },
-    ...(staffRole ? [{ href: "/mando", label: "Centro de Mando", short: "Mando", icon: "mando", group: "equipo" } as NavItem] : []),
   ];
 
   const securityChip = alerts ? (

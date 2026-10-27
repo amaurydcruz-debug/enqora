@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { IconActivity, IconBuilding, IconCard, IconControl, IconLedger, IconShield, IconUsers } from "@/components/icons";
+import { IconActivity, IconBuilding, IconCard, IconCheck, IconControl, IconDocument, IconKey, IconLedger, IconShield, IconSpark, IconUsers } from "@/components/icons";
 
 // Navegación principal ENQORA. Marca la sección activa según la ruta actual.
 // "side": navegación lateral de escritorio · "bottom": barra compacta inferior en teléfono.
@@ -15,6 +15,10 @@ const ICONS = {
   pagos: IconCard,
   contabilidad: IconLedger,
   mando: IconUsers,
+  documento: IconDocument,
+  clave: IconKey,
+  novedades: IconSpark,
+  estado: IconCheck,
 } as const;
 
 export type NavItem = {
@@ -22,14 +26,15 @@ export type NavItem = {
   label: string;
   short: string;
   icon: keyof typeof ICONS;
-  group: "empresa" | "equipo";
+  group: "empresa" | "equipo" | "operacion" | "configuracion";
   alert?: string; // texto accesible cuando hay algo pendiente
   bottom?: boolean; // false: no aparece en la barra inferior del teléfono
 };
 
 export function AppNav({ items, variant }: { items: NavItem[]; variant: "side" | "bottom" }) {
   const pathname = usePathname() ?? "";
-  const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
+  // «/mando» (resumen) solo se marca en su propia página, no en sus subsecciones.
+  const isActive = (href: string) => pathname === href || (href !== "/mando" && pathname.startsWith(`${href}/`));
 
   if (variant === "bottom") {
     return (
@@ -54,6 +59,8 @@ export function AppNav({ items, variant }: { items: NavItem[]; variant: "side" |
   const groups: { key: NavItem["group"]; label: string }[] = [
     { key: "empresa", label: "Mi empresa" },
     { key: "equipo", label: "Equipo ENQORA" },
+    { key: "operacion", label: "Operación" },
+    { key: "configuracion", label: "Configuración" },
   ];
 
   return (

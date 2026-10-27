@@ -3,11 +3,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { supabaseEnv } from "./env";
 
 // Rutas accesibles sin sesión.
-const PUBLIC_PREFIXES = ["/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth", "/comenzar", "/privacidad", "/terminos"];
+// «/mando/acceso» es la entrada propia del Centro de Mando (equipo ENQORA), separada de la de clientes.
+const PUBLIC_PREFIXES = ["/mando/acceso", "/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth", "/comenzar", "/privacidad", "/terminos"];
 // Páginas legales: siempre visibles, con o sin sesión y en cualquier etapa del segundo factor.
 const ALWAYS = ["/privacidad", "/terminos"];
 // Rutas que solo tienen sentido sin sesión.
-const GUEST_ONLY = ["/ingresar", "/registro"];
+const GUEST_ONLY = ["/ingresar", "/registro", "/mando/acceso"];
 
 const startsWithAny = (path: string, list: string[]) =>
   list.some((p) => path === p || path.startsWith(p + "/"));
@@ -52,7 +53,8 @@ export async function updateSession(request: NextRequest) {
   // --- Sin sesión ---
   if (!user) {
     if (isPublic) return response;
-    return redirectTo("/ingresar", true);
+    // El Centro de Mando tiene su propia entrada.
+    return redirectTo(path === "/mando" || path.startsWith("/mando/") ? "/mando/acceso" : "/ingresar", true);
   }
 
   // --- Con sesión: nivel de autenticación (AAL) ---
@@ -80,7 +82,7 @@ export async function updateSession(request: NextRequest) {
   // 3) Sesión completa (aal2). /mfa/reautenticar sigue disponible para operaciones sensibles.
   if (path === "/mfa/reautenticar") return response;
   if (startsWithAny(path, GUEST_ONLY) || path === "/" || path.startsWith("/mfa")) {
-    return redirectTo("/panel");
+    return redirectTo(path === "/mando/acceso" ? "/mando" : "/panel");
   }
 
   return response;

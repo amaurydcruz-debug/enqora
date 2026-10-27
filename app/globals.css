@@ -2699,3 +2699,10 @@ details.inline-more > summary { display: inline-flex; }
 .taxsheet { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
 .taxsheet h3 { font-size: 1rem; margin: 0 0 8px; }
 .watch-item > .btn { align-self: flex-start; width: auto; }
+
+/* Centro de Mando: estructura propia, separada de la app de clientes */
+.shell-mando .side { border-right-color: rgba(229, 199, 131, 0.28); }
+.mando-badge { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 14px; border: 1px solid rgba(229, 199, 131, 0.35); background: rgba(229, 199, 131, 0.06); }
+.mando-badge b { color: var(--gold-bright, var(--gold)); font-size: 0.95rem; }
+.mando-badge small { color: var(--text-3); font-size: 0.78rem; }
+.mando-chip { margin-left: 12px; padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(229, 199, 131, 0.45); color: var(--gold); font-size: 0.72rem; letter-spacing: 0.16em; text-transform: uppercase; font-weight: 600; white-space: nowrap; }
