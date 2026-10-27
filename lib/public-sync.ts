@@ -24,12 +24,28 @@ const BATCH = 1000;
 const STALE_MS = 3 * 60 * 1000; // una ejecución sin latido hace 3 minutos se considera detenida
 const REFRESH_WITHOUT_DATE_DAYS = 30;
 
-const errText = (e: unknown) =>
-  e instanceof Error ? (e.name === "TimeoutError" || e.name === "AbortError" ? "Tiempo de espera agotado al descargar del SII" : e.message) : "Error";
+const errText = (e: unknown) => {
+  if (!(e instanceof Error)) return "Error";
+  if (e.name === "TimeoutError" || e.name === "AbortError") return "Tiempo de espera agotado al descargar del SII";
+  // fetch() resume los fallos de red como «fetch failed»: se agrega la causa real (DNS, conexión rechazada, TLS…).
+  const cause = (e as { cause?: { code?: string; message?: string } }).cause;
+  const extra = cause ? ` (${[cause.code, cause.message].filter(Boolean).join(": ")})` : "";
+  return `${e.message === "fetch failed" ? "No se pudo conectar con el SII" : e.message}${extra}`.slice(0, 480);
+};
 
 export async function runPublicSync(supabase: SupabaseClient, token: string, deadline: number): Promise<SyncReport> {
   const { data, error } = await supabase.rpc("svc_public_sync_state", { p_token: token });
-  if (error || !data) return { estado: "error", detalle: error?.message ?? "Sin estado" };
+  if (error || !data) {
+    const m = error?.message ?? "";
+    return {
+      estado: "error",
+      detalle: /ENQ_CLAVE_SERVICIO/.test(m)
+        ? "ENQORA_SERVICE_TOKEN en Vercel no coincide con la clave de servicio registrada en Centro de Mando."
+        : /svc_public_sync_state|does not exist|schema cache/i.test(m)
+          ? "Falta ejecutar la migración 0019_hoja_de_vida.sql en Supabase."
+          : m || "Sin respuesta de la base de datos",
+    };
+  }
   const state = data as State;
 
   // 1) Carga en curso
