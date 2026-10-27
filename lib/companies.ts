@@ -1,34 +1,28 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { createClient } from "@/lib/supabase/server";
+import { cache } from "react";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import type { Company, MyCompany, Role } from "@/lib/company-constants";
 
 export const ACTIVE_COMPANY_COOKIE = "enq_empresa";
 
 // Empresas a las que pertenece el usuario actual (RLS garantiza que solo vea las suyas).
-export async function myCompanies(): Promise<MyCompany[]> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+// Una sola consulta (membresía + empresa) y una vez por solicitud.
+export const myCompanies = cache(async (): Promise<MyCompany[]> => {
+  const user = await currentUser();
   if (!user) return [];
-
-  const { data: memberships } = await supabase
+  const supabase = await createClient();
+  const { data } = await supabase
     .from("company_members")
-    .select("company_id, role")
+    .select("role, companies(id, rut, legal_name, trade_name, activity, tax_regime, rut_verified, created_at)")
     .eq("user_id", user.id);
-  const rows = (memberships ?? []) as { company_id: string; role: Role }[];
-  if (!rows.length) return [];
-
-  const { data: companies } = await supabase
-    .from("companies")
-    .select("id, rut, legal_name, trade_name, activity, tax_regime, rut_verified, created_at")
-    .in("id", rows.map((r) => r.company_id))
-    .order("legal_name");
-
-  const roleById = new Map(rows.map((r) => [r.company_id, r.role]));
-  return ((companies ?? []) as Company[]).map((c) => ({ ...c, role: roleById.get(c.id) ?? "viewer" }));
-}
+  const rows = (data ?? []) as unknown as { role: Role; companies: Company | Company[] | null }[];
+  return rows
+    .map((r) => ({ company: Array.isArray(r.companies) ? r.companies[0] : r.companies, role: r.role }))
+    .filter((r): r is { company: Company; role: Role } => !!r.company)
+    .map((r) => ({ ...r.company, role: r.role }))
+    .sort((a, b) => a.legal_name.localeCompare(b.legal_name, "es"));
+});
 
 // Empresa activa: la elegida por el usuario (cookie) si sigue siendo miembro; si no, la primera.
 export async function activeCompany(list?: MyCompany[]) {

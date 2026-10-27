@@ -9,10 +9,13 @@ import { CATEGORIES } from "@/lib/discovery";
 import { clp, UNITS } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { RutLookup } from "./rut-lookup";
+import { indexable } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: { absolute: "ENQORA · Bienvenido al mundo ENQORA" },
   description: "Contabilidad, constitución, formalización, marcas y gestión para tu empresa, con inteligencia y profesionales.",
+  alternates: { canonical: "/" },
+  robots: indexable() ? { index: true, follow: true } : { index: false, follow: false },
 };
 
 type CatalogRow = { code: string; module: string; name: string; summary: string | null; unit: string; requires_professional: boolean; price_from: number | null };
@@ -138,6 +141,10 @@ export default async function WelcomePage() {
       <footer className="welcome-foot">
         <p>ENQORA nunca te pedirá tu ClaveÚnica ni tu clave del SII. La consulta por RUT usa solo información pública del SII sobre personas jurídicas.</p>
         <p className="welcome-motto">La complejidad es nuestra. La claridad, tuya.</p>
+        <nav className="legal-links" aria-label="Información legal">
+          <Link href="/terminos">Términos del servicio</Link>
+          <Link href="/privacidad">Privacidad</Link>
+        </nav>
       </footer>
     </div>
   );

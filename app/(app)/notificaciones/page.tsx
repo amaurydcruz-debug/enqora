@@ -9,7 +9,7 @@ import { messageForCode } from "@/lib/db-errors";
 import { ago, CATEGORIES, type Notification, type NotificationPreferences } from "@/lib/notifications";
 import { whatsappEnabled } from "@/lib/notify-delivery";
 import { myStaffRole } from "@/lib/staff";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import { PhoneForm } from "./phone-form";
 
 export const metadata: Metadata = { title: "Notificaciones" };
@@ -25,9 +25,7 @@ const AVISOS: Record<string, string> = {
 export default async function NotificationsPage({ searchParams }: { searchParams: Promise<{ aviso?: string; error?: string }> }) {
   const sp = await searchParams;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   const [{ data: rows }, { data: prefRow }, staffRole] = await Promise.all([
     supabase.from("notifications").select("id, category, title, body, link, created_at, read_at").eq("user_id", user?.id ?? "")
       .order("created_at", { ascending: false }).limit(80),

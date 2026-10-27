@@ -12,7 +12,7 @@ import { activeCompany } from "@/lib/companies";
 import { canManage, companyInitials, REGIMES, ROLES, type Company, type Role } from "@/lib/company-constants";
 import { messageForCode } from "@/lib/db-errors";
 import { formatRut } from "@/lib/rut";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import { ActivityPanel, type ActivityView } from "./activity-panel";
 import { CompanyDataPanel } from "./company-form";
 import { InviteForm } from "./invite-form";
@@ -86,9 +86,7 @@ export default async function CompanyPage({
   if (!UUID_RE.test(id)) notFound();
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   // RLS: si el usuario no es miembro, la consulta no devuelve nada → 404.
   // «*» incluye el domicilio cuando la migración 0007 ya está aplicada, y no falla si aún no.

@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { supabaseEnv } from "./env";
 
 // Cliente de Supabase para Server Components, Server Actions y Route Handlers.
@@ -27,3 +28,13 @@ export async function createClient(options?: { headers?: Record<string, string> 
     },
   });
 }
+
+// Usuario actual validado contra Supabase Auth, una sola vez por solicitud (React cache):
+// el diseño y la página que lo piden en la misma respuesta comparten la misma consulta.
+export const currentUser = cache(async () => {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user;
+});

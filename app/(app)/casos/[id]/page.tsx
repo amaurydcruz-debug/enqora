@@ -31,7 +31,7 @@ import {
 import { messageForCode } from "@/lib/db-errors";
 import { formatRut } from "@/lib/rut";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import { Accordion, type AccordionItem } from "@/components/accordion";
 import { Callout, FactTag } from "@/components/disclosure";
 import { Emblem } from "@/components/emblems";
@@ -188,9 +188,7 @@ export default async function CasePage({
   if (!UUID_RE.test(id)) notFound();
 
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   if (!user) notFound();
 
   // RLS: si no tiene acceso, no hay fila → 404.
@@ -198,7 +196,8 @@ export default async function CasePage({
   if (!caseRow) notFound();
   const c = caseRow as CaseRow;
 
-  const [staffRole, companyRes, eventsRes, tasksRes, docsRes, assignRes, memberRes, stepsRes, approvalsRes, authRes, quotesRes] = await Promise.all([
+  // Las consultas se agrupan en pocas tandas paralelas (M14): cada ida y vuelta a la base suma latencia.
+  const [staffRole, companyRes, eventsRes, tasksRes, docsRes, assignRes, memberRes, stepsRes, approvalsRes, authRes, quotesRes, diagRes] = await Promise.all([
     myStaffRole(),
     supabase.from("companies").select("legal_name, trade_name, rut").eq("id", c.company_id).maybeSingle(),
     supabase.from("case_events").select("id, actor_id, kind, body, visibility, metadata, created_at").eq("case_id", id).order("created_at"),
@@ -216,19 +215,13 @@ export default async function CasePage({
     supabase.from("client_authorizations").select("*").eq("case_id", id).order("requested_at", { ascending: false }),
     // RLS: el cliente solo recibe las cotizaciones ya enviadas.
     supabase.from("quotes").select("*").eq("case_id", id).order("created_at", { ascending: false }),
+    // Diagnóstico (RLS: el cliente solo recibe la versión publicada).
+    supabase.from("diagnoses").select("*").eq("case_id", id).order("version", { ascending: false }),
   ]);
-  // Diagnóstico (RLS: el cliente solo recibe la versión publicada).
-  const { data: diagRows } = await supabase.from("diagnoses").select("*").eq("case_id", id).order("version", { ascending: false });
-  const diagnoses = (diagRows ?? []) as Diagnosis[];
+  const diagnoses = (diagRes.data ?? []) as Diagnosis[];
   const published = diagnoses.find((d) => d.status === "publicado") ?? null;
   const openDiag = diagnoses.find((d) => d.status === "borrador" || d.status === "en_revision") ?? null;
   const diagIds = [published?.id, openDiag?.id].filter(Boolean) as string[];
-  const { data: findingRows } = diagIds.length
-    ? await supabase.from("diagnosis_findings").select("*").in("diagnosis_id", diagIds).order("position")
-    : { data: [] };
-  const findings = (findingRows ?? []) as Finding[];
-  const publishedFindings = published ? findings.filter((f) => f.diagnosis_id === published.id) : [];
-  const openFindings = openDiag ? findings.filter((f) => f.diagnosis_id === openDiag.id) : [];
 
   const steps = (stepsRes.data ?? []) as MirrorStep[];
   const approvals = (approvalsRes.data ?? []) as Approval[];
@@ -252,22 +245,47 @@ export default async function CasePage({
   const canCancel = !worker && !!memberRole && ["owner", "admin"].includes(memberRole) && ["recibido", "esperando_cliente"].includes(c.status);
   const myOpenTasks = tasks.filter((t) => t.assignee_id === user.id && t.status !== "hecha").length;
 
-  // Propuesta mensual y cobros del caso (M10). RLS: el cliente no recibe propuestas sin aprobar.
   const canSeeBilling = (!!memberRole && ["owner", "admin", "accountant"].includes(memberRole)) || supervisor;
-  const [{ data: propRows }, { data: planRows }, { data: planPriceRows }, { data: chargeRows }] = await Promise.all([
-    supabase.from("plan_proposals").select("*").eq("case_id", id).order("created_at", { ascending: false }),
-    worker ? supabase.from("plans").select("*").eq("active", true).order("position") : Promise.resolve({ data: [] }),
-    worker ? supabase.from("plan_prices").select("*").eq("status", "vigente") : Promise.resolve({ data: [] }),
-    canSeeBilling ? supabase.from("charges").select("*").eq("case_id", id).order("created_at", { ascending: false }) : Promise.resolve({ data: [] }),
-  ]);
-  const proposals = (propRows ?? []) as PlanProposal[];
+  const quotedServices = [...new Set(quotes.map((q) => q.service_id))];
+  const none = { data: [] as unknown[] };
 
-  // Actuaciones ante instituciones (M11). RLS: el cliente ve las de su caso; los mandatos solo el equipo y los administradores.
-  const [{ data: actRows }, { data: manRows }] = await Promise.all([
+  // Segunda tanda: todo lo que depende solo del rol y de la primera tanda, en paralelo.
+  const [
+    { data: findingRows },
+    // Propuesta mensual y cobros del caso (M10). RLS: el cliente no recibe propuestas sin aprobar.
+    { data: propRows }, { data: planRows }, { data: planPriceRows }, { data: chargeRows },
+    // Actuaciones ante instituciones (M11). RLS: el cliente ve las de su caso; los mandatos solo el equipo y los administradores.
+    { data: actRows }, { data: manRows },
+    // Agentes IA (M13). RLS: solo el equipo que trabaja el caso ve ejecuciones y propuestas.
+    { data: runRows }, { data: agentPropRows },
+    { data: allStaffRows },
+    // Catálogo para cotizar (equipo) y referencias de mercado de los servicios cotizados.
+    { data: sv }, { data: tf }, { data: refRows },
+    // Perfil del onboarding: contexto para el equipo que trabaja el caso.
+    { data: onbRow },
+    { data: workerSvcRows },
+  ] = await Promise.all([
+    diagIds.length ? supabase.from("diagnosis_findings").select("*").in("diagnosis_id", diagIds).order("position") : none,
+    supabase.from("plan_proposals").select("*").eq("case_id", id).order("created_at", { ascending: false }),
+    worker ? supabase.from("plans").select("*").eq("active", true).order("position") : none,
+    worker ? supabase.from("plan_prices").select("*").eq("status", "vigente") : none,
+    canSeeBilling ? supabase.from("charges").select("*").eq("case_id", id).order("created_at", { ascending: false }) : none,
     supabase.from("case_actions").select("*").eq("case_id", id).order("created_at", { ascending: false }),
     worker ? supabase.from("mandates").select("*").eq("company_id", c.company_id).in("status", ["vigente", "pendiente_firma", "en_verificacion"])
-      : canDecide0(memberRole) ? supabase.from("mandates").select("*").eq("company_id", c.company_id) : Promise.resolve({ data: [] }),
+      : canDecide0(memberRole) ? supabase.from("mandates").select("*").eq("company_id", c.company_id) : none,
+    worker ? supabase.from("agent_runs").select("*").eq("case_id", id).order("created_at", { ascending: false }).limit(10) : none,
+    worker ? supabase.from("agent_proposals").select("id, run_id, position, kind, payload, status").eq("case_id", id).order("position") : none,
+    supervisor ? supabase.from("staff_members").select("user_id, role, active").eq("active", true) : none,
+    worker && !isClosed ? supabase.from("services").select("*").eq("active", true).order("code") : none,
+    worker && !isClosed ? supabase.from("service_tariffs").select("*").eq("status", "vigente") : none,
+    quotedServices.length ? supabase.from("market_references").select("*").in("service_id", quotedServices) : none,
+    worker ? supabase.from("company_onboarding").select("answers").eq("company_id", c.company_id).maybeSingle() : { data: null },
+    worker ? supabase.from("services").select("id, code, name").order("code") : none,
   ]);
+  const findings = (findingRows ?? []) as Finding[];
+  const publishedFindings = published ? findings.filter((f) => f.diagnosis_id === published.id) : [];
+  const openFindings = openDiag ? findings.filter((f) => f.diagnosis_id === openDiag.id) : [];
+  const proposals = (propRows ?? []) as PlanProposal[];
   const caseActions = (actRows ?? []) as CaseAction[];
   const caseMandates = (manRows ?? []) as Mandate[];
   const casePlans = (planRows ?? []) as Plan[];
@@ -276,11 +294,6 @@ export default async function CasePage({
   const openCharges = caseCharges.filter((ch) => ["pendiente", "vencido"].includes(ch.status));
   const openProposals = proposals.filter((pp) => pp.status === "enviada");
 
-  // Agentes IA (M13). RLS: solo el equipo que trabaja el caso ve ejecuciones y propuestas.
-  const [{ data: runRows }, { data: agentPropRows }] = await Promise.all([
-    worker ? supabase.from("agent_runs").select("*").eq("case_id", id).order("created_at", { ascending: false }).limit(10) : Promise.resolve({ data: [] }),
-    worker ? supabase.from("agent_proposals").select("id, run_id, position, kind, payload, status").eq("case_id", id).order("position") : Promise.resolve({ data: [] }),
-  ]);
   const agentRuns = (runRows ?? []) as AgentRun[];
   const agentProposals = ((agentPropRows ?? []) as AgentProposal[]).filter((p) => agentRuns.some((r) => r.id === p.run_id));
   const pendingAgentProposals = agentProposals.filter((p) => p.status === "pendiente").length;
@@ -300,15 +313,15 @@ export default async function CasePage({
   caseActions.forEach((a) => [a.planned_by, a.verified_by, a.executed_by].forEach((u) => u && people.add(u)));
   if (published?.published_by) people.add(published.published_by);
 
-  let allStaff: Staff[] = [];
-  if (supervisor) {
-    const { data } = await supabase.from("staff_members").select("user_id, role, active").eq("active", true);
-    allStaff = (data ?? []) as Staff[];
-    allStaff.forEach((s) => people.add(s.user_id));
-  }
-  const [{ data: profileRows }, { data: staffRows }] = await Promise.all([
+  const allStaff = (allStaffRows ?? []) as Staff[];
+  allStaff.forEach((s) => people.add(s.user_id));
+
+  // Tercera tanda: nombres de las personas y, para el cliente, los servicios citados en el diagnóstico.
+  const findingServiceIds = [...new Set(findings.map((f) => f.service_id).filter(Boolean))] as string[];
+  const [{ data: profileRows }, { data: staffRows }, { data: clientSvcRows }] = await Promise.all([
     supabase.from("profiles").select("id, email, full_name").in("id", [...people]),
     supabase.from("staff_members").select("user_id, role, active").in("user_id", [...people]),
+    !worker && findingServiceIds.length ? supabase.from("services").select("id, code, name").in("id", findingServiceIds) : none,
   ]);
   const profiles = new Map(((profileRows ?? []) as Profile[]).map((p) => [p.id, p]));
   const staffById = new Map(((staffRows ?? []) as Staff[]).map((s) => [s.user_id, s.role]));
@@ -324,37 +337,14 @@ export default async function CasePage({
 
   const names: Record<string, string> = Object.fromEntries([...people].map((uid) => [uid, nameOf(uid)]));
 
-  // Catálogo para cotizar (equipo) y referencias de mercado de los servicios cotizados.
-  let quoteServices: Service[] = [];
-  let quoteTariffs: Tariff[] = [];
-  if (worker && !isClosed) {
-    const [{ data: sv }, { data: tf }] = await Promise.all([
-      supabase.from("services").select("*").eq("active", true).order("code"),
-      supabase.from("service_tariffs").select("*").eq("status", "vigente"),
-    ]);
-    quoteServices = (sv ?? []) as Service[];
-    quoteTariffs = (tf ?? []) as Tariff[];
-  }
-  const quotedServices = [...new Set(quotes.map((q) => q.service_id))];
-  const { data: refRows } = quotedServices.length
-    ? await supabase.from("market_references").select("*").in("service_id", quotedServices)
-    : { data: [] };
+  const quoteServices = (sv ?? []) as Service[];
+  const quoteTariffs = (tf ?? []) as Tariff[];
   const references = (refRows ?? []) as MarketReference[];
 
   // Servicios citados en el diagnóstico (el equipo, además, elige entre todo el catálogo).
-  const findingServiceIds = [...new Set(findings.map((f) => f.service_id).filter(Boolean))] as string[];
-  const { data: svcRows } = worker
-    ? await supabase.from("services").select("id, code, name").order("code")
-    : findingServiceIds.length
-      ? await supabase.from("services").select("id, code, name").in("id", findingServiceIds)
-      : { data: [] };
-  const serviceRefs = (svcRows ?? []) as ServiceRef[];
+  const serviceRefs = ((worker ? workerSvcRows : clientSvcRows) ?? []) as ServiceRef[];
   const serviceMap = new Map(serviceRefs.map((s) => [s.id, s]));
 
-  // Perfil del onboarding: contexto para el equipo que trabaja el caso.
-  const { data: onbRow } = worker
-    ? await supabase.from("company_onboarding").select("answers").eq("company_id", c.company_id).maybeSingle()
-    : { data: null };
   const onboarding = ((onbRow as { answers: Answers } | null)?.answers ?? null) as Answers | null;
 
   const describe = (e: Event) => {

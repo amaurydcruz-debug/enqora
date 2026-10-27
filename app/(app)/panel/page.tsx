@@ -25,7 +25,7 @@ import {
   type ModuleKey,
 } from "@/lib/cases";
 import { formatRut } from "@/lib/rut";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Centro de control" };
 
@@ -77,9 +77,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   // Servicio elegido en la puerta de entrada antes de registrarse.
   const intent = categoryByKey((await cookies()).get(INTENT_COOKIE)?.value);
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
   const { active } = await activeCompany();
   if (intent && active && active.role !== "viewer") redirect("/comenzar/continuar");
 

@@ -39,7 +39,7 @@ import { messageForCode } from "@/lib/db-errors";
 import { clp } from "@/lib/pricing";
 import { formatRut } from "@/lib/rut";
 import { myStaffRole } from "@/lib/staff";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, currentUser } from "@/lib/supabase/server";
 import { BookImporter } from "./book-importer";
 
 export const metadata: Metadata = { title: "Contabilidad del período" };
@@ -102,9 +102,7 @@ export default async function PeriodPage({
   if (!company) notFound();
   const staffRole = await myStaffRole();
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await currentUser();
 
   const [{ data: dRows }, { data: mRows }, { data: rRows }, { data: sugg }, { data: figs }, { data: vRows }, { data: subRows }] = await Promise.all([
     supabase.from("acc_documents").select("*").eq("company_id", company.id).eq("period", period).order("issue_date").limit(5000),
