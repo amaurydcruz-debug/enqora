@@ -9,6 +9,7 @@ import { ModuleIcon } from "@/components/module-icons";
 import { Emblem } from "@/components/emblems";
 import { clp, todayCL } from "@/lib/pricing";
 import { categoryByKey, INTENT_COOKIE } from "@/lib/discovery";
+import { benefitsFor, type Profile } from "@/lib/benefits";
 import { isComplete, suggestRoutes, type Answers } from "@/lib/onboarding";
 import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
 import { acknowledgeAlertsAction } from "@/app/actions/security";
@@ -114,6 +115,17 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const routes = onboarded ? suggestRoutes(answers).slice(0, 3) : [];
   const delivered = new Set(((diagRows ?? []) as { case_id: string }[]).map((d) => d.case_id));
   const freeCase = cases.find((c) => c.origin === "diagnostico_gratuito" && c.status !== "cancelado") ?? null;
+
+  // Novedades verificadas y beneficios que podrían aplicar al rubro de la empresa (M16).
+  const rubro = typeof answers.actividad === "string" ? answers.actividad : undefined;
+  const profile: Profile = typeof answers.etapa === "string" && ["idea", "constitucion"].includes(answers.etapa) ? "idea" : "pyme";
+  const { data: newsRows } = active
+    ? await supabase.from("regulatory_updates").select("id, title, summary, institution, kind, source_url, published_on, rubros")
+        .order("reviewed_at", { ascending: false }).limit(20)
+    : { data: [] };
+  const news = ((newsRows ?? []) as { id: string; title: string; summary: string; institution: string | null; kind: string; source_url: string; published_on: string | null; rubros: string[] }[])
+    .filter((n) => !n.rubros?.length || (rubro && n.rubros.includes(rubro))).slice(0, 4);
+  const benefits = active ? benefitsFor(profile, rubro).slice(0, 3) : [];
 
   const [authRes, taskRes, evRes, quoteRes] =
     active && caseIds.length
@@ -531,6 +543,35 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
               <p className="empty-inline">No tienes casos en curso.</p>
             )}
           </section>
+
+          {/* Novedades y beneficios que podrían aplicar (M16) */}
+          {news.length || benefits.length ? (
+            <section className="zone" id="novedades">
+              <div className="zone-head">
+                <h2 className="zone-title">Novedades y beneficios para tu empresa</h2>
+                {canCreate ? <Link href="/casos/nuevo?modulo=crece" className="link-arrow">Revisar si aplican <IconArrowRight size={15} /></Link> : null}
+              </div>
+              <ul className="news-list">
+                {news.map((n) => (
+                  <li key={n.id}>
+                    <span className="badge badge-ok">{n.kind === "beneficio" ? "Beneficio" : "Novedad verificada"}</span>
+                    <b>{n.title}</b>
+                    <small>{n.summary}</small>
+                    <a href={n.source_url} target="_blank" rel="noopener noreferrer">{n.institution ?? "Fuente oficial"} ↗</a>
+                  </li>
+                ))}
+                {benefits.map((b) => (
+                  <li key={b.id}>
+                    <span className="badge badge-gold">Podría corresponderte</span>
+                    <b>{b.nombre}</b>
+                    <small>{b.entrega}</small>
+                    <a href={b.url} target="_blank" rel="noopener noreferrer">Requisitos y fuente ↗</a>
+                  </li>
+                ))}
+              </ul>
+              <p className="muted-line">Revisamos las bases vigentes y tus requisitos antes de postular. Ningún beneficio está garantizado.</p>
+            </section>
+          ) : null}
 
           {/* Servicios ENQORA: cuatro a la vista; el resto, si el cliente quiere verlos */}
           <section className="zone">

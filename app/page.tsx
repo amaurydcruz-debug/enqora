@@ -9,6 +9,7 @@ import { CATEGORIES } from "@/lib/discovery";
 import { clp, UNITS } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { RutLookup } from "./rut-lookup";
+import { Portal } from "./portal";
 import { indexable } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -116,6 +117,9 @@ export default async function WelcomePage() {
             <span className="welcome-clock-floor" />
           </div>
         </section>
+
+        {/* 02 · Tu camino: perfil y tipo de negocio (M16) */}
+        <Portal />
 
         {/* 03 · Galería de servicios */}
         <section className="welcome-gallery" id="servicios" aria-labelledby="galeria">

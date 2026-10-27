@@ -58,6 +58,7 @@ import { AgentRunner } from "./agent-runner";
 import { AgentProposals, type AgentAudit, type AgentProposal, type AgentRun } from "./agent-proposals";
 import { auditEnabled } from "@/lib/audit";
 import { applyRouteAction } from "@/app/actions/agents";
+import { saveLearningAction } from "@/app/actions/learning";
 import { agentsEnabled } from "@/lib/agents";
 import { MODULE_ROUTES } from "@/lib/module-routes";
 
@@ -113,6 +114,7 @@ const AVISOS: Record<string, string> = {
   actuacion_fallida: "Registramos que la actuación no se completó.",
   actuacion_cancelada: "Actuación cancelada.",
   propuesta_aceptada: "Propuesta del agente aceptada y aplicada.",
+  aprendizaje_guardado: "Aprendizaje guardado. La supervisión lo revisará para que los agentes lo usen en los próximos casos.",
   propuesta_descartada: "Propuesta del agente descartada.",
   ruta_aplicada: "Ruta del módulo aplicada: se crearon las tareas que faltaban.",
 };
@@ -265,6 +267,7 @@ export default async function CasePage({
     // Perfil del onboarding: contexto para el equipo que trabaja el caso.
     { data: onbRow },
     { data: workerSvcRows },
+    { data: learningRow },
   ] = await Promise.all([
     diagIds.length ? supabase.from("diagnosis_findings").select("*").in("diagnosis_id", diagIds).order("position") : none,
     supabase.from("plan_proposals").select("*").eq("case_id", id).order("created_at", { ascending: false }),
@@ -283,6 +286,7 @@ export default async function CasePage({
     quotedServices.length ? supabase.from("market_references").select("*").in("service_id", quotedServices) : none,
     worker ? supabase.from("company_onboarding").select("answers").eq("company_id", c.company_id).maybeSingle() : { data: null },
     worker ? supabase.from("services").select("id, code, name").order("code") : none,
+    worker && ["verificacion", "cerrado"].includes(c.status) ? supabase.from("case_learnings").select("*").eq("case_id", id).maybeSingle() : { data: null },
   ]);
   const findings = (findingRows ?? []) as Finding[];
   const publishedFindings = published ? findings.filter((f) => f.diagnosis_id === published.id) : [];
@@ -300,6 +304,7 @@ export default async function CasePage({
   const agentProposals = ((agentPropRows ?? []) as AgentProposal[]).filter((p) => agentRuns.some((r) => r.id === p.run_id));
   const pendingAgentProposals = agentProposals.filter((p) => p.status === "pendiente").length;
   const agentAudits = (auditRows ?? []) as AgentAudit[];
+  const learning = learningRow as { status: string; problem: string; route: string; outcome: string; worked: string | null; improve: string | null; benefits: string | null } | null;
 
   // Nombres de las personas que aparecen en el caso.
   const people = new Set<string>();
@@ -442,7 +447,7 @@ export default async function CasePage({
     propuesta_creada: "plan", propuesta_rechazada: "plan", propuesta_anulada: "plan",
     actuacion_planificada: "actuaciones", actuacion_habilitada: "actuaciones", actuacion_ejecutada: "actuaciones",
     actuacion_fallida: "actuaciones", actuacion_cancelada: "actuaciones",
-    propuesta_aceptada: "agentes", propuesta_descartada: "agentes", ruta_aplicada: "tareas",
+    propuesta_aceptada: "agentes", propuesta_descartada: "agentes", ruta_aplicada: "tareas", aprendizaje_guardado: "expediente",
   };
 
   const timeline = (
@@ -751,6 +756,30 @@ export default async function CasePage({
                 ))}
               </ol>
             </div>
+          ) : null}
+          {worker && ["verificacion", "cerrado"].includes(c.status) && staffRole !== "ai_agent" ? (
+            <details className="sub-block learning-box" open={!learning}>
+              <summary className="sub-title">Aprendizaje del caso {learning ? `· ${learning.status === "aprobado" ? "aprobado" : learning.status === "borrador" ? "en revisión" : "descartado"}` : "· pendiente"}</summary>
+              <p className="muted-line">Lo que este caso enseña para el siguiente. Sin nombres ni RUT de la empresa: los agentes lo usarán en casos del mismo servicio cuando la supervisión lo apruebe.</p>
+              {learning?.status === "aprobado" ? (
+                <dl className="learning-grid">
+                  <div><dt>Problema</dt><dd>{learning.problem}</dd></div>
+                  <div><dt>Ruta</dt><dd>{learning.route}</dd></div>
+                  <div><dt>Resultado</dt><dd>{learning.outcome}</dd></div>
+                </dl>
+              ) : (
+                <form action={saveLearningAction} className="mini-form">
+                  <input type="hidden" name="case_id" value={c.id} />
+                  <textarea name="problema" className="input" rows={2} required minLength={10} maxLength={1000} defaultValue={learning?.problem ?? ""} placeholder="Problema (anónimo): qué le pasaba al cliente" aria-label="Problema" />
+                  <textarea name="ruta" className="input" rows={3} required minLength={10} maxLength={3000} defaultValue={learning?.route ?? ""} placeholder="Ruta seguida: trámites, instituciones y orden" aria-label="Ruta seguida" />
+                  <textarea name="resultado" className="input" rows={2} required minLength={10} maxLength={1500} defaultValue={learning?.outcome ?? c.result_summary ?? ""} placeholder="Resultado obtenido" aria-label="Resultado" />
+                  <textarea name="funciono" className="input" rows={2} maxLength={1500} defaultValue={learning?.worked ?? ""} placeholder="Qué funcionó (opcional)" aria-label="Qué funcionó" />
+                  <textarea name="mejorar" className="input" rows={2} maxLength={1500} defaultValue={learning?.improve ?? ""} placeholder="Qué haríamos distinto (opcional)" aria-label="Qué mejorar" />
+                  <textarea name="beneficios" className="input" rows={2} maxLength={1000} defaultValue={learning?.benefits ?? ""} placeholder="Beneficios o ayudas estatales aplicados (opcional)" aria-label="Beneficios aplicados" />
+                  <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Guardar aprendizaje</SubmitButton>
+                </form>
+              )}
+            </details>
           ) : null}
           {canCancel ? (
             <form action={changeStatusAction} className="person-danger">
