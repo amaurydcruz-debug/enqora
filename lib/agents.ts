@@ -27,6 +27,8 @@ export const OFFICIAL_DOMAINS = [
   "sii.cl", "bcn.cl", "leychile.cl", "tgr.cl", "dt.gob.cl", "inapi.cl", "chileatiende.gob.cl", "diariooficial.interior.gob.cl",
   "registrodeempresasysociedades.cl", "cmfchile.cl", "corfo.cl", "sercotec.cl", "previred.com", "suseso.cl", "spensiones.cl",
   "aduana.cl", "minsal.cl", "sag.gob.cl", "conservador.cl", "economia.gob.cl", "pjud.cl",
+  // M16: todo el dominio gob.cl (solo organismos del Estado) y servicios con dominio propio.
+  "gob.cl", "sernac.cl", "sernatur.cl", "mercadopublico.cl", "chilecompra.cl", "ispch.cl", "sec.cl", "nic.cl", "prochile.gob.cl",
 ];
 
 const FOCUS: Record<AgentKey, string> = {
@@ -57,6 +59,8 @@ export function systemPrompt(agent: AgentKey, webSearch: boolean) {
     "- Distingue lo verificado de lo que es hipótesis. Una situación sin fuente oficial debe llevar certeza 'baja'.",
     "- Considera la fecha de los hechos: si la norma cambió (por ejemplo, intereses desde 2025), aplica la vigente a esa fecha y dilo.",
     "- Un auditor independiente revisará tu resultado: fuentes, fechas, cálculos y coherencia. Si recibes observaciones de auditoría, corrígelas una por una o explica por qué no corresponden.",
+    "- El contexto trae 'aprendizajes' (casos resueltos del mismo servicio, aprobados por la supervisión) y 'novedades_verificadas' (normas y beneficios nuevos verificados). Úsalos: repite lo que funcionó, evita lo que falló y, si una novedad verificada contradice la base normativa, prevalece la novedad (cítala).",
+    "- Busca activamente beneficios, ayudas estatales y derechos que podrían corresponder al cliente según su rubro y etapa (fondos, tasas reducidas, franquicias) y propónlos en 'beneficios' con su fuente y requisitos; nunca los prometas.",
     `- Etapas posibles para los pasos: ${STAGES.slice(0, 7).map((s) => `${s.key} (${s.label})`).join(", ")}.`,
     "Cuando termines, llama UNA vez a la herramienta registrar_resultado con todo tu trabajo. Puedes devolver listas vacías si no corresponde proponer algo.",
     "",

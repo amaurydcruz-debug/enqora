@@ -107,6 +107,8 @@ export default async function CommandCenterPage({
           <Link href="/mando/planes" className="btn btn-ghost btn-inline">Planes</Link>
           <Link href="/mando/mandatos" className="btn btn-ghost btn-inline">Mandatos</Link>
           <Link href="/mando/datos-publicos" className="btn btn-ghost btn-inline">Datos públicos</Link>
+          <Link href="/mando/aprendizajes" className="btn btn-ghost btn-inline">Aprendizajes y rutas</Link>
+          <Link href="/mando/vigilancia" className="btn btn-ghost btn-inline">Vigilancia normativa</Link>
           {supervisor ? <Link href="/mando/cobros" className="btn btn-ghost btn-inline">Cobros y pagos</Link> : null}
           {supervisor ? <Link href="/mando/estado" className="btn btn-ghost btn-inline">Estado del sistema</Link> : null}
           {role === "enqora_admin" ? (

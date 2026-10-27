@@ -65,6 +65,9 @@ const MESSAGES: Record<string, string> = {
   ENQ_FALTA_FUNDAMENTO: "Para aceptar una propuesta observada, escribe el fundamento de tu decisión (mínimo 10 caracteres).",
   ENQ_SIN_CORRECCION: "Esta ejecución no tiene observaciones de auditoría que corregir.",
   ENQ_LIMITE_CORRECCIONES: "Ya se hicieron dos rondas de corrección. La propuesta debe revisarla la supervisión.",
+  ENQ_CASO_SIN_RESOLVER: "El aprendizaje se registra cuando el caso está en verificación o cerrado.",
+  ENQ_APRENDIZAJE_IDENTIFICA: "El aprendizaje no puede incluir el nombre ni el RUT de la empresa. Descríbelo de forma anónima.",
+  ENQ_VIGILANCIA_FALLIDA: "La vigilancia normativa no se completó (revisa la clave de la API de Claude). Intenta nuevamente.",
   ENQ_AGENTE_OCUPADO: "Este agente ya está trabajando en el caso. Espera a que termine.",
   ENQ_YA_SOLICITADA: "Ya lo solicitaste. El equipo ENQORA te enviará la cotización en este caso.",
 };

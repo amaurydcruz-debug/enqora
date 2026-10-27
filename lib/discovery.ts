@@ -95,6 +95,16 @@ export const CATEGORIES: Category[] = [
     emblem: "crece",
     services: { module: "crece" },
   },
+  {
+    key: "enterprise",
+    title: "ENQORA Enterprise",
+    lead: "Solución integral para empresas complejas.",
+    detail: "Varias empresas o sucursales, cumplimiento tributario, laboral, legal y sectorial, expedientes complejos y un panel central de riesgos, con profesionales y agentes IA auditados.",
+    solves: ["Varias empresas o sucursales", "Cumplimiento integral", "Coordinación de profesionales", "Panel de riesgos y obligaciones"],
+    module: "general",
+    emblem: "control",
+    services: { codes: ["GEN-01"] },
+  },
 ];
 
 export const categoryByKey = (key: string | undefined | null) => CATEGORIES.find((c) => c.key === key) ?? null;

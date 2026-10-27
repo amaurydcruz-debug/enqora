@@ -90,8 +90,9 @@ begin
   return v_billing || jsonb_build_object('mandatos_vencidos', v_expired, 'envios_omitidos', v_skipped) || private.housekeeping();
 end
 $$;
-revoke execute on function public.daily_run(text) from public, anon;
-grant execute on function public.daily_run(text) to authenticated;
+-- La tarea diaria corre sin sesión (rol anon) y se protege con la clave de servicio (como en 0012).
+revoke execute on function public.daily_run(text) from public;
+grant execute on function public.daily_run(text) to anon, authenticated;
 
 -- ---------------------------------------------------------------------
 -- 3. Estado del sistema (Administrador ENQORA y Dirección de operaciones)
