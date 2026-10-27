@@ -67,7 +67,8 @@ export default async function SystemStatusPage() {
   if (!isSupervisorRole(role)) notFound();
 
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("system_status");
+  const [{ data, error }, { data: auditData }] = await Promise.all([supabase.rpc("system_status"), supabase.rpc("audit_stats")]);
+  const a = auditData as { auditorias: number; aprobadas: number; con_observaciones: number; escaladas: number; fallidas: number; aceptadas_con_excepcion: number } | null;
   const s = data as Status | null;
 
   const migrations = s ? Object.entries(s.migraciones) : [];
@@ -82,6 +83,8 @@ export default async function SystemStatusPage() {
     { label: "Flow en producción", ok: has("FLOW_API_KEY") && !flowIsSandbox(), help: "Flow apunta al ambiente de pruebas (sandbox). Cambia FLOW_API_URL y las claves de producción." },
     { label: "Avisos por WhatsApp", ok: has("WHATSAPP_TOKEN", "WHATSAPP_PHONE_ID"), help: "Opcional: requiere WhatsApp Business y plantillas aprobadas por Meta." },
     { label: "Agentes IA", ok: has("ANTHROPIC_API_KEY"), help: "Opcional: agrega ANTHROPIC_API_KEY para habilitar los agentes." },
+    { label: "Auditoría independiente de agentes", ok: !has("ANTHROPIC_API_KEY") || has("OPENAI_API_KEY"), required: has("ANTHROPIC_API_KEY"),
+      help: "Con agentes activos, agrega OPENAI_API_KEY: sin auditoría, las propuestas se revisan solo por personas." },
   ];
   const business: Check[] = [
     { label: "Administradores activos", ok: (s?.administradores_activos ?? 0) >= 2, help: `Hay ${n(s?.administradores_activos)}. Se recomiendan al menos 2 para la aprobación de cuatro ojos y respaldo.` },
@@ -117,8 +120,8 @@ export default async function SystemStatusPage() {
           <section className="card">
             <div className="status-head">
               <h2>Base de datos</h2>
-              <span className={`badge ${missingMigrations.length ? "badge-risk" : "badge-ok"}`}>
-                {missingMigrations.length ? `Faltan ${missingMigrations.join(", ")}` : `Migraciones 0002–0015 aplicadas`}
+              <span className={`badge ${missingMigrations.length || !a ? "badge-risk" : "badge-ok"}`}>
+                {missingMigrations.length || !a ? `Faltan ${[...missingMigrations, ...(a ? [] : ["0016"])].join(", ")}` : `Migraciones 0002–0016 aplicadas`}
               </span>
             </div>
             <dl className="data-grid">
@@ -128,6 +131,8 @@ export default async function SystemStatusPage() {
               <div><dt>Avisos pendientes de envío</dt><dd>{n(s.avisos_pendientes)}</dd></div>
               <div><dt>Avisos fallidos (7 días)</dt><dd>{n(s.avisos_fallidos_7d)}</dd></div>
               <div><dt>Agentes IA (30 días)</dt><dd>{n(s.agentes_30d.ejecuciones)} ejecuciones · {n(s.agentes_30d.fallidas)} fallidas · {n(s.agentes_30d.tokens)} tokens</dd></div>
+              {a ? <div><dt>Auditorías (30 días)</dt><dd>{n(a.auditorias)} · {n(a.aprobadas)} sin observaciones · {n(a.con_observaciones)} con observaciones · {n(a.escaladas)} escaladas · {n(a.fallidas)} fallidas</dd></div> : null}
+              {a ? <div><dt>Aceptadas con excepción</dt><dd>{n(a.aceptadas_con_excepcion)}</dd></div> : null}
             </dl>
           </section>
           <CheckList title="Configuración en Vercel" items={config} />

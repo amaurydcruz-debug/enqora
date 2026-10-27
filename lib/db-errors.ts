@@ -60,6 +60,11 @@ const MESSAGES: Record<string, string> = {
   ENQ_MONTO_NO_COINCIDE: "El monto del movimiento no coincide con el total del documento.",
   ENQ_YA_CONCILIADO: "Ese movimiento o documento ya está conciliado.",
   ENQ_F29_NO_EDITABLE: "El F29 de este período ya no se puede modificar en su estado actual.",
+  ENQ_AUDITORIA_PENDIENTE: "Esta propuesta aún no tiene auditoría completa. Espera la auditoría o pide a la supervisión que la revise.",
+  ENQ_AUDITORIA_OBSERVADA: "La auditoría observó esta propuesta. Pide la corrección al agente o que la supervisión la revise.",
+  ENQ_FALTA_FUNDAMENTO: "Para aceptar una propuesta observada, escribe el fundamento de tu decisión (mínimo 10 caracteres).",
+  ENQ_SIN_CORRECCION: "Esta ejecución no tiene observaciones de auditoría que corregir.",
+  ENQ_LIMITE_CORRECCIONES: "Ya se hicieron dos rondas de corrección. La propuesta debe revisarla la supervisión.",
   ENQ_AGENTE_OCUPADO: "Este agente ya está trabajando en el caso. Espera a que termine.",
   ENQ_YA_SOLICITADA: "Ya lo solicitaste. El equipo ENQORA te enviará la cotización en este caso.",
 };

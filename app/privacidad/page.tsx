@@ -43,8 +43,9 @@ export default function PrivacyPage() {
       <p>
         Cuando un profesional de ENQORA lo decide, un agente de inteligencia artificial puede analizar los antecedentes de tu caso
         (descripción, respuestas, datos de la empresa, mensajes y nombres de los documentos) para proponer pasos, situaciones a revisar,
-        tareas y preguntas. El agente no decide: toda propuesta la revisa y aprueba una persona antes de que llegue a ti. El análisis lo
-        realiza un proveedor externo de inteligencia artificial que actúa como encargado de tratamiento.
+        tareas y preguntas. El agente no decide: toda propuesta la revisa y aprueba una persona antes de que llegue a ti. Un segundo sistema
+        de inteligencia artificial audita esas propuestas (normas, fuentes y cálculos) antes de que el equipo las revise. Ambos
+        servicios los prestan proveedores externos que actúan como encargados de tratamiento.
       </p>
 
       <h2>5. Con quién los compartimos</h2>
@@ -53,6 +54,7 @@ export default function PrivacyPage() {
         <li>Supabase: base de datos, autenticación y almacenamiento de documentos.</li>
         <li>Vercel: alojamiento de la aplicación.</li>
         <li>Anthropic: análisis de los agentes de inteligencia artificial.</li>
+        <li>OpenAI: auditoría independiente de las propuestas de los agentes.</li>
         <li>Flow: procesamiento de pagos en línea.</li>
         <li>Resend: envío de correos.</li>
         <li>Meta (WhatsApp Business): avisos por WhatsApp, solo si los activas.</li>

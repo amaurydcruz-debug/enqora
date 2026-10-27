@@ -60,10 +60,48 @@ La configuración está en `lib/module-routes.ts`.
 - Tiempo máximo de 60 s por ejecución (Vercel). Ejecuciones colgadas se cierran como fallidas a los 3 minutos.
 - El cliente no ve ejecuciones ni propuestas sin revisar (RLS: solo el equipo del caso).
 
+## M15 · Agentes premium: base normativa, calculadoras y auditoría independiente
+
+**Base normativa por agente** (`lib/knowledge.ts`, ver `docs/ENQORA-BASE-NORMATIVA.md`): cada agente recibe
+las normas chilenas verificadas que le corresponden (con artículo, vigencia y enlace oficial), los casos de uso
+reales que domina (señales, ruta de trabajo, datos que pedir) y sus capacidades.
+
+**Calculadoras deterministas** (`lib/tax-calc.ts`): IVA 19%, retención de honorarios por año, multa art. 97 N°2
+y interés art. 53 (diario, desde 2025). El agente debe usarlas para toda cifra y declarar cada cálculo; la
+auditoría los recalcula. Nada de UF, UTM ni tasas del SII escritas a mano: se piden.
+
+**Auditoría independiente** (`lib/audit.ts`, migración 0016):
+
+1. Verificaciones en código: cálculos recalculados, fuentes en dominios oficiales, situaciones sin respaldo,
+   interés de 1,5% mensual derogado, pedidos de claves (escala) y precios inventados.
+2. Auditor independiente: OpenAI (Responses API, salida estructurada estricta), con búsqueda web limitada a
+   sitios oficiales. Revisa norma y vigencia, fuentes, cálculos, hechos, riesgo, reglas ENQORA y claridad.
+3. Reglas de aprobación (no es una votación): el veredicto nunca es más benévolo que las verificaciones en
+   código; una propuesta que el auditor no evaluó queda «investigar»; un error grave que persiste tras una
+   corrección, una gravedad crítica o la segunda ronda sin aprobar → **escalar**.
+
+| Resultado | Acción |
+|---|---|
+| Sin observaciones importantes | El equipo puede aceptar la propuesta |
+| Corregir / investigar / faltan datos | «Pedir corrección al agente» (máx. 2 rondas); la nueva versión reemplaza a la anterior y se vuelve a auditar |
+| Escalar | Bloqueada: solo la supervisión acepta, con fundamento escrito; se avisa a la supervisión |
+| Auditoría pendiente o fallida | No se acepta; reintentar o decisión fundamentada de la supervisión |
+
+El expediente (`agent_audits`, `agent_proposals.audit_*`, `override_*`, `agent_runs.parent_run_id`) conserva
+propuesta original, observaciones, verificaciones, versiones corregidas y quién autorizó cada excepción.
+MIRROR muestra el estado real: trabajando → en auditoría independiente → ajustando / revisión → completado.
+
+Variables en Vercel: `OPENAI_API_KEY` (obligatoria para auditar), `OPENAI_MODEL` (por defecto `gpt-6-astra`),
+`OPENAI_WEB_SEARCH=off` para auditar sin búsqueda web. Sin `OPENAI_API_KEY`, las propuestas quedan «sin auditoría
+automática» y se revisan solo por personas.
+
+Activación progresiva recomendada: (1) probar con casos de prueba; (2) casos seleccionados; (3) todos los casos.
+Revisar mensualmente en Estado del sistema las auditorías escaladas y las aceptadas con excepción.
+
 ## Protección de datos
 
-Ejecutar un agente envía antecedentes del caso (incluidos RUT y razón social) a un proveedor externo de IA
-(Anthropic). Antes de usarlo con clientes reales:
+Ejecutar un agente envía antecedentes del caso (incluidos RUT y razón social) a proveedores externos de IA
+(Anthropic y, para la auditoría, OpenAI). Antes de usarlo con clientes reales:
 
 - Revisar con asesoría legal la Ley 19.628 y la **Ley 21.719** (vigente desde diciembre de 2026): base de
   licitud, información a los titulares, transferencia internacional y contrato de encargo de tratamiento.

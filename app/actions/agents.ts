@@ -32,6 +32,7 @@ export async function decideAgentProposalAction(fd: FormData) {
     p_proposal: proposal,
     p_decision: decision,
     p_visibility: fd.get("internal") === "on" ? "interno" : "cliente",
+    p_override_note: String(fd.get("override_note") ?? "").trim().slice(0, 1000) || null,
   });
   back(caseId, error, decision === "aceptar" ? "propuesta_aceptada" : "propuesta_descartada", "agentes");
 }
