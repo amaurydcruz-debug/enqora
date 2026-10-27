@@ -7,8 +7,8 @@ import { NewCaseForm } from "./form";
 
 export const metadata: Metadata = { title: "Nueva solicitud" };
 
-export default async function NewCasePage({ searchParams }: { searchParams: Promise<{ modulo?: string }> }) {
-  const { modulo } = await searchParams;
+export default async function NewCasePage({ searchParams }: { searchParams: Promise<{ modulo?: string; asunto?: string }> }) {
+  const { modulo, asunto } = await searchParams;
   const { active } = await activeCompany();
   if (!active) redirect("/casos");
   if (active.role === "viewer") redirect("/casos");
@@ -24,7 +24,7 @@ export default async function NewCasePage({ searchParams }: { searchParams: Prom
         </div>
       </header>
       <section className="card form-card">
-        <NewCaseForm companyId={active.id} defaultModule={isModule(modulo) ? modulo : "contabilidad"} />
+        <NewCaseForm companyId={active.id} defaultModule={isModule(modulo) ? modulo : "contabilidad"} defaultTitle={(asunto ?? "").slice(0, 160)} />
       </section>
     </div>
   );

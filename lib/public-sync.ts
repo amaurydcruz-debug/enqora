@@ -1,0 +1,162 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { mapHeader, SOURCES, SYNC_ORDER, toRow, type Dataset } from "@/lib/public-data";
+import { zipTextLines } from "@/lib/zip-lines";
+
+// Conector automático con las nóminas públicas del SII. Cada ejecución:
+//  1) si hay una carga en curso, la continúa desde su cursor (línea);
+//  2) si no, revisa en orden razón social → actividades → empresas si el SII publicó una versión
+//     nueva (cabecera Last-Modified) y, si es así, la empieza.
+// Procesa hasta agotar su tiempo y deja el cursor guardado: la siguiente ejecución sigue donde quedó.
+
+type Active = { id: string; modo: string; cursor: number; fuente: string; modificado: string | null; latido: string | null };
+type Last = { id: string; modificado: string | null; publicada: string; termino: string | null; filas: number };
+type State = Record<Dataset, { activa: Active | null; ultima: Last | null }>;
+
+export type SyncReport = {
+  estado: "al_dia" | "continua" | "completada" | "ocupado" | "error";
+  conjunto?: Dataset;
+  filas?: number;
+  cursor?: number;
+  detalle?: string;
+};
+
+const BATCH = 1000;
+const STALE_MS = 3 * 60 * 1000; // una ejecución sin latido hace 3 minutos se considera detenida
+const REFRESH_WITHOUT_DATE_DAYS = 30;
+
+const errText = (e: unknown) =>
+  e instanceof Error ? (e.name === "TimeoutError" || e.name === "AbortError" ? "Tiempo de espera agotado al descargar del SII" : e.message) : "Error";
+
+export async function runPublicSync(supabase: SupabaseClient, token: string, deadline: number): Promise<SyncReport> {
+  const { data, error } = await supabase.rpc("svc_public_sync_state", { p_token: token });
+  if (error || !data) return { estado: "error", detalle: error?.message ?? "Sin estado" };
+  const state = data as State;
+
+  // 1) Carga en curso
+  for (const ds of SYNC_ORDER) {
+    const a = state[ds]?.activa;
+    if (!a || a.modo !== "automatica") continue;
+    if (a.latido && Date.now() - new Date(a.latido).getTime() < STALE_MS) return { estado: "ocupado", conjunto: ds };
+    return processImport(supabase, token, ds, a.id, a.cursor, null, deadline);
+  }
+
+  // 2) ¿Hay versión nueva publicada? (si una fuente falla, se revisan las demás)
+  let failure: SyncReport | null = null;
+  for (const ds of SYNC_ORDER) {
+    const last = state[ds]?.ultima;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), Math.max(5_000, deadline - Date.now() + 5_000));
+    let res: Response;
+    try {
+      res = await fetch(SOURCES[ds].url, { signal: controller.signal, cache: "no-store", headers: { "user-agent": "ENQORA/1.0 (+datos abiertos SII)" } });
+    } catch (e) {
+      clearTimeout(timer);
+      failure ??= { estado: "error", conjunto: ds, detalle: errText(e) };
+      continue;
+    }
+    if (!res.ok || !res.body) {
+      clearTimeout(timer);
+      controller.abort();
+      failure ??= { estado: "error", conjunto: ds, detalle: `El SII respondió ${res.status} al descargar la nómina` };
+      continue;
+    }
+    const lm = res.headers.get("last-modified");
+    const modified = lm && !Number.isNaN(Date.parse(lm)) ? new Date(lm) : null;
+    const isNew = !last
+      || (modified && (!last.modificado || modified.getTime() > new Date(last.modificado).getTime() + 1000))
+      || (!modified && last.termino && Date.now() - new Date(last.termino).getTime() > REFRESH_WITHOUT_DATE_DAYS * 86400000);
+    if (!isNew) {
+      clearTimeout(timer);
+      controller.abort();
+      continue;
+    }
+    const { data: id, error: startErr } = await supabase.rpc("svc_start_public_import", {
+      p_token: token, p_dataset: ds, p_source_url: SOURCES[ds].url, p_modified: modified?.toISOString() ?? null,
+      p_file_name: SOURCES[ds].url.split("/").pop() ?? null,
+    });
+    if (startErr || !id) {
+      clearTimeout(timer);
+      controller.abort();
+      return { estado: "error", conjunto: ds, detalle: startErr?.message ?? "No se pudo iniciar la carga" };
+    }
+    try {
+      return await processImport(supabase, token, ds, id as string, 0, res, deadline);
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
+    }
+  }
+  return failure ?? { estado: "al_dia" };
+}
+
+async function processImport(
+  supabase: SupabaseClient, token: string, ds: Dataset, importId: string, cursor: number, opened: Response | null, deadline: number,
+): Promise<SyncReport> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), Math.max(5_000, deadline - Date.now() + 5_000));
+  let line = 0; // líneas de datos leídas (sin contar el encabezado)
+  let sent = cursor;
+  let rows: Record<string, unknown>[] = [];
+  let total = 0;
+  const flush = async () => {
+    if (line === sent) return;
+    const { data, error } = await supabase.rpc("svc_import_public_rows", {
+      p_token: token, p_import: importId, p_rows: rows, p_from: sent, p_to: line,
+    });
+    if (error) throw Object.assign(new Error(error.message), { db: true });
+    total += Number(data ?? 0);
+    sent = line;
+    rows = [];
+  };
+
+  try {
+    const res = opened ?? (await fetch(SOURCES[ds].url, { signal: controller.signal, cache: "no-store", headers: { "user-agent": "ENQORA/1.0 (+datos abiertos SII)" } }));
+    if (!res.ok || !res.body) throw new Error(`El SII respondió ${res.status} al descargar la nómina`);
+    let map: ReturnType<typeof mapHeader> | null = null;
+    for await (const raw of zipTextLines(res.body)) {
+      if (!map) {
+        map = mapHeader(ds, raw);
+        if (map.missing.length) {
+          await supabase.rpc("svc_finish_public_import", {
+            p_token: token, p_import: importId, p_status: "cancelada",
+            p_error: `Formato no reconocido: faltan las columnas ${map.missing.join(", ")}. Encabezado: ${map.header.join(" | ").slice(0, 300)}`,
+          });
+          return { estado: "error", conjunto: ds, detalle: "Formato no reconocido" };
+        }
+        continue;
+      }
+      if (!raw.trim()) continue;
+      line++;
+      if (line <= cursor) {
+        // Avance rápido hasta el cursor; si el tiempo se agota antes, la próxima ejecución sigue igual.
+        if (line % 50_000 === 0 && Date.now() > deadline) return { estado: "continua", conjunto: ds, filas: 0, cursor };
+        continue;
+      }
+      const row = toRow(ds, map, raw);
+      if (row) rows.push(row);
+      if (line - sent >= BATCH) {
+        await flush();
+        if (Date.now() > deadline) {
+          return { estado: "continua", conjunto: ds, filas: total, cursor: sent };
+        }
+      }
+    }
+    if (!map) throw new Error("El archivo de la nómina venía vacío.");
+    if (line < cursor) throw new Error("El archivo publicado es más corto que el avance guardado: se reiniciará la carga.");
+    await flush();
+    await supabase.rpc("svc_finish_public_import", { p_token: token, p_import: importId, p_status: "completada", p_error: null });
+    return { estado: "completada", conjunto: ds, filas: total, cursor: sent };
+  } catch (e) {
+    const msg = errText(e);
+    if (/ENQ_CARGA_EN_CURSO/.test(msg)) return { estado: "ocupado", conjunto: ds };
+    if (/más corto/.test(msg)) {
+      await supabase.rpc("svc_finish_public_import", { p_token: token, p_import: importId, p_status: "cancelada", p_error: msg });
+    } else {
+      await supabase.rpc("svc_public_import_error", { p_token: token, p_import: importId, p_error: msg.slice(0, 500) });
+    }
+    return { estado: "error", conjunto: ds, filas: total, cursor: sent, detalle: msg };
+  } finally {
+    clearTimeout(timer);
+    controller.abort();
+  }
+}

@@ -53,7 +53,7 @@ export default function PrivacyPage() {
       <ul>
         <li>Supabase: base de datos, autenticación y almacenamiento de documentos.</li>
         <li>Vercel: alojamiento de la aplicación.</li>
-        <li>Anthropic: análisis de los agentes de inteligencia artificial.</li>
+        <li>Anthropic: análisis de los agentes de inteligencia artificial y lectura de la Carpeta Tributaria Electrónica que la empresa sube.</li>
         <li>OpenAI: auditoría independiente de las propuestas de los agentes.</li>
         <li>Flow: procesamiento de pagos en línea.</li>
         <li>Resend: envío de correos.</li>

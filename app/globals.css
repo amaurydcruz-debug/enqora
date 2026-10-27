@@ -2684,3 +2684,18 @@ details.inline-more > summary { display: inline-flex; }
 .matrix-data dt { font-size: 0.7rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
 .matrix-data dd { margin: 1px 0 0; color: var(--text-2); font-size: 0.85rem; overflow-wrap: anywhere; }
 .field-inline { display: inline-flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-3); }
+
+/* M18 · Hoja de vida: señales de la consulta pública y carpeta tributaria */
+.lookup-signals ul { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.lookup-signal { display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--hairline); border-left: 3px solid var(--gold); background: rgba(229, 199, 131, 0.05); font-size: 0.9rem; color: var(--text-2); }
+.lookup-signal.is-alta { border-left-color: #e9a49c; background: rgba(233, 164, 156, 0.06); }
+.lookup-signal.is-baja { border-left-color: var(--hairline-strong); background: transparent; }
+.lookup-signal b { color: var(--text); }
+.lookup-signal-cta { align-self: flex-start; color: var(--gold); font-weight: 600; font-size: 0.85rem; text-decoration: none; }
+.lookup-signal-cta:hover { text-decoration: underline; }
+.lookup-deep { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 14px 16px; border-radius: 16px; border: 1px dashed rgba(229, 199, 131, 0.45); color: var(--text-2); font-size: 0.9rem; }
+.lookup-deep b { color: var(--text); }
+.steps-list { margin: 8px 0 4px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; color: var(--text-2); }
+.taxsheet { margin-top: 18px; display: flex; flex-direction: column; gap: 14px; }
+.taxsheet h3 { font-size: 1rem; margin: 0 0 8px; }
+.watch-item > .btn { align-self: flex-start; width: auto; }

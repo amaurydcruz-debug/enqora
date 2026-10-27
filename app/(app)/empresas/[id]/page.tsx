@@ -434,6 +434,7 @@ export default async function CompanyPage({
               .join(" · ")}
           </p>
           <p className="company-links">
+            <Link href={`/empresas/${company.id}/hoja-de-vida`} className="btn btn-gold btn-inline btn-sm">Hoja de vida <IconArrowRight size={14} /></Link>
             <Link href={`/empresas/${company.id}/cumplimiento`} className="btn btn-ghost btn-inline btn-sm">Cumplimiento y vencimientos <IconArrowRight size={14} /></Link>
           </p>
         </div>

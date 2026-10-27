@@ -16,6 +16,13 @@ export type PublicCompany = {
   inicio_actividades?: string | null;
   termino_giro?: string | null;
   actividades?: { codigo: string; descripcion: string | null }[];
+  total_actividades?: number;
+  perfil?: {
+    anio_comercial: number; tramo_ventas: string | null; trabajadores: number | null; region: string | null;
+    rubro: string | null; subrubro: string | null; tipo_contribuyente: string | null;
+  } | null;
+  senales?: { codigo: string; gravedad: "alta" | "media" | "baja"; fecha?: string; anio?: number }[];
+  fuentes?: { nombre: string; url: string; publicada: string }[];
   fuente?: string;
   fuente_url?: string;
   publicada?: string;

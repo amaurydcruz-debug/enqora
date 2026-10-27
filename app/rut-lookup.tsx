@@ -4,13 +4,15 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { lookupRutAction } from "@/app/actions/public";
 import { EnqoraClockLoader } from "@/components/clock-loader";
+import { salesTrancheLabel, SIGNALS } from "@/lib/public-data";
 import { formatRut, isValidRut } from "@/lib/rut";
 
 const fmtDate = (d?: string | null) =>
   d ? new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`)) : null;
 
-// 01 · Primer contacto y 02 · Demostración de capacidad: consulta de antecedentes públicos
-// de una empresa (persona jurídica) por su RUT, con fuente y fecha.
+// 01 · Primer contacto y 02 · Demostración de capacidad: hoja de vida pública de una empresa
+// (persona jurídica) por su RUT, desde las nóminas oficiales del SII que el conector mantiene al día,
+// con señales objetivas y la solución ENQORA para cada una.
 export function RutLookup() {
   const [state, action, pending] = useActionState(lookupRutAction, undefined);
   const [rut, setRut] = useState("");
@@ -77,14 +79,53 @@ export function RutLookup() {
                   <dd>{r.termino_giro ? `Término de giro el ${fmtDate(r.termino_giro)}` : "Sin término de giro informado"}</dd>
                 </div>
               </dl>
+              {r.perfil ? (
+                <dl className="lookup-facts">
+                  <div><dt>Tamaño por ventas ({r.perfil.anio_comercial})</dt><dd>{salesTrancheLabel(r.perfil.tramo_ventas) ?? "No informado"}</dd></div>
+                  <div><dt>Trabajadores informados</dt><dd>{r.perfil.trabajadores ?? "No informado"}</dd></div>
+                  {r.perfil.rubro ? <div><dt>Rubro</dt><dd>{r.perfil.rubro}</dd></div> : null}
+                  {r.perfil.region ? <div><dt>Región</dt><dd>{r.perfil.region}</dd></div> : null}
+                </dl>
+              ) : null}
               {r.actividades?.length ? (
                 <div className="lookup-acts">
-                  <h4 className="lookup-acts-title">Actividades económicas publicadas</h4>
+                  <h4 className="lookup-acts-title">Actividades económicas vigentes{r.total_actividades && r.total_actividades > r.actividades.length ? ` (${r.actividades.length} de ${r.total_actividades})` : ""}</h4>
                   <ul>
                     {r.actividades.map((a) => <li key={a.codigo}><span className="mono">{a.codigo}</span> {a.descripcion}</li>)}
                   </ul>
                 </div>
               ) : null}
+              {r.senales?.length ? (
+                <div className="lookup-signals">
+                  <h4 className="lookup-acts-title">Lo que conviene revisar</h4>
+                  <ul>
+                    {r.senales.map((sg) => {
+                      const t = SIGNALS[sg.codigo];
+                      if (!t) return null;
+                      return (
+                        <li key={sg.codigo} className={`lookup-signal is-${sg.gravedad}`}>
+                          <b>{t.titulo(sg)}</b>
+                          <span>{t.detalle(sg)}</span>
+                          <Link href={`/ingresar?next=${encodeURIComponent(`/casos/nuevo?modulo=${t.servicio}&asunto=${encodeURIComponent(t.asunto)}`)}`} className="lookup-signal-cta">
+                            Quiero solucionarlo →
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ) : (
+                <p className="lookup-note">En los datos públicos del SII no aparecen señales de alerta para esta empresa.</p>
+              )}
+              <div className="lookup-deep">
+                <b>¿Es tu empresa? Obtén su hoja de vida tributaria completa.</b>
+                <span>
+                  Tus declaraciones de IVA y renta y las observaciones del SII no son públicas. Crea tu cuenta, genera tu Carpeta Tributaria
+                  Electrónica en sii.cl con tu propia clave (ENQORA nunca te la pide) y súbela: te mostramos qué está al día, qué hay que
+                  regularizar y cómo lo resolvemos.
+                </span>
+                <Link href="/registro" className="btn btn-gold btn-inline btn-sm">Crear mi hoja de vida</Link>
+              </div>
             </>
           ) : r.estado === "no_encontrada" ? (
             <>
@@ -96,15 +137,21 @@ export function RutLookup() {
             </>
           ) : (
             <>
-              <h3>La consulta pública se está preparando</h3>
-              <p className="lookup-note">Aún no cargamos la nómina pública del SII. Mientras tanto, puedes conocer los servicios ENQORA.</p>
+              <h3>Estamos sincronizando las fuentes oficiales</h3>
+              <p className="lookup-note">
+                El conector de ENQORA está descargando las nóminas públicas del SII; la consulta queda disponible apenas termine la primera carga.
+                Mientras tanto, puedes revisar la situación de tu empresa directamente en el{" "}
+                <a href="https://www.sii.cl" target="_blank" rel="noopener noreferrer">sitio del SII</a> o conocer los servicios ENQORA.
+              </p>
             </>
           )}
           {r.estado !== "sin_datos" ? (
             <p className="lookup-source">
               Información pública según el Servicio de Impuestos Internos
               {r.publicada ? `, publicada el ${fmtDate(r.publicada)}` : ""}.{" "}
-              {r.fuente_url ? <a href={r.fuente_url} target="_blank" rel="noopener noreferrer">Ver fuente</a> : null}
+              {r.fuentes?.length
+                ? r.fuentes.map((f, i) => <span key={f.url}>{i ? " · " : ""}<a href={f.url} target="_blank" rel="noopener noreferrer">{f.nombre}</a></span>)
+                : r.fuente_url ? <a href={r.fuente_url} target="_blank" rel="noopener noreferrer">Ver fuente</a> : null}.
               {" "}El SII advierte que estos datos son preliminares; no constituyen una verificación de ENQORA.
             </p>
           ) : null}

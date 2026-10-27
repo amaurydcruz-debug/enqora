@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { MODULES, isModule, type ModuleKey } from "@/lib/cases";
 import { MODULE_ROUTES } from "@/lib/module-routes";
 
-export function NewCaseForm({ companyId, defaultModule = "contabilidad" }: { companyId: string; defaultModule?: string }) {
+export function NewCaseForm({ companyId, defaultModule = "contabilidad", defaultTitle = "" }: { companyId: string; defaultModule?: string; defaultTitle?: string }) {
   const [state, action] = useActionState(createCaseAction, undefined);
   const [picked, setPicked] = useState(defaultModule);
   const intake = isModule(picked) ? MODULE_ROUTES[picked].intake : [];
@@ -34,7 +34,7 @@ export function NewCaseForm({ companyId, defaultModule = "contabilidad" }: { com
       </fieldset>
       <div className="field">
         <label htmlFor="title">Resume tu solicitud en una frase</label>
-        <input id="title" name="title" className="input" required minLength={3} maxLength={160}
+        <input id="title" name="title" className="input" required minLength={3} maxLength={160} defaultValue={defaultTitle}
           placeholder="Ej.: El IVA de septiembre no cuadra con mis ventas" />
       </div>
       {intake.length ? (

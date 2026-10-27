@@ -68,6 +68,7 @@ const MESSAGES: Record<string, string> = {
   ENQ_CASO_SIN_RESOLVER: "El aprendizaje se registra cuando el caso está en verificación o cerrado.",
   ENQ_APRENDIZAJE_IDENTIFICA: "El aprendizaje no puede incluir el nombre ni el RUT de la empresa. Descríbelo de forma anónima.",
   ENQ_VIGILANCIA_FALLIDA: "La vigilancia normativa no se completó (revisa la clave de la API de Claude). Intenta nuevamente.",
+  ENQ_CARGA_EN_CURSO: "Otra ejecución del conector ya está cargando esta nómina.",
   ENQ_FALTA_EVIDENCIA: "Para marcarlo como presentado, obtenido o pagado, adjunta la evidencia (documento del caso) o el folio del comprobante.",
   ENQ_SIN_RUBRO: "La empresa aún no indica su tipo de negocio. Completa el perfil de la empresa o elige un rubro.",
   ENQ_AGENTE_OCUPADO: "Este agente ya está trabajando en el caso. Espera a que termine.",
