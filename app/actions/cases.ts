@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { dbCode, dbMessage } from "@/lib/db-errors";
 import { isModule, isStaffRole, UPLOAD_MAX_BYTES, UPLOAD_TYPES } from "@/lib/cases";
+import { intakeFromForm } from "@/lib/module-routes";
 
 export type CaseFormState = { error?: string; ok?: string } | undefined;
 
@@ -45,6 +46,12 @@ export async function createCaseAction(_: CaseFormState, fd: FormData): Promise<
     p_description: text(fd, "description"),
   });
   if (error || !data) return { error: dbMessage(error) };
+  // Respuestas iniciales del módulo: si fallaran, el caso igual queda creado.
+  const intake = intakeFromForm(module, fd);
+  if (Object.keys(intake).length) {
+    const { error: intakeError } = await supabase.rpc("set_case_intake", { p_case: data, p_intake: intake });
+    if (intakeError) console.error("[ENQORA intake]", intakeError.message);
+  }
   redirect(`/casos/${data}?aviso=creado`);
 }
 

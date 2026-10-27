@@ -106,6 +106,7 @@ export type CaseRow = {
   created_at: string;
   updated_at: string;
   closed_at: string | null;
+  intake?: Record<string, string> | null;
 };
 
 export const isStaffRole = (v: unknown): v is StaffRole => typeof v === "string" && v in STAFF_ROLES;

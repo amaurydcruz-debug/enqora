@@ -60,6 +60,7 @@ const MESSAGES: Record<string, string> = {
   ENQ_MONTO_NO_COINCIDE: "El monto del movimiento no coincide con el total del documento.",
   ENQ_YA_CONCILIADO: "Ese movimiento o documento ya está conciliado.",
   ENQ_F29_NO_EDITABLE: "El F29 de este período ya no se puede modificar en su estado actual.",
+  ENQ_AGENTE_OCUPADO: "Este agente ya está trabajando en el caso. Espera a que termine.",
   ENQ_YA_SOLICITADA: "Ya lo solicitaste. El equipo ENQORA te enviará la cotización en este caso.",
 };
 
