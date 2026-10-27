@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import { dbCode } from "@/lib/db-errors";
 import { isValidRut, normalizeRut } from "@/lib/rut";
 import { createClient } from "@/lib/supabase/server";
@@ -50,5 +51,28 @@ export async function lookupRutAction(_: LookupState, fd: FormData): Promise<Loo
     if (code === "ENQ_RUT_INVALIDO") return { error: "El RUT no es válido. Revisa el número y el dígito verificador.", query: raw };
     return { error: "No pudimos hacer la consulta en este momento. Intenta nuevamente.", query: raw };
   }
-  return { result: data as PublicCompany, query: raw };
+  const result = data as PublicCompany;
+  // Sin datos del SII todavía: la propia consulta pone en marcha el conector (máximo una vez cada 10 minutos).
+  if (result?.estado === "sin_datos") wakeConnector(h);
+  return { result, query: raw };
+}
+
+function wakeConnector(h: Headers) {
+  const secret = process.env.CRON_SECRET;
+  const service = process.env.ENQORA_SERVICE_TOKEN;
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!secret || !service || !host) return;
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  after(async () => {
+    try {
+      const supabase = await createClient();
+      const { data: claimed } = await supabase.rpc("svc_claim_sync_trigger", { p_token: service, p_minutes: 10 });
+      if (claimed !== true) return;
+      await fetch(`${proto}://${host}/api/cron/nomina?origen=portada`, {
+        headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(4_000),
+      }).catch(() => undefined);
+    } catch {
+      // Silencioso: la consulta del visitante no depende del arranque del conector.
+    }
+  });
 }

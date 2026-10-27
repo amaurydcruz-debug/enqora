@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
   if (!secret || !service || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ ok: false, estado: "error", detalle: "Falta CRON_SECRET o ENQORA_SERVICE_TOKEN" }, { status: 401 });
   }
+  // «manual»: botón del Centro de Mando · «portada»: arrancado por una consulta sin datos · resto: tarea diaria.
   const origin = request.nextUrl.searchParams.get("origen") === "manual" ? "manual" : "automatica";
   const supabase = await createClient();
   let report: SyncReport;
