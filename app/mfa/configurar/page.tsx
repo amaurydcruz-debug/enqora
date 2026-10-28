@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { AuthCard } from "@/components/auth-card";
+import { safeNext } from "@/lib/safe-next";
 import { SignOutLink } from "@/components/sign-out-link";
 import { EnrollTotp } from "./enroll";
 
 export const metadata: Metadata = { title: "Activar segundo factor" };
 
-export default function EnrollPage() {
+export default async function EnrollPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
+  const { next } = await searchParams;
   return (
     <AuthCard
       title="Activa tu segundo factor"
@@ -17,7 +19,7 @@ export default function EnrollPage() {
         <li>Genera el código QR y escanéalo con la aplicación.</li>
         <li>Escribe el código de 6 dígitos que aparece para confirmar.</li>
       </ol>
-      <EnrollTotp />
+      <EnrollTotp next={safeNext(next, "/panel?aviso=mfa")} />
     </AuthCard>
   );
 }

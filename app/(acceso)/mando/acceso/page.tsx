@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default async function MandoAccessPage({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const sp = await searchParams;
   const requested = safeNext(sp.next, "/mando");
-  const next = requested === "/mando" || requested.startsWith("/mando/") ? requested : "/mando";
+  const next = requested === "/mando" || requested.startsWith("/mando/") || requested.startsWith("/equipo/pase/") ? requested : "/mando";
 
   return (
     <AuthCard

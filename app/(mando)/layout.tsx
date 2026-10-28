@@ -26,7 +26,7 @@ export default async function MandoLayout({ children }: { children: React.ReactN
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
   ]);
   // Cuentas de clientes: el Centro de Mando no existe para ellas.
-  if (!role) redirect("/panel");
+  if (!role) redirect("/equipo/sin-acceso");
   const supervisor = isSupervisorRole(role);
   const displayName = (me as { full_name: string | null } | null)?.full_name || user.email || "";
 

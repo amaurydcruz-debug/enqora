@@ -5,7 +5,7 @@ import { confirmEnrollAction, startEnrollAction, type EnrollState } from "@/app/
 import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
 
-export function EnrollTotp() {
+export function EnrollTotp({ next = "/panel?aviso=mfa" }: { next?: string }) {
   const [enroll, setEnroll] = useState<EnrollState>(undefined);
   const [starting, startTransition] = useTransition();
   const [state, confirm] = useActionState(confirmEnrollAction, undefined);
@@ -39,6 +39,7 @@ export function EnrollTotp() {
       </p>
       <div className="secret">{current.secret}</div>
       <input type="hidden" name="factorId" value={current.factorId} />
+      <input type="hidden" name="next" value={next} />
       <div className="field">
         <label htmlFor="code">Código de 6 dígitos</label>
         <input

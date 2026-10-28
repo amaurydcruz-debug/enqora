@@ -65,7 +65,8 @@ export async function confirmEnrollAction(prev: EnrollState, fd: FormData): Prom
   await recordLogin(supabase, user?.email);
   await logSecurityEvent(supabase, "mfa_activado");
 
-  redirect("/panel?aviso=mfa");
+  // Si venía de un enlace (por ejemplo, el pase de jornada del equipo), vuelve a él.
+  redirect(safeNext(fd.get("next"), "/panel?aviso=mfa"));
 }
 
 // ---------- Verificar al ingresar (o reautenticar) ----------

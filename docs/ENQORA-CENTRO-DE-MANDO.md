@@ -20,3 +20,18 @@ Se hace una sola vez, en Supabase → SQL Editor:
 ```sql
 select private.bootstrap_enqora_admin('amaurydcruz@gmail.com');
 ```
+
+## Acceso del equipo por enlace de jornada (0022)
+
+- El equipo no se registra en la página pública. El Administrador entra a **Centro de Mando → Equipo ENQORA → Enlaces
+  de jornada**, escribe el correo, el rol y el día, y pulsa **Generar enlace de jornada**. Luego lo envía por WhatsApp
+  o por correo.
+- El enlace es **personal**, de **un solo uso** y solo funciona dentro del horario de ese día, de **10:00 a 18:00**
+  (hora de Chile). Ese horario se cambia en `private.shift_window`.
+- Al usarlo, la persona tiene acceso hasta las 18:00 de ese día. Al día siguiente necesita un enlace nuevo.
+- La primera vez, el mismo enlace le permite crear su cuenta (contraseña), confirmar su correo y activar el segundo
+  factor; después vuelve al enlace y activa su acceso.
+- El Administrador ve quién trabaja hoy, puede anular enlaces pendientes y **cortar el acceso** de inmediato.
+- **Coadministradores:** el Administrador designa a otra cuenta con las mismas facultades. Los coadministradores no
+  necesitan enlace de jornada.
+- Las pruebas SQL anteriores a 0022 simulan un pase vigente para el equipo dentro de su transacción.
