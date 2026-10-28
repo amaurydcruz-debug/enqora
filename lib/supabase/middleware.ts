@@ -4,7 +4,8 @@ import { supabaseEnv } from "./env";
 
 // Rutas accesibles sin sesión.
 // «/mando/acceso» es la entrada propia del Centro de Mando (equipo ENQORA), separada de la de clientes.
-const PUBLIC_PREFIXES = ["/mando/acceso", "/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth", "/comenzar", "/privacidad", "/terminos"];
+// «/equipo/pase» es el enlace de jornada que el Administrador envía a cada integrante del equipo.
+const PUBLIC_PREFIXES = ["/equipo/pase", "/mando/acceso", "/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth", "/comenzar", "/privacidad", "/terminos"];
 // Páginas legales: siempre visibles, con o sin sesión y en cualquier etapa del segundo factor.
 const ALWAYS = ["/privacidad", "/terminos"];
 // Rutas que solo tienen sentido sin sesión.
@@ -76,7 +77,7 @@ export async function updateSession(request: NextRequest) {
   //    Excepción: restablecer contraseña tras un enlace de recuperación.
   if (!hasFactor) {
     if (path === "/mfa/configurar" || path === "/restablecer") return response;
-    return redirectTo("/mfa/configurar");
+    return redirectTo("/mfa/configurar", true);
   }
 
   // 3) Sesión completa (aal2). /mfa/reautenticar sigue disponible para operaciones sensibles.

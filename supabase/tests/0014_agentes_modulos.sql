@@ -7,6 +7,8 @@
 -- =====================================================================
 
 begin;
+-- Desde 0022 el equipo (salvo Administradores) necesita un pase de jornada: en esta prueba se simula vigente.
+alter table public.staff_members alter column access_until set default now() + interval '1 day';
 
 create function pg_temp.check(cond boolean, msg text) returns void language plpgsql as $$
 begin
