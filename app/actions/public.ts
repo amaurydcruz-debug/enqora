@@ -26,7 +26,7 @@ export type PublicCompany = {
   fuentes?: { nombre: string; url: string; publicada: string }[];
   carga_parcial?: boolean;
   cargadas?: number;
-  catalogo?: { code: string; module: string; name: string; price_from: number | null; market_price: number | null }[];
+  catalogo?: { code: string; module: string; name: string; price_from: number | null; market_price: number | null; welcome_pct: number | null; welcome_months: number | null }[];
   consultado?: string;
   fuente?: string;
   fuente_url?: string;
@@ -70,8 +70,9 @@ async function lookup(fd: FormData): Promise<LookupState> {
   // Servicios del catálogo con su tarifa vigente publicada («desde»), para el informe inicial.
   if (result.estado === "encontrada") {
     const { data: cat } = await supabase.rpc("public_catalog");
-    result.catalogo = ((cat ?? []) as { code: string; module: string; name: string; price_from: number | null; market_price: number | null }[])
-      .map((c) => ({ code: c.code, module: c.module, name: c.name, price_from: c.price_from, market_price: c.market_price ?? null }));
+    result.catalogo = ((cat ?? []) as { code: string; module: string; name: string; price_from: number | null; market_price: number | null; welcome_pct: number | null; welcome_months: number | null }[])
+      .map((c) => ({ code: c.code, module: c.module, name: c.name, price_from: c.price_from, market_price: c.market_price ?? null,
+        welcome_pct: c.welcome_pct ?? null, welcome_months: c.welcome_months ?? null }));
   }
   // Sin datos del SII todavía: la propia consulta pone en marcha el conector (máximo una vez cada 10 minutos).
   if (result?.estado === "sin_datos") {

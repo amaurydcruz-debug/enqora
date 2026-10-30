@@ -137,6 +137,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                 </div>
                 <div className="charge-amount">
                   <b>{clp(c.amount)}</b>
+                  {c.list_amount && c.discount_pct ? <small className="welcome-note"><s>{clp(c.list_amount)}</s> · descuento de bienvenida −{c.discount_pct}%</small> : null}
                   <small>
                     {c.status === "vencido" ? "Venció" : "Vence"} el {day(c.due_date)}
                     {c.period_start && c.period_end ? ` · período ${day(c.period_start, "medium")} al ${day(c.period_end, "medium")}` : ""}

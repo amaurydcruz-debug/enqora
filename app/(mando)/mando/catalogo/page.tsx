@@ -263,7 +263,10 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
                   <dl className="data-grid">
                     <div><dt>Mediana de mercado</dt><dd>{a?.mediana ? `${clp(a.mediana)} / ${UNITS[s.unit]?.per}` : "—"}</dd></div>
                     <div><dt>Referencias verificadas</dt><dd>{a?.referencias ?? 0} de {a?.minimo_referencias ?? 3} mínimas{a?.por_verificar ? ` · ${a.por_verificar} por verificar` : ""}</dd></div>
-                    <div><dt>Precio ENQORA sugerido</dt><dd>{a?.sugerido && a.suficiente ? <b>{clp(a.sugerido)} <small>(−{a.descuento}%)</small></b> : "Faltan referencias verificadas"}</dd></div>
+                    <div><dt>Precio ENQORA normal sugerido</dt><dd>{a?.sugerido && a.suficiente ? <b>{clp(a.sugerido)}{a.descuento ? <small> (−{a.descuento}%)</small> : <small> (= mercado)</small>}</b> : "Faltan referencias verificadas"}</dd></div>
+                    {a?.sugerido && a.suficiente && a.bienvenida_pct ? (
+                      <div><dt>Primeros {a.bienvenida_meses} meses de cada cliente</dt><dd><b>{clp(a.precio_bienvenida ?? 0)}</b> <small>(bienvenida −{a.bienvenida_pct}%)</small></dd></div>
+                    ) : null}
                   </dl>
                   <div className="inline-form">
                     <form action={researchPricesAction}>
@@ -398,20 +401,25 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       <section className="card" id="politica">
         <h2>Asesor de precios · política comercial</h2>
         <p className="panel-lead">
-          El asesor busca precios publicados en Chile para cada servicio. Con las referencias verificadas calcula la mediana de mercado y sugiere
-          el precio ENQORA con este descuento. En la portada se muestra «Mercado» y «ENQORA» solo cuando hay suficientes referencias verificadas.
+          El asesor busca precios publicados en Chile y, con las referencias verificadas, sugiere el precio ENQORA normal (mediana de mercado menos el
+          descuento permanente). Cada cliente nuevo recibe además el descuento de bienvenida en todos sus cobros durante sus primeros meses,
+          contados desde su primer cobro; después paga el precio normal.
         </p>
         {admin ? (
           <form action={setPricingPolicyAction} className="inline-form">
-            <label className="check-inline">Descuento sobre el mercado
-              <input name="discount" type="number" min={0} max={80} defaultValue={policy?.descuento ?? 40} className="input input-sm" style={{ width: 80 }} /> %
+            <label className="check-inline">Bienvenida
+              <input name="welcome_pct" type="number" min={0} max={80} defaultValue={policy?.bienvenida_pct ?? 40} className="input input-sm" style={{ width: 70 }} /> % por
+              <input name="welcome_months" type="number" min={0} max={24} defaultValue={policy?.bienvenida_meses ?? 6} className="input input-sm" style={{ width: 64 }} /> meses
+            </label>
+            <label className="check-inline">Descuento permanente sobre el mercado
+              <input name="discount" type="number" min={0} max={80} defaultValue={policy?.descuento ?? 0} className="input input-sm" style={{ width: 70 }} /> %
             </label>
             <label className="check-inline">Referencias mínimas
               <input name="min_refs" type="number" min={1} max={20} defaultValue={policy?.minimo_referencias ?? 3} className="input input-sm" style={{ width: 70 }} />
             </label>
             <SubmitButton className="btn-inline btn-sm" pendingText="Guardando…">Guardar política</SubmitButton>
           </form>
-        ) : <p className="muted-line">Descuento vigente: {policy?.descuento ?? 40}% · mínimo {policy?.minimo_referencias ?? 3} referencias.</p>}
+        ) : <p className="muted-line">Bienvenida: −{policy?.bienvenida_pct ?? 40}% los primeros {policy?.bienvenida_meses ?? 6} meses · descuento permanente {policy?.descuento ?? 0}% · mínimo {policy?.minimo_referencias ?? 3} referencias.</p>}
       </section>
 
       <Accordion label="Servicios del catálogo" items={items} />

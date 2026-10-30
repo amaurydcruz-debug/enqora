@@ -66,15 +66,18 @@ Once servicios (CON-01 a CON-05, CRE-01, FOR-01, FOR-02, BRA-01, LEG-01 y GEN-01
   - No registra aranceles del Estado ni precios en UF.
 - **Verificación humana.** Lo encontrado queda «por verificar». La supervisión revisa la fuente y lo marca como
   verificado o descartado.
-- **Precio sugerido.** Se calcula como la mediana de las referencias verificadas de los últimos 180 días, en la misma
-  unidad de cobro, menos el descuento de la política comercial (40% por defecto, editable). Hace falta un mínimo de
-  referencias, que por defecto son 3.
+- **Precio normal sugerido.** Se calcula como la mediana de las referencias verificadas de los últimos 180 días, en la
+  misma unidad de cobro, menos el descuento permanente de la política comercial (0% por defecto). Hace falta un mínimo
+  de referencias, que por defecto son 3.
+- **Descuento de bienvenida (0025).** Cada empresa cliente paga 40% menos en todos sus cobros (cotizaciones y planes)
+  durante sus primeros 6 meses, contados desde su primer cobro. Después paga el precio normal. El porcentaje y los
+  meses son editables. El descuento se aplica al crear cada cobro, y el cobro muestra el precio normal tachado y la
+  fecha de término del beneficio.
 - **El asesor nunca publica.** El Administrador crea el borrador con el precio sugerido y lo publica en «Tarifas»
   con su confirmación de identidad.
-- **Lo que ve el cliente.** Cuando hay suficientes referencias verificadas y el precio ENQORA es menor, la portada
-  y el informe inicial muestran «Mercado $X · ahorras Y%». Ese porcentaje se calcula con la tarifa vigente real,
-  no con un número fijo. Al pasar el cursor se ve cuántas fuentes respaldan la mediana y hasta qué fecha se
-  consultaron.
+- **Lo que ve el cliente.** La portada y el informe inicial muestran el precio ENQORA, el precio de los primeros 6
+  meses con el descuento de bienvenida y, cuando hay suficientes referencias verificadas, el precio de mercado. Al
+  pasar el cursor se ve cuántas fuentes respaldan la mediana y hasta qué fecha se consultaron.
 - **Cuidado legal.** La publicidad comparativa debe ser veraz y comprobable (Ley 19.496 de protección al
   consumidor). Por eso solo cuentan precios con fuente verificada y recientes. Se recomienda revisión legal antes
   de usar el comparativo en campañas.

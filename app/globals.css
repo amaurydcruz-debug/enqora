@@ -2741,3 +2741,4 @@ details.inline-more > summary { display: inline-flex; }
 .cat-market { display: block; font-size: 0.76rem; color: var(--text-3); }
 .cat-market s { opacity: 0.8; }
 .cat-save { color: var(--gold); font-weight: 600; }
+.welcome-note { color: var(--gold); }

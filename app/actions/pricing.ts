@@ -167,7 +167,10 @@ export async function draftFromAdviceAction(fd: FormData) {
 
 export async function setPricingPolicyAction(fd: FormData) {
   const supabase = await createClient();
-  const { error } = await supabase.rpc("set_pricing_policy", { p_discount: int(fd, "discount", 40), p_min_references: int(fd, "min_refs", 3) });
+  const { error } = await supabase.rpc("set_pricing_policy", {
+    p_discount: int(fd, "discount", 0), p_min_references: int(fd, "min_refs", 3),
+    p_welcome_pct: int(fd, "welcome_pct", 40), p_welcome_months: int(fd, "welcome_months", 6),
+  });
   backTo("/mando/catalogo", "politica", error, "politica");
 }
 

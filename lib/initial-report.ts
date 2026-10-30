@@ -4,7 +4,7 @@ import { salesTrancheLabel } from "@/lib/public-data";
 // Reglas fijas sobre datos oficiales: distingue lo verificado, lo pendiente de comprobar y las
 // necesidades posibles. Nunca afirma deudas, incumplimientos ni beneficios que los datos no prueban.
 
-export type Catalog = { code: string; module: string; name: string; price_from: number | null; market_price?: number | null }[];
+export type Catalog = { code: string; module: string; name: string; price_from: number | null; market_price?: number | null; welcome_pct?: number | null; welcome_months?: number | null }[];
 
 export type PublicProfileForReport = {
   estado: string;
@@ -28,7 +28,7 @@ export type Recommendation = {
   importa: string; // por qué podría importar
   falta: string; // qué información falta para confirmarlo
   accion: string; // qué recomienda ENQORA
-  servicio: { nombre: string; codigo: string | null; categoria: string; precio: number | null; mercado?: number | null };
+  servicio: { nombre: string; codigo: string | null; categoria: string; precio: number | null; mercado?: number | null; bienvenida?: { pct: number; meses: number } | null };
   tipo: "verificado" | "posible"; // verificado = consta en la fuente · posible = necesidad a confirmar
 };
 
@@ -51,7 +51,10 @@ const yearsSince = (d?: string | null, today = new Date()) => {
 
 function service(catalog: Catalog, code: string, fallbackName: string, categoria: string) {
   const s = catalog.find((x) => x.code === code);
-  return { nombre: s?.name ?? fallbackName, codigo: s ? s.code : null, categoria, precio: s?.price_from ?? null, mercado: s?.market_price ?? null };
+  return {
+    nombre: s?.name ?? fallbackName, codigo: s ? s.code : null, categoria, precio: s?.price_from ?? null, mercado: s?.market_price ?? null,
+    bienvenida: s?.welcome_pct && s.welcome_months ? { pct: s.welcome_pct, meses: s.welcome_months } : null,
+  };
 }
 
 export function buildInitialReport(p: PublicProfileForReport, catalog: Catalog, today = new Date()): InitialReport {
