@@ -32,6 +32,16 @@ export type PublicCompany = {
 export type LookupState = { error?: string; result?: PublicCompany; query?: string } | undefined;
 
 export async function lookupRutAction(_: LookupState, fd: FormData): Promise<LookupState> {
+  try {
+    return await lookup(fd);
+  } catch (e) {
+    // Nunca la pantalla de error general: queda registrado en los registros de Vercel.
+    console.error("[ENQORA consulta RUT]", e instanceof Error ? e.message : e);
+    return { error: "No pudimos hacer la consulta en este momento. Intenta nuevamente en unos segundos." };
+  }
+}
+
+async function lookup(fd: FormData): Promise<LookupState> {
   const raw = String(fd.get("rut") ?? "").trim().slice(0, 20);
   const rut = normalizeRut(raw);
   if (!rut || !isValidRut(rut)) {
@@ -49,11 +59,18 @@ export async function lookupRutAction(_: LookupState, fd: FormData): Promise<Loo
     const code = dbCode(error);
     if (code === "ENQ_DEMASIADAS_CONSULTAS") return { error: "Hiciste muchas consultas seguidas. Intenta nuevamente en una hora.", query: raw };
     if (code === "ENQ_RUT_INVALIDO") return { error: "El RUT no es válido. Revisa el número y el dígito verificador.", query: raw };
+    console.error("[ENQORA consulta RUT]", error.message);
     return { error: "No pudimos hacer la consulta en este momento. Intenta nuevamente.", query: raw };
   }
   const result = data as PublicCompany;
   // Sin datos del SII todavía: la propia consulta pone en marcha el conector (máximo una vez cada 10 minutos).
-  if (result?.estado === "sin_datos") wakeConnector(h);
+  if (result?.estado === "sin_datos") {
+    try {
+      wakeConnector(h);
+    } catch {
+      // El arranque del conector nunca debe impedir la respuesta al visitante.
+    }
+  }
   return { result, query: raw };
 }
 
