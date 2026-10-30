@@ -4,7 +4,9 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { lookupRutAction, type LookupState } from "@/app/actions/public";
 import { EnqoraClockLoader } from "@/components/clock-loader";
-import { salesTrancheLabel, SIGNALS } from "@/lib/public-data";
+import { buildInitialReport } from "@/lib/initial-report";
+import { salesTrancheLabel } from "@/lib/public-data";
+import type { PublicCompany } from "@/app/actions/public";
 import { formatRut, isValidRut } from "@/lib/rut";
 
 const fmtDate = (d?: string | null) =>
@@ -106,37 +108,7 @@ export function RutLookup() {
                   </ul>
                 </div>
               ) : null}
-              {r.senales?.length ? (
-                <div className="lookup-signals">
-                  <h4 className="lookup-acts-title">Lo que conviene revisar</h4>
-                  <ul>
-                    {r.senales.map((sg) => {
-                      const t = SIGNALS[sg.codigo];
-                      if (!t) return null;
-                      return (
-                        <li key={sg.codigo} className={`lookup-signal is-${sg.gravedad}`}>
-                          <b>{t.titulo(sg)}</b>
-                          <span>{t.detalle(sg)}</span>
-                          <Link href={`/ingresar?next=${encodeURIComponent(`/casos/nuevo?modulo=${t.servicio}&asunto=${encodeURIComponent(t.asunto)}`)}`} className="lookup-signal-cta">
-                            Quiero solucionarlo →
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              ) : (
-                <p className="lookup-note">En los datos públicos del SII no aparecen señales de alerta para esta empresa.</p>
-              )}
-              <div className="lookup-deep">
-                <b>¿Es tu empresa? Obtén su hoja de vida tributaria completa.</b>
-                <span>
-                  Tus declaraciones de IVA y renta y las observaciones del SII no son públicas. Crea tu cuenta, genera tu Carpeta Tributaria
-                  Electrónica en sii.cl con tu propia clave (ENQORA nunca te la pide) y súbela: te mostramos qué está al día, qué hay que
-                  regularizar y cómo lo resolvemos.
-                </span>
-                <Link href="/registro" className="btn btn-gold btn-inline btn-sm">Crear mi hoja de vida</Link>
-              </div>
+              <InitialReportView r={r} />
             </>
           ) : r.estado === "no_encontrada" ? (
             <>
@@ -181,6 +153,71 @@ export function RutLookup() {
           </div>
         </section>
       ) : null}
+    </div>
+  );
+}
+
+const clp = (n: number) => `$${n.toLocaleString("es-CL")}`;
+const PRIO = { alta: ["is-alta", "Prioridad alta"], media: ["is-media", "Atención"], baja: ["is-baja", "Oportunidad"] } as const;
+
+// Informe inicial: lo verificado, lo que falta comprobar, recomendaciones con su servicio y próximos pasos.
+function InitialReportView({ r }: { r: PublicCompany }) {
+  const rep = buildInitialReport(r, r.catalogo ?? []);
+  const first = rep.recomendaciones[0];
+  const when = r.consultado
+    ? new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(r.consultado))
+    : null;
+  return (
+    <div className="report">
+      <div className="report-head">
+        <span className="eyebrow">Informe inicial ENQORA</span>
+        <small>{when ? `Consultado el ${when}` : null}{rep.completo ? "" : " · carga de nóminas del SII en curso: el informe se completará"}</small>
+      </div>
+
+      <h4 className="lookup-acts-title">Recomendaciones priorizadas</h4>
+      <ol className="report-recs">
+        {rep.recomendaciones.map((x) => (
+          <li key={x.id} className={`lookup-signal ${PRIO[x.prioridad][0]}`}>
+            <div className="report-tags">
+              <span className="report-tag">{PRIO[x.prioridad][1]}</span>
+              <span className="report-tag report-tag-muted">{x.tipo === "verificado" ? "Consta en el SII" : "Por confirmar"}</span>
+            </div>
+            <b>{x.titulo}</b>
+            <details className="report-detail">
+              <summary>Ver el detalle</summary>
+              <dl>
+                <div><dt>Qué observamos</dt><dd>{x.observado}</dd></div>
+                <div><dt>Por qué importa</dt><dd>{x.importa}</dd></div>
+                <div><dt>Qué falta confirmar</dt><dd>{x.falta}</dd></div>
+                <div><dt>Qué recomienda ENQORA</dt><dd>{x.accion}</dd></div>
+              </dl>
+            </details>
+            <span className="report-service">
+              {x.servicio.nombre} ·{" "}
+              {x.servicio.precio === 0 ? "Sin costo" : x.servicio.precio ? `desde ${clp(x.servicio.precio)} (tarifa vigente)` : "requiere evaluación previa"}
+            </span>
+            <Link href={`/comenzar?servicio=${x.servicio.categoria}`} className="lookup-signal-cta">Resolverlo con ENQORA →</Link>
+          </li>
+        ))}
+      </ol>
+
+      <h4 className="lookup-acts-title">Lo que aún debe comprobarse</h4>
+      <ul className="report-check">
+        {rep.porComprobar.map((c) => <li key={c.tema}><b>{c.tema}</b> <span>· {c.como}</span></li>)}
+      </ul>
+
+      <div className="lookup-deep">
+        <b>Próximos pasos</b>
+        <ol className="report-steps">{rep.proximas.map((p) => <li key={p}>{p}</li>)}</ol>
+        <span className="report-note">
+          Informe preliminar basado solo en datos públicos del SII. No afirma deudas ni incumplimientos: los confirma un profesional
+          ENQORA con la información de la empresa. ENQORA nunca te pedirá la clave del SII.
+        </span>
+        <div className="inline-form">
+          <Link href={`/comenzar?servicio=${first?.servicio.categoria ?? "contabilidad"}`} className="btn btn-gold btn-inline btn-sm">Crear mi cuenta y comenzar</Link>
+          <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => window.print()}>Imprimir o guardar en PDF</button>
+        </div>
+      </div>
     </div>
   );
 }
