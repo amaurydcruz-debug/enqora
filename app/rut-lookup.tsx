@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useActionState, useState } from "react";
-import { lookupRutAction } from "@/app/actions/public";
+import { lookupRutAction, type LookupState } from "@/app/actions/public";
 import { EnqoraClockLoader } from "@/components/clock-loader";
 import { salesTrancheLabel, SIGNALS } from "@/lib/public-data";
 import { formatRut, isValidRut } from "@/lib/rut";
@@ -14,7 +14,15 @@ const fmtDate = (d?: string | null) =>
 // (persona jurídica) por su RUT, desde las nóminas oficiales del SII que el conector mantiene al día,
 // con señales objetivas y la solución ENQORA para cada una.
 export function RutLookup() {
-  const [state, action, pending] = useActionState(lookupRutAction, undefined);
+  // Si la consulta falla en el servidor o la página quedó abierta desde una versión anterior de ENQORA,
+  // se muestra un mensaje y la consulta se puede reintentar (nunca la pantalla de error general).
+  const [state, action, pending] = useActionState(async (prev: LookupState, fd: FormData): Promise<LookupState> => {
+    try {
+      return await lookupRutAction(prev, fd);
+    } catch {
+      return { error: "No pudimos completar la consulta. Recarga la página (F5) e intenta nuevamente." };
+    }
+  }, undefined);
   const [rut, setRut] = useState("");
   const [localError, setLocalError] = useState<string | null>(null);
   const valid = isValidRut(rut);
