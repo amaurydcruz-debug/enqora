@@ -87,6 +87,9 @@ export function RutLookup() {
                   <dd>{r.termino_giro ? `Término de giro el ${fmtDate(r.termino_giro)}` : "Sin término de giro informado"}</dd>
                 </div>
               </dl>
+              {r.carga_parcial ? (
+                <p className="lookup-note">Datos de la nómina de razón social del SII. Las actividades y el tamaño se completan cuando termine la carga de las demás nóminas.</p>
+              ) : null}
               {r.perfil ? (
                 <dl className="lookup-facts">
                   <div><dt>Tamaño por ventas ({r.perfil.anio_comercial})</dt><dd>{salesTrancheLabel(r.perfil.tramo_ventas) ?? "No informado"}</dd></div>
@@ -147,8 +150,9 @@ export function RutLookup() {
             <>
               <h3>Estamos sincronizando las fuentes oficiales</h3>
               <p className="lookup-note">
-                Tu consulta puso en marcha el conector de ENQORA con las nóminas públicas del SII. La primera carga toma unos minutos;
-                vuelve a consultar este RUT en un rato.
+                {r.cargadas
+                  ? `El conector de ENQORA ya cargó ${r.cargadas.toLocaleString("es-CL")} empresas desde las nóminas públicas del SII y sigue avanzando; este RUT aún no está entre ellas. Vuelve a consultarlo en un rato.`
+                  : "Tu consulta puso en marcha el conector de ENQORA con las nóminas públicas del SII. La primera carga toma unos minutos; vuelve a consultar este RUT en un rato."}
               </p>
               <div className="lookup-deep">
                 <b>Mientras tanto, puedes verlo tú mismo en el SII</b>
