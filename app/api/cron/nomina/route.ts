@@ -20,9 +20,11 @@ export async function GET(request: NextRequest) {
   // «manual»: botón del Centro de Mando · «portada»: arrancado por una consulta sin datos · resto: tarea diaria.
   const origin = request.nextUrl.searchParams.get("origen") === "manual" ? "manual" : "automatica";
   const supabase = await createClient();
+  const step = Number(request.nextUrl.searchParams.get("paso") ?? "0") || 0;
   let report: SyncReport;
   try {
-    report = await runPublicSync(supabase, service, Date.now() + BUDGET_MS);
+    // paso > 0: continuación encadenada de la ejecución anterior.
+    report = await runPublicSync(supabase, service, Date.now() + BUDGET_MS, step > 0);
   } catch (e) {
     report = { estado: "error", detalle: e instanceof Error ? e.message.slice(0, 400) : "Error inesperado" };
   }
@@ -34,7 +36,6 @@ export async function GET(request: NextRequest) {
   if (logErr) console.error("[ENQORA nómina SII] registro", logErr.message);
 
   // Encadenar: queda trabajo (carga a medias) o puede haber otro conjunto con versión nueva.
-  const step = Number(request.nextUrl.searchParams.get("paso") ?? "0") || 0;
   if ((report.estado === "continua" || report.estado === "completada") && step < 400) {
     const next = new URL("/api/cron/nomina", request.nextUrl.origin);
     next.searchParams.set("paso", String(step + 1));
