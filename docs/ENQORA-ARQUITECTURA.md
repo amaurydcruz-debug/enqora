@@ -30,7 +30,7 @@ ENQORA no reemplaza a los profesionales: automatiza el trabajo repetitivo y coor
 | ENQORA CRECE | Financiamiento, fondos y programas públicos, expansión, inversionistas, exportación |
 | ENQORA LEGAL | Revisión documental, contratos, modificaciones societarias, regularización, deudas, mandatos y representación |
 
-Futuros módulos (licitaciones, comercio exterior, inmobiliario…) se agregan sobre el mismo núcleo.
+Futuros módulos (licitaciones, comercio exterior, inmobiliario…) se agregan sobre el mismo núcleo. La expansión del ecosistema (Conecta, Talento, Partners, Oportunidades, Academy, Enterprise) está en `ENQORA-ECOSISTEMA.md`.
 
 ## Núcleo común (todos los módulos lo usan)
 
@@ -103,6 +103,15 @@ Toda información normativa registra: fuente oficial, fecha de consulta, publica
 | 8 | Planes y suscripciones (Plataforma y Contabilidad Profesional), propuesta mensual al cerrar un caso, pagos | Entregado (ver `ENQORA-PLANES-PAGOS.md`) |
 | 9 | Mandatos y representación; notificaciones (correo, WhatsApp) | Entregado (ver `ENQORA-MANDATOS-NOTIFICACIONES.md`) |
 | 10 | Primer servicio completo: ENQORA CONTABILIDAD (documentos, conciliación, IVA/F29) | Entregado (ver `ENQORA-CONTABILIDAD.md`) |
-| 11+ | CREATE, FORMALIZA, BRAND, agentes de investigación, IDEA, GESTIÓN, CRECE, LEGAL | |
+| 11–13 | Agentes de investigación por módulo, rutas y propuestas con aprobación humana | Entregado (ver `ENQORA-AGENTES.md`) |
+| 14 | Publicación: SEO, legales, salud y estado del sistema | Entregado (ver `ENQORA-PUBLICACION.md`) |
+| 15 | Auditoría IA independiente y base normativa | Entregado (ver `ENQORA-BASE-NORMATIVA.md`) |
+| 16 | Portal por perfil y rubro, aprendizaje de casos, vigilancia normativa | Entregado (ver `ENQORA-PORTAL-APRENDIZAJE.md`) |
+| 17 | Cumplimiento y calendario de obligaciones | Entregado (ver `ENQORA-CUMPLIMIENTO.md`) |
+| 18 | Conector SII y hoja de vida de la empresa | Entregado (ver `ENQORA-HOJA-DE-VIDA.md`) |
+| 19 | Centro de Mando independiente y acceso del equipo por enlace de jornada | Entregado (ver `ENQORA-CENTRO-DE-MANDO.md`) |
+| Próximo | Fase 0 del ecosistema: estabilización (consulta por RUT con datos reales, clave de servicio, diagnóstico) | En curso |
+| Futuro | Ecosistema: Conecta, Talento, Partners, Oportunidades, Academy y Enterprise; Trust, CRM, Payments, Intelligence, Support y Mi Negocio | Planificado (ver `ENQORA-ECOSISTEMA.md`) |
+| Pendientes de módulo | CREATE, FORMALIZA, BRAND, IDEA, GESTIÓN, CRECE, LEGAL (servicio completo) | |
 
 Ver también `docs/ENQORA-COMERCIAL.md` (precios, diagnóstico gratuito y conversión), `docs/ENQORA-DISENO.md` (sistema visual), `docs/ENQORA-ORQUESTACION.md` (orquestación) y `docs/ENQORA-EXPERIENCIA.md` (revelación progresiva).
