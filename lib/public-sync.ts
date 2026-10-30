@@ -21,7 +21,8 @@ export type SyncReport = {
 };
 
 const BATCH = 1000;
-const STALE_MS = 3 * 60 * 1000; // una ejecución sin latido hace 3 minutos se considera detenida
+// Cada ejecución dura como máximo 60 s: sin avance en 75 s, la anterior ya terminó o se detuvo.
+const STALE_MS = 75 * 1000;
 const REFRESH_WITHOUT_DATE_DAYS = 30;
 
 const errText = (e: unknown) => {
@@ -33,7 +34,10 @@ const errText = (e: unknown) => {
   return `${e.message === "fetch failed" ? "No se pudo conectar con el SII" : e.message}${extra}`.slice(0, 480);
 };
 
-export async function runPublicSync(supabase: SupabaseClient, token: string, deadline: number): Promise<SyncReport> {
+// continuation: la ejecución viene encadenada desde la anterior (que ya terminó su tramo), así que
+// no se espera a que «enfríe» su latido. Si dos ejecuciones coincidieran, la base de datos deja
+// avanzar solo a una (el lote debe empezar exactamente en el cursor guardado).
+export async function runPublicSync(supabase: SupabaseClient, token: string, deadline: number, continuation = false): Promise<SyncReport> {
   const { data, error } = await supabase.rpc("svc_public_sync_state", { p_token: token });
   if (error || !data) {
     const m = error?.message ?? "";
@@ -52,7 +56,7 @@ export async function runPublicSync(supabase: SupabaseClient, token: string, dea
   for (const ds of SYNC_ORDER) {
     const a = state[ds]?.activa;
     if (!a || a.modo !== "automatica") continue;
-    if (a.latido && Date.now() - new Date(a.latido).getTime() < STALE_MS) return { estado: "ocupado", conjunto: ds };
+    if (!continuation && a.latido && Date.now() - new Date(a.latido).getTime() < STALE_MS) return { estado: "ocupado", conjunto: ds };
     return processImport(supabase, token, ds, a.id, a.cursor, deadline);
   }
 
