@@ -96,6 +96,7 @@ export type MarketReference = {
 export type PriceAdvice = {
   mediana: number | null; referencias: number; ultima_consulta: string | null; por_verificar: number;
   descuento: number; minimo_referencias: number; suficiente: boolean; sugerido: number | null;
+  bienvenida_pct?: number; bienvenida_meses?: number; precio_bienvenida?: number | null;
 };
 
 export type Quote = {

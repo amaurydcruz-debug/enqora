@@ -155,7 +155,7 @@ export default async function ChargesAdminPage({ searchParams }: { searchParams:
                 </span>
                 <span className={`status status-${CHARGE_STATUSES[c.status].tone}`}>{CHARGE_STATUSES[c.status].label}</span>
               </div>
-              <div className="charge-amount"><b>{clp(c.amount)}</b><small>Vence el {day(c.due_date)}</small></div>
+              <div className="charge-amount"><b>{clp(c.amount)}</b><small>Vence el {day(c.due_date)}{c.list_amount && c.discount_pct ? ` · normal ${clp(c.list_amount)}, bienvenida −${c.discount_pct}%` : ""}</small></div>
               {admin ? (
                 <div className="panel-actions">
                   <details className="more inline-more">

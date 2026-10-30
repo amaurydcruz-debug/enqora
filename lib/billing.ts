@@ -86,6 +86,8 @@ export type Charge = {
   case_id: string | null;
   description: string;
   amount: number;
+  list_amount?: number | null; // precio normal cuando hay descuento de bienvenida
+  discount_pct?: number | null;
   currency: "CLP";
   period_start: string | null;
   period_end: string | null;

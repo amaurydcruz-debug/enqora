@@ -6,6 +6,8 @@
 -- =====================================================================
 
 begin;
+-- Desde 0025 cada cliente nuevo tiene descuento de bienvenida: esta prueba verifica precios normales.
+update private.pricing_policy set welcome_discount_pct = 0 where id;
 -- Desde 0022 el equipo (salvo Administradores) necesita un pase de jornada: en esta prueba se simula vigente.
 alter table public.staff_members alter column access_until set default now() + interval '1 day';
 
