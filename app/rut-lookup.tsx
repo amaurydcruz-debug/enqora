@@ -195,6 +195,9 @@ function InitialReportView({ r }: { r: PublicCompany }) {
             <span className="report-service">
               {x.servicio.nombre} ·{" "}
               {x.servicio.precio === 0 ? "Sin costo" : x.servicio.precio ? `desde ${clp(x.servicio.precio)} (tarifa vigente)` : "requiere evaluación previa"}
+              {x.servicio.precio && x.servicio.mercado && x.servicio.mercado > x.servicio.precio
+                ? ` · mercado ${clp(x.servicio.mercado)}: ahorras ${Math.round((1 - x.servicio.precio / x.servicio.mercado) * 100)}%`
+                : ""}
             </span>
             <Link href={`/comenzar?servicio=${x.servicio.categoria}`} className="lookup-signal-cta">Resolverlo con ENQORA →</Link>
           </li>

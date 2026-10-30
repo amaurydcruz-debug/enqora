@@ -19,7 +19,11 @@ export const metadata: Metadata = {
   robots: indexable() ? { index: true, follow: true } : { index: false, follow: false },
 };
 
-type CatalogRow = { code: string; module: string; name: string; summary: string | null; unit: string; requires_professional: boolean; price_from: number | null };
+type CatalogRow = {
+  code: string; module: string; name: string; summary: string | null; unit: string; requires_professional: boolean; price_from: number | null;
+  market_price: number | null; market_sources: number | null; market_consulted: string | null;
+};
+const fmtMonth = (d: string) => new Intl.DateTimeFormat("es-CL", { month: "short", year: "numeric", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`));
 
 // Puerta de entrada ENQORA (pública). La sesión iniciada va directo al Centro de control (middleware).
 // 01 Primer contacto → 02 Demostración (consulta por RUT) → 03 Galería de servicios → 04 Registro.
@@ -59,7 +63,14 @@ export default async function WelcomePage() {
                     </span>
                     <span className="cat-service-price">
                       {s.price_from != null && !s.requires_professional ? (
-                        <>desde <b>{clp(s.price_from)}</b> <small>/ {UNITS[s.unit]?.per ?? s.unit}</small></>
+                        <>
+                          desde <b>{clp(s.price_from)}</b> <small>/ {UNITS[s.unit]?.per ?? s.unit}</small>
+                          {s.market_price && s.market_price > s.price_from ? (
+                            <small className="cat-market" title={`Mediana de ${s.market_sources} precios publicados por otros proveedores en Chile, consultados hasta ${s.market_consulted ? fmtMonth(s.market_consulted) : ""}. Referencial.`}>
+                              Mercado <s>{clp(s.market_price)}</s> · <span className="cat-save">ahorras {Math.round((1 - s.price_from / s.market_price) * 100)}%</span>
+                            </small>
+                          ) : null}
+                        </>
                       ) : (
                         <small>Precio según diagnóstico</small>
                       )}

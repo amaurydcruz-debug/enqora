@@ -4,6 +4,7 @@
   "crons": [
     { "path": "/api/cron/facturacion", "schedule": "0 11 * * *" },
     { "path": "/api/cron/vigilancia", "schedule": "0 12 * * 1" },
-    { "path": "/api/cron/nomina", "schedule": "0 9 * * *" }
+    { "path": "/api/cron/nomina", "schedule": "0 9 * * *" },
+    { "path": "/api/cron/precios", "schedule": "0 13 * * 3" }
   ]
 }
