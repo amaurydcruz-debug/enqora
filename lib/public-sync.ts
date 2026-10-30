@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapHeader, SOURCES, SYNC_ORDER, toRow, type Dataset } from "@/lib/public-data";
-import { zipTextLines } from "@/lib/zip-lines";
+import { entryLines, firstLine, openZip } from "@/lib/zip-lines";
 
 // Conector automático con las nóminas públicas del SII. Cada ejecución:
 //  1) si hay una carga en curso, la continúa desde su cursor (línea);
@@ -53,26 +53,30 @@ export async function runPublicSync(supabase: SupabaseClient, token: string, dea
     const a = state[ds]?.activa;
     if (!a || a.modo !== "automatica") continue;
     if (a.latido && Date.now() - new Date(a.latido).getTime() < STALE_MS) return { estado: "ocupado", conjunto: ds };
-    return processImport(supabase, token, ds, a.id, a.cursor, null, deadline);
+    return processImport(supabase, token, ds, a.id, a.cursor, deadline);
   }
 
   // 2) ¿Hay versión nueva publicada? (si una fuente falla, se revisan las demás)
   let failure: SyncReport | null = null;
   for (const ds of SYNC_ORDER) {
     const last = state[ds]?.ultima;
+    // Consulta liviana: solo se piden las cabeceras (fecha de publicación del archivo).
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), Math.max(5_000, deadline - Date.now() + 5_000));
+    const timer = setTimeout(() => controller.abort(), 20_000);
     let res: Response;
     try {
-      res = await fetch(SOURCES[ds].url, { signal: controller.signal, cache: "no-store", headers: { "user-agent": "ENQORA/1.0 (+datos abiertos SII)" } });
+      res = await fetch(SOURCES[ds].url, {
+        signal: controller.signal, cache: "no-store", headers: { "user-agent": "ENQORA/1.0 (+datos abiertos SII)", range: "bytes=0-0" },
+      });
     } catch (e) {
       clearTimeout(timer);
       failure ??= { estado: "error", conjunto: ds, detalle: errText(e) };
       continue;
-    }
-    if (!res.ok || !res.body) {
+    } finally {
       clearTimeout(timer);
-      controller.abort();
+    }
+    controller.abort();
+    if (!res.ok) {
       failure ??= { estado: "error", conjunto: ds, detalle: `El SII respondió ${res.status} al descargar la nómina` };
       continue;
     }
@@ -81,32 +85,19 @@ export async function runPublicSync(supabase: SupabaseClient, token: string, dea
     const isNew = !last
       || (modified && (!last.modificado || modified.getTime() > new Date(last.modificado).getTime() + 1000))
       || (!modified && last.termino && Date.now() - new Date(last.termino).getTime() > REFRESH_WITHOUT_DATE_DAYS * 86400000);
-    if (!isNew) {
-      clearTimeout(timer);
-      controller.abort();
-      continue;
-    }
+    if (!isNew) continue;
     const { data: id, error: startErr } = await supabase.rpc("svc_start_public_import", {
       p_token: token, p_dataset: ds, p_source_url: SOURCES[ds].url, p_modified: modified?.toISOString() ?? null,
       p_file_name: SOURCES[ds].url.split("/").pop() ?? null,
     });
-    if (startErr || !id) {
-      clearTimeout(timer);
-      controller.abort();
-      return { estado: "error", conjunto: ds, detalle: startErr?.message ?? "No se pudo iniciar la carga" };
-    }
-    try {
-      return await processImport(supabase, token, ds, id as string, 0, res, deadline);
-    } finally {
-      clearTimeout(timer);
-      controller.abort();
-    }
+    if (startErr || !id) return { estado: "error", conjunto: ds, detalle: startErr?.message ?? "No se pudo iniciar la carga" };
+    return processImport(supabase, token, ds, id as string, 0, deadline);
   }
   return failure ?? { estado: "al_dia" };
 }
 
 async function processImport(
-  supabase: SupabaseClient, token: string, ds: Dataset, importId: string, cursor: number, opened: Response | null, deadline: number,
+  supabase: SupabaseClient, token: string, ds: Dataset, importId: string, cursor: number, deadline: number,
 ): Promise<SyncReport> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), Math.max(5_000, deadline - Date.now() + 5_000));
@@ -126,19 +117,30 @@ async function processImport(
   };
 
   try {
-    const res = opened ?? (await fetch(SOURCES[ds].url, { signal: controller.signal, cache: "no-store", headers: { "user-agent": "ENQORA/1.0 (+datos abiertos SII)" } }));
-    if (!res.ok || !res.body) throw new Error(`El SII respondió ${res.status} al descargar la nómina`);
+    // El ZIP puede traer varios archivos (p. ej. una tabla de códigos y la nómina): se elige el que
+    // tenga las columnas de esta nómina, empezando por el más grande.
+    const { source, entries } = await openZip(SOURCES[ds].url, controller.signal);
+    const candidates = entries.filter((e) => /\.(txt|csv)$/i.test(e.name) && e.size > 0).sort((a, b) => b.size - a.size);
+    let chosen: (typeof entries)[number] | null = null;
     let map: ReturnType<typeof mapHeader> | null = null;
-    for await (const raw of zipTextLines(res.body)) {
-      if (!map) {
-        map = mapHeader(ds, raw);
-        if (map.missing.length) {
-          await supabase.rpc("svc_finish_public_import", {
-            p_token: token, p_import: importId, p_status: "cancelada",
-            p_error: `Formato no reconocido: faltan las columnas ${map.missing.join(", ")}. Encabezado: ${map.header.join(" | ").slice(0, 300)}`,
-          });
-          return { estado: "error", conjunto: ds, detalle: "Formato no reconocido" };
-        }
+    const seen: string[] = [];
+    for (const e of candidates.slice(0, 8)) {
+      const header = await firstLine(source, e, controller.signal);
+      const m = mapHeader(ds, header);
+      if (!m.missing.length) { chosen = e; map = m; break; }
+      seen.push(`${e.name}: ${m.header.slice(0, 8).join(" | ")}`);
+    }
+    if (!chosen || !map) {
+      await supabase.rpc("svc_finish_public_import", {
+        p_token: token, p_import: importId, p_status: "cancelada",
+        p_error: `Formato no reconocido. Archivos del ZIP: ${seen.join(" ;; ").slice(0, 440) || "ninguno de texto"}`,
+      });
+      return { estado: "error", conjunto: ds, detalle: "Formato no reconocido: ningún archivo del ZIP tiene las columnas esperadas" };
+    }
+    let header = false;
+    for await (const raw of entryLines(source, chosen, controller.signal)) {
+      if (!header) {
+        if (raw.trim()) header = true;
         continue;
       }
       if (!raw.trim()) continue;
@@ -157,7 +159,7 @@ async function processImport(
         }
       }
     }
-    if (!map) throw new Error("El archivo de la nómina venía vacío.");
+    if (!header) throw new Error("El archivo de la nómina venía vacío.");
     if (line < cursor) throw new Error("El archivo publicado es más corto que el avance guardado: se reiniciará la carga.");
     await flush();
     await supabase.rpc("svc_finish_public_import", { p_token: token, p_import: importId, p_status: "completada", p_error: null });
