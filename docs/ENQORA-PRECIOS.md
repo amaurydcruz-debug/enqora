@@ -56,3 +56,25 @@ Once servicios (CON-01 a CON-05, CRE-01, FOR-01, FOR-02, BRA-01, LEG-01 y GEN-01
   - El equipo cotiza con vista previa en vivo.
   - El cliente ve el desglose honesto (precio estándar, descuento y motivo, precio final, gastos externos, qué incluye y qué no, condiciones, validez y referencias de mercado con su fuente) y decide.
 - Centro de control: las cotizaciones que esperan decisión aparecen en «Requiere tu atención».
+
+## Asesor de precios (M20 · 0024)
+
+- **Investigar precios de mercado.** En **Centro de Mando → Catálogo y precios**, cada servicio tiene este botón.
+  Además, todos los miércoles (`/api/cron/precios`) el asesor revisa el servicio con las referencias más antiguas.
+  - El asesor busca en internet precios **publicados** en Chile por otros proveedores.
+  - Cada precio queda registrado con su enlace, la fecha y el texto literal de la página.
+  - No registra aranceles del Estado ni precios en UF.
+- **Verificación humana.** Lo encontrado queda «por verificar». La supervisión revisa la fuente y lo marca como
+  verificado o descartado.
+- **Precio sugerido.** Se calcula como la mediana de las referencias verificadas de los últimos 180 días, en la misma
+  unidad de cobro, menos el descuento de la política comercial (40% por defecto, editable). Hace falta un mínimo de
+  referencias, que por defecto son 3.
+- **El asesor nunca publica.** El Administrador crea el borrador con el precio sugerido y lo publica en «Tarifas»
+  con su confirmación de identidad.
+- **Lo que ve el cliente.** Cuando hay suficientes referencias verificadas y el precio ENQORA es menor, la portada
+  y el informe inicial muestran «Mercado $X · ahorras Y%». Ese porcentaje se calcula con la tarifa vigente real,
+  no con un número fijo. Al pasar el cursor se ve cuántas fuentes respaldan la mediana y hasta qué fecha se
+  consultaron.
+- **Cuidado legal.** La publicidad comparativa debe ser veraz y comprobable (Ley 19.496 de protección al
+  consumidor). Por eso solo cuentan precios con fuente verificada y recientes. Se recomienda revisión legal antes
+  de usar el comparativo en campañas.

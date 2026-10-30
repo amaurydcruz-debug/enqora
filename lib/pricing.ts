@@ -88,6 +88,14 @@ export type MarketReference = {
   amount_max: number | null;
   unit: string;
   created_by: string | null;
+  origin?: "manual" | "agente";
+  status?: "por_verificar" | "verificada" | "descartada";
+  evidence?: string | null;
+};
+
+export type PriceAdvice = {
+  mediana: number | null; referencias: number; ultima_consulta: string | null; por_verificar: number;
+  descuento: number; minimo_referencias: number; suficiente: boolean; sugerido: number | null;
 };
 
 export type Quote = {

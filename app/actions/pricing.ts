@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { dbCode } from "@/lib/db-errors";
+import { researchPrices, saveFoundPrices } from "@/lib/price-advisor";
+import { myStaffRole } from "@/lib/staff";
 
 // Catálogo, tarifas y cotizaciones (M07). Las reglas viven en la base de datos;
 // aquí solo se validan formatos y se vuelve a la pantalla con aviso o error.
@@ -122,6 +124,51 @@ export async function deleteReferenceAction(fd: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("delete_market_reference", { p_reference: ref });
   backTo("/mando/catalogo", `s-${service}`, error, "referencia_eliminada");
+}
+
+// ---------- Asesor de precios (M20) ----------
+export async function researchPricesAction(fd: FormData) {
+  const service = uuid(fd, "service_id");
+  if (!service) redirect("/mando/catalogo");
+  if (!(await myStaffRole())) redirect("/mando");
+  const token = process.env.ENQORA_SERVICE_TOKEN;
+  const supabase = await createClient();
+  const { data: s } = await supabase.from("services").select("id, code, name, scope, unit").eq("id", service).maybeSingle();
+  if (!s || !token) backTo("/mando/catalogo", `s-${service}`, { message: token ? "ENQ_DATOS_INVALIDOS" : "ENQ_CLAVE_SERVICIO" }, "");
+  let added = 0;
+  try {
+    const found = await researchPrices(s as { id: string; code: string; name: string; scope: string; unit: string }, AbortSignal.timeout(50_000));
+    added = await saveFoundPrices(supabase, token!, service, found);
+  } catch (e) {
+    console.error("[ENQORA asesor de precios]", e instanceof Error ? e.message : e);
+    redirect(`/mando/catalogo?error=ENQ_ASESOR_PRECIOS#s-${service}`);
+  }
+  revalidatePath("/mando/catalogo");
+  redirect(`/mando/catalogo?aviso=${added ? `precios_${added}` : "precios_0"}#s-${service}`);
+}
+
+export async function reviewReferenceAction(fd: FormData) {
+  const service = uuid(fd, "service_id");
+  const ref = uuid(fd, "reference_id");
+  const decision = text(fd, "decision", 20);
+  if (!service || !ref) redirect("/mando/catalogo");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("review_market_reference", { p_reference: ref, p_decision: decision });
+  backTo("/mando/catalogo", `s-${service}`, error, decision === "verificada" ? "referencia_verificada" : "referencia_descartada");
+}
+
+export async function draftFromAdviceAction(fd: FormData) {
+  const service = uuid(fd, "service_id");
+  if (!service) redirect("/mando/catalogo");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("draft_tariff_from_advice", { p_service: service });
+  backTo("/mando/catalogo", `s-${service}`, error, "borrador");
+}
+
+export async function setPricingPolicyAction(fd: FormData) {
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_pricing_policy", { p_discount: int(fd, "discount", 40), p_min_references: int(fd, "min_refs", 3) });
+  backTo("/mando/catalogo", "politica", error, "politica");
 }
 
 // ---------- Cotizaciones ----------

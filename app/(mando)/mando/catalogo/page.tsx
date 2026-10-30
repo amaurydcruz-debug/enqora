@@ -10,18 +10,24 @@ import { SubmitButton } from "@/components/submit-button";
 import {
   addReferenceAction,
   deleteReferenceAction,
+  draftFromAdviceAction,
   draftTariffAction,
+  researchPricesAction,
+  reviewReferenceAction,
+  setPricingPolicyAction,
   publishTariffAction,
   retireTariffAction,
   saveServiceAction,
 } from "@/app/actions/pricing";
 import { MODULES } from "@/lib/cases";
 import { messageForCode } from "@/lib/db-errors";
-import { clp, referenceIsFresh, TARIFF_STATUSES, UNITS, type MarketReference, type Service, type Tariff } from "@/lib/pricing";
-import { myStaffRole } from "@/lib/staff";
+import { clp, referenceIsFresh, TARIFF_STATUSES, UNITS, type MarketReference, type PriceAdvice, type Service, type Tariff } from "@/lib/pricing";
+import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Catálogo y precios" };
+// «Investigar precios de mercado» espera la búsqueda del asesor (hasta ~50 s).
+export const maxDuration = 60;
 
 const AVISOS: Record<string, string> = {
   servicio: "Ficha del servicio actualizada.",
@@ -31,6 +37,10 @@ const AVISOS: Record<string, string> = {
   retirada: "Tarifa retirada. El servicio queda sin precio publicado.",
   referencia: "Referencia de mercado registrada.",
   referencia_eliminada: "Referencia de mercado eliminada.",
+  referencia_verificada: "Referencia verificada: cuenta para la mediana de mercado.",
+  referencia_descartada: "Referencia descartada.",
+  politica: "Política comercial actualizada.",
+  precios_0: "El asesor no encontró precios publicados confiables nuevos para este servicio.",
 };
 
 const fmtDate = (d: string) =>
@@ -44,6 +54,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const role = await myStaffRole();
   if (!role) notFound();
   const admin = role === "enqora_admin";
+  const supervisor = isSupervisorRole(role);
   const sp = await searchParams;
 
   const supabase = await createClient();
@@ -55,6 +66,17 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const services = (sRows ?? []) as Service[];
   const tariffs = (tRows ?? []) as Tariff[];
   const refs = (rRows ?? []) as MarketReference[];
+  const adviceList: (readonly [string, PriceAdvice | null])[] = await Promise.all(
+    services.map(async (sv) => {
+      const { data } = await supabase.rpc("price_advice", { p_service: sv.id });
+      return [sv.id, (data ?? null) as PriceAdvice | null] as const;
+    }),
+  );
+  const advice = new Map<string, PriceAdvice | null>(adviceList);
+  const policy = adviceList.find(([, a]) => a)?.[1] ?? null;
+  const avisoText = sp.aviso?.startsWith("precios_") && sp.aviso !== "precios_0"
+    ? `El asesor encontró ${sp.aviso.slice(8)} precio(s) publicado(s). Quedan «por verificar»: revisa cada fuente antes de usarlas.`
+    : sp.aviso ? AVISOS[sp.aviso] : null;
 
   const people = [...new Set(tariffs.flatMap((t) => [t.created_by, t.published_by]).filter((v): v is string => !!v))];
   const { data: pRows } = people.length ? await supabase.from("profiles").select("id, email, full_name").in("id", people) : { data: [] };
@@ -232,8 +254,33 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           </section>
 
           <section>
-            <h4 className="sub-title">Referencias de mercado</h4>
-            <p className="panel-lead">Precios publicados por otros proveedores, con su fuente y fecha. Se muestran al cliente como referencia, nunca como precio oficial, y se ocultan después de {180} días.</p>
+            <h4 className="sub-title">Referencias de mercado y asesor de precios</h4>
+            <p className="panel-lead">Precios publicados por otros proveedores, con su fuente y fecha. Solo las verificadas cuentan para la mediana y se muestran al cliente como referencia; se ocultan después de {180} días.</p>
+            {(() => {
+              const a = advice.get(s.id);
+              return (
+                <div className="advisor-box">
+                  <dl className="data-grid">
+                    <div><dt>Mediana de mercado</dt><dd>{a?.mediana ? `${clp(a.mediana)} / ${UNITS[s.unit]?.per}` : "—"}</dd></div>
+                    <div><dt>Referencias verificadas</dt><dd>{a?.referencias ?? 0} de {a?.minimo_referencias ?? 3} mínimas{a?.por_verificar ? ` · ${a.por_verificar} por verificar` : ""}</dd></div>
+                    <div><dt>Precio ENQORA sugerido</dt><dd>{a?.sugerido && a.suficiente ? <b>{clp(a.sugerido)} <small>(−{a.descuento}%)</small></b> : "Faltan referencias verificadas"}</dd></div>
+                  </dl>
+                  <div className="inline-form">
+                    <form action={researchPricesAction}>
+                      <input type="hidden" name="service_id" value={s.id} />
+                      <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="Investigando precios (hasta 1 minuto)…">Investigar precios de mercado</SubmitButton>
+                    </form>
+                    {admin && a?.suficiente && a.sugerido ? (
+                      <form action={draftFromAdviceAction}>
+                        <input type="hidden" name="service_id" value={s.id} />
+                        <SubmitButton className="btn-inline btn-sm" pendingText="Creando borrador…">Crear borrador con {clp(a.sugerido)}</SubmitButton>
+                      </form>
+                    ) : null}
+                  </div>
+                  <small className="muted-line">El asesor solo propone: el borrador se revisa y se publica en «Tarifas» con tu confirmación.</small>
+                </div>
+              );
+            })()}
             {sRefs.length ? (
               <ul className="ref-list" role="list">
                 {sRefs.map((r) => {
@@ -241,14 +288,29 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
                   return (
                     <li key={r.id} className={fresh ? "" : "is-stale"}>
                       <span className="ref-main">
-                        <b>{r.provider}</b>
+                        <b>{r.provider}{r.origin === "agente" ? <span className="ref-badge">asesor IA</span> : null}</b>
                         <small>
                           {clp(r.amount_min)}{r.amount_max ? ` – ${clp(r.amount_max)}` : ""} / {UNITS[r.unit]?.per ?? r.unit}
                           {r.scope_note ? ` · ${r.scope_note}` : ""}
                         </small>
+                        {r.evidence ? <small className="ref-evidence">«{r.evidence}»</small> : null}
                         <a href={r.url} target="_blank" rel="noopener noreferrer" className="ref-link">{r.url.replace(/^https:\/\//, "").slice(0, 60)}</a>
                       </span>
-                      <span className={`status status-${fresh ? "ok" : "muted"}`}>{fresh ? `Consultada ${fmtDate(r.consulted_on)}` : `Desactualizada (${fmtDate(r.consulted_on)})`}</span>
+                      {r.status === "por_verificar" ? (
+                        <span className="status status-gold">Por verificar</span>
+                      ) : r.status === "descartada" ? (
+                        <span className="status status-muted">Descartada</span>
+                      ) : (
+                        <span className={`status status-${fresh ? "ok" : "muted"}`}>{fresh ? `Consultada ${fmtDate(r.consulted_on)}` : `Desactualizada (${fmtDate(r.consulted_on)})`}</span>
+                      )}
+                      {supervisor && r.status === "por_verificar" ? (
+                        <form action={reviewReferenceAction} className="inline-form">
+                          <input type="hidden" name="service_id" value={s.id} />
+                          <input type="hidden" name="reference_id" value={r.id} />
+                          <button name="decision" value="verificada" className="btn btn-gold btn-inline btn-sm">Verificar</button>
+                          <button name="decision" value="descartada" className="btn btn-ghost btn-inline btn-sm">Descartar</button>
+                        </form>
+                      ) : null}
                       {admin ? (
                         <form action={deleteReferenceAction}>
                           <input type="hidden" name="service_id" value={s.id} />
@@ -314,7 +376,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
         </div>
       </header>
 
-      {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
+      {avisoText ? <Notice kind="ok">{avisoText}</Notice> : null}
       {messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null}
 
       <div className="kpis kpis-mando">
@@ -332,6 +394,25 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       ) : null}
 
       {!admin ? <p className="muted-line">Solo el Administrador ENQORA edita el catálogo y publica tarifas. Puedes registrar referencias de mercado.</p> : null}
+
+      <section className="card" id="politica">
+        <h2>Asesor de precios · política comercial</h2>
+        <p className="panel-lead">
+          El asesor busca precios publicados en Chile para cada servicio. Con las referencias verificadas calcula la mediana de mercado y sugiere
+          el precio ENQORA con este descuento. En la portada se muestra «Mercado» y «ENQORA» solo cuando hay suficientes referencias verificadas.
+        </p>
+        {admin ? (
+          <form action={setPricingPolicyAction} className="inline-form">
+            <label className="check-inline">Descuento sobre el mercado
+              <input name="discount" type="number" min={0} max={80} defaultValue={policy?.descuento ?? 40} className="input input-sm" style={{ width: 80 }} /> %
+            </label>
+            <label className="check-inline">Referencias mínimas
+              <input name="min_refs" type="number" min={1} max={20} defaultValue={policy?.minimo_referencias ?? 3} className="input input-sm" style={{ width: 70 }} />
+            </label>
+            <SubmitButton className="btn-inline btn-sm" pendingText="Guardando…">Guardar política</SubmitButton>
+          </form>
+        ) : <p className="muted-line">Descuento vigente: {policy?.descuento ?? 40}% · mínimo {policy?.minimo_referencias ?? 3} referencias.</p>}
+      </section>
 
       <Accordion label="Servicios del catálogo" items={items} />
     </div>
