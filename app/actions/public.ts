@@ -26,6 +26,8 @@ export type PublicCompany = {
   fuentes?: { nombre: string; url: string; publicada: string }[];
   carga_parcial?: boolean;
   cargadas?: number;
+  catalogo?: { code: string; module: string; name: string; price_from: number | null }[];
+  consultado?: string;
   fuente?: string;
   fuente_url?: string;
   publicada?: string;
@@ -64,7 +66,13 @@ async function lookup(fd: FormData): Promise<LookupState> {
     console.error("[ENQORA consulta RUT]", error.message);
     return { error: "No pudimos hacer la consulta en este momento. Intenta nuevamente.", query: raw };
   }
-  const result = data as PublicCompany;
+  const result = { ...(data as PublicCompany), consultado: new Date().toISOString() };
+  // Servicios del catálogo con su tarifa vigente publicada («desde»), para el informe inicial.
+  if (result.estado === "encontrada") {
+    const { data: cat } = await supabase.rpc("public_catalog");
+    result.catalogo = ((cat ?? []) as { code: string; module: string; name: string; price_from: number | null }[])
+      .map((c) => ({ code: c.code, module: c.module, name: c.name, price_from: c.price_from }));
+  }
   // Sin datos del SII todavía: la propia consulta pone en marcha el conector (máximo una vez cada 10 minutos).
   if (result?.estado === "sin_datos") {
     try {
