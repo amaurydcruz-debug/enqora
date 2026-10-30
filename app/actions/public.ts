@@ -24,6 +24,8 @@ export type PublicCompany = {
   } | null;
   senales?: { codigo: string; gravedad: "alta" | "media" | "baja"; fecha?: string; anio?: number }[];
   fuentes?: { nombre: string; url: string; publicada: string }[];
+  carga_parcial?: boolean;
+  cargadas?: number;
   fuente?: string;
   fuente_url?: string;
   publicada?: string;
