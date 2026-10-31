@@ -61,7 +61,8 @@ export function authMessage(error: AuthErr, fallback = "No pudimos completar la 
     return `${CONFIG} (Clave de Supabase no válida.)`;
   }
   if (/sending .*email|smtp/i.test(error.message ?? "")) {
-    return `${CONFIG} (No se pudo enviar el correo: revisa el remitente y la configuración SMTP.)`;
+    // Se agrega el texto técnico de Supabase (no contiene datos del usuario) para saber qué corregir en el SMTP.
+    return `${CONFIG} (No se pudo enviar el correo: revisa el remitente y la configuración SMTP. Detalle: ${(error.message ?? "").slice(0, 160)})`;
   }
   const ref = error.code ?? (error.status ? `http_${error.status}` : error.name ?? "desconocido");
   // El mensaje de Supabase es técnico y genérico (no contiene datos del usuario); ayuda a diagnosticar.

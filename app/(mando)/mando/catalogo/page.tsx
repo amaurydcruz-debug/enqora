@@ -405,21 +405,25 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           descuento permanente). Cada cliente nuevo recibe además el descuento de bienvenida en todos sus cobros durante sus primeros meses,
           contados desde su primer cobro; después paga el precio normal.
         </p>
+        {/* Lo guardado, siempre en texto: así se confirma la política aunque el formulario esté abierto. */}
+        <p className="muted-line">
+          Vigente: bienvenida −{policy?.bienvenida_pct ?? 40}% los primeros {policy?.bienvenida_meses ?? 6} meses · descuento permanente {policy?.descuento ?? 0}% · mínimo {policy?.minimo_referencias ?? 3} referencias.
+        </p>
         {admin ? (
           <form action={setPricingPolicyAction} className="inline-form">
             <label className="check-inline">Bienvenida
-              <input name="welcome_pct" type="number" min={0} max={80} defaultValue={policy?.bienvenida_pct ?? 40} className="input input-sm" style={{ width: 70 }} /> % por
-              <input name="welcome_months" type="number" min={0} max={24} defaultValue={policy?.bienvenida_meses ?? 6} className="input input-sm" style={{ width: 64 }} /> meses
+              <input name="welcome_pct" type="number" min={0} max={80} defaultValue={policy?.bienvenida_pct ?? 40} className="input input-sm" style={{ width: 104 }} /> % por
+              <input name="welcome_months" type="number" min={0} max={24} defaultValue={policy?.bienvenida_meses ?? 6} className="input input-sm" style={{ width: 104 }} /> meses
             </label>
             <label className="check-inline">Descuento permanente sobre el mercado
-              <input name="discount" type="number" min={0} max={80} defaultValue={policy?.descuento ?? 0} className="input input-sm" style={{ width: 70 }} /> %
+              <input name="discount" type="number" min={0} max={80} defaultValue={policy?.descuento ?? 0} className="input input-sm" style={{ width: 104 }} /> %
             </label>
             <label className="check-inline">Referencias mínimas
-              <input name="min_refs" type="number" min={1} max={20} defaultValue={policy?.minimo_referencias ?? 3} className="input input-sm" style={{ width: 70 }} />
+              <input name="min_refs" type="number" min={1} max={20} defaultValue={policy?.minimo_referencias ?? 3} className="input input-sm" style={{ width: 104 }} />
             </label>
             <SubmitButton className="btn-inline btn-sm" pendingText="Guardando…">Guardar política</SubmitButton>
           </form>
-        ) : <p className="muted-line">Bienvenida: −{policy?.bienvenida_pct ?? 40}% los primeros {policy?.bienvenida_meses ?? 6} meses · descuento permanente {policy?.descuento ?? 0}% · mínimo {policy?.minimo_referencias ?? 3} referencias.</p>}
+        ) : null}
       </section>
 
       <Accordion label="Servicios del catálogo" items={items} />
