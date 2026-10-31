@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { lookupRutAction, type LookupState } from "@/app/actions/public";
 import { EnqoraClockLoader } from "@/components/clock-loader";
-import { buildInitialReport } from "@/lib/initial-report";
+import { buildInitialReport, buildNaturalReport, type Catalog, type InitialReport, type NaturalAnswers, type ServiceOffer } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
 import type { PublicCompany } from "@/app/actions/public";
 import { formatRut, isValidRut } from "@/lib/rut";
@@ -12,9 +12,9 @@ import { formatRut, isValidRut } from "@/lib/rut";
 const fmtDate = (d?: string | null) =>
   d ? new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`)) : null;
 
-// 01 · Primer contacto y 02 · Demostración de capacidad: hoja de vida pública de una empresa
-// (persona jurídica) por su RUT, desde las nóminas oficiales del SII que el conector mantiene al día,
-// con señales objetivas y la solución ENQORA para cada una.
+// 01 · Primer contacto y 02 · Demostración de capacidad.
+// Empresa (persona jurídica): hoja de vida pública desde las nóminas oficiales del SII, con el análisis ENQORA.
+// Persona natural con giro: el SII no publica sus datos; 4 preguntas (respondidas en el navegador) arman el diagnóstico.
 export function RutLookup() {
   // Si la consulta falla en el servidor o la página quedó abierta desde una versión anterior de ENQORA,
   // se muestra un mensaje y la consulta se puede reintentar (nunca la pantalla de error general).
@@ -41,11 +41,11 @@ export function RutLookup() {
             e.preventDefault();
             setLocalError(rut.trim()
               ? "El RUT no es válido: revisa el número y el dígito verificador (ej.: 76.123.456-7)."
-              : "Ingresa el RUT de una empresa para consultar.");
+              : "Ingresa un RUT para consultar.");
           } else setLocalError(null);
         }}
       >
-        <label htmlFor="rut" className="lookup-label">RUT de la empresa</label>
+        <label htmlFor="rut" className="lookup-label">RUT de tu empresa o tu RUT personal si emprendes a tu nombre</label>
         <div className="lookup-row">
           <input
             id="rut"
@@ -66,7 +66,7 @@ export function RutLookup() {
         <span id="rut-hint" className="lookup-hint">
           {rut && !valid && rut.replace(/[^0-9kK]/g, "").length >= 8
             ? "El dígito verificador no coincide."
-            : "Consulta disponible para empresas (personas jurídicas). Usamos solo información pública del SII."}
+            : "Empresas: usamos solo información pública del SII. Personas: te hacemos 4 preguntas, sin guardar nada."}
         </span>
       </form>
 
@@ -101,22 +101,26 @@ export function RutLookup() {
                 </dl>
               ) : null}
               {r.actividades?.length ? (
-                <div className="lookup-acts">
-                  <h4 className="lookup-acts-title">Actividades económicas vigentes{r.total_actividades && r.total_actividades > r.actividades.length ? ` (${r.actividades.length} de ${r.total_actividades})` : ""}</h4>
+                <details className="lookup-acts">
+                  <summary className="lookup-acts-title">Actividades económicas vigentes ({r.total_actividades ?? r.actividades.length})</summary>
                   <ul>
                     {r.actividades.map((a) => <li key={a.codigo}><span className="mono">{a.codigo}</span> {a.descripcion}</li>)}
                   </ul>
-                </div>
+                </details>
               ) : null}
               <InitialReportView r={r} />
             </>
+          ) : r.estado === "persona_natural" ? (
+            <NaturalFlow r={r} />
           ) : r.estado === "no_encontrada" ? (
             <>
               <h3>No encontramos esta empresa</h3>
               <p className="lookup-note">
-                El RUT {formatRut(r.rut ?? "")} no aparece en la nómina pública de personas jurídicas del SII. Si es el RUT de una
-                persona, esta consulta no aplica: ENQORA no consulta información de personas naturales.
+                El RUT {formatRut(r.rut ?? "")} no aparece en las nóminas públicas de empresas del SII. Si la empresa es muy reciente,
+                puede que el SII aún no la publique: revisa el RUT o consúltalo directamente en el SII.
               </p>
+              <a href="https://www.sii.cl/como_se_hace_para/situacion_trib_terceros.html" target="_blank" rel="noopener noreferrer"
+                className="btn btn-ghost btn-inline btn-sm">Abrir la consulta del SII</a>
             </>
           ) : (
             <>
@@ -137,7 +141,7 @@ export function RutLookup() {
               </div>
             </>
           )}
-          {r.estado !== "sin_datos" ? (
+          {r.estado === "encontrada" || r.estado === "no_encontrada" ? (
             <p className="lookup-source">
               Información pública según el Servicio de Impuestos Internos
               {r.publicada ? `, publicada el ${fmtDate(r.publicada)}` : ""}.{" "}
@@ -148,7 +152,7 @@ export function RutLookup() {
             </p>
           ) : null}
           <div className="lookup-next">
-            <span>¿Qué necesita esta empresa?</span>
+            <span>¿Buscas otro servicio?</span>
             <Link href="#servicios" className="btn btn-ghost btn-inline btn-sm">Explorar servicios</Link>
           </div>
         </section>
@@ -158,70 +162,149 @@ export function RutLookup() {
 }
 
 const clp = (n: number) => `$${n.toLocaleString("es-CL")}`;
-const PRIO = { alta: ["is-alta", "Prioridad alta"], media: ["is-media", "Atención"], baja: ["is-baja", "Oportunidad"] } as const;
+const NIVEL = {
+  alerta: ["is-alta", "Requiere acción"],
+  atencion: ["is-media", "Requiere revisión"],
+  sin_alertas: ["is-baja", "Sin alertas"],
+} as const;
 
-// Informe inicial: lo verificado, lo que falta comprobar, recomendaciones con su servicio y próximos pasos.
-function InitialReportView({ r }: { r: PublicCompany }) {
-  const rep = buildInitialReport(r, r.catalogo ?? []);
-  const first = rep.recomendaciones[0];
-  const when = r.consultado
-    ? new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(r.consultado))
-    : null;
+function consultedAt(iso?: string) {
+  return iso ? new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(iso)) : null;
+}
+
+function PriceLine({ s }: { s: ServiceOffer }) {
+  if (s.precio === 0) return <span className="report-price"><b>Sin costo</b></span>;
+  if (!s.precio) return <span className="report-price">Precio según evaluación previa (sin costo)</span>;
+  const welcome = s.bienvenida ? Math.round(s.precio * (100 - s.bienvenida.pct) / 100) : null;
+  return (
+    <span className="report-price">
+      {welcome != null && s.bienvenida ? (
+        <><b>{clp(welcome)}</b> tus primeros {s.bienvenida.meses} meses (−{s.bienvenida.pct}%) · luego desde {clp(s.precio)}</>
+      ) : (
+        <>Desde <b>{clp(s.precio)}</b></>
+      )}
+      {s.mercado ? <> · mercado {clp(s.mercado)}</> : null}
+    </span>
+  );
+}
+
+// Informe: veredicto, análisis, obligaciones con fecha y los 3 servicios que lo resuelven.
+function ReportView({ rep, when, intro }: { rep: InitialReport; when: string | null; intro?: string }) {
+  const first = rep.servicios[0];
   return (
     <div className="report">
       <div className="report-head">
-        <span className="eyebrow">Informe inicial ENQORA</span>
-        <small>{when ? `Consultado el ${when}` : null}{rep.completo ? "" : " · carga de nóminas del SII en curso: el informe se completará"}</small>
+        <span className="eyebrow">Diagnóstico ENQORA</span>
+        <small>{when ? `Generado el ${when}` : null}{rep.completo ? "" : " · carga de nóminas del SII en curso: se completará"}</small>
       </div>
 
-      <h4 className="lookup-acts-title">Recomendaciones priorizadas</h4>
-      <ol className="report-recs">
-        {rep.recomendaciones.map((x) => (
-          <li key={x.id} className={`lookup-signal ${PRIO[x.prioridad][0]}`}>
-            <div className="report-tags">
-              <span className="report-tag">{PRIO[x.prioridad][1]}</span>
-              <span className="report-tag report-tag-muted">{x.tipo === "verificado" ? "Consta en el SII" : "Por confirmar"}</span>
-            </div>
-            <b>{x.titulo}</b>
-            <details className="report-detail">
-              <summary>Ver el detalle</summary>
-              <dl>
-                <div><dt>Qué observamos</dt><dd>{x.observado}</dd></div>
-                <div><dt>Por qué importa</dt><dd>{x.importa}</dd></div>
-                <div><dt>Qué falta confirmar</dt><dd>{x.falta}</dd></div>
-                <div><dt>Qué recomienda ENQORA</dt><dd>{x.accion}</dd></div>
-              </dl>
-            </details>
-            <span className="report-service">
-              {x.servicio.nombre} ·{" "}
-              {x.servicio.precio === 0 ? "Sin costo" : x.servicio.precio ? `desde ${clp(x.servicio.precio)} (tarifa vigente)` : "requiere evaluación previa"}
-              {x.servicio.precio && x.servicio.bienvenida
-                ? ` · tus primeros ${x.servicio.bienvenida.meses} meses ${clp(Math.round(x.servicio.precio * (100 - x.servicio.bienvenida.pct) / 100))} (−${x.servicio.bienvenida.pct}%)`
-                : ""}
-              {x.servicio.precio && x.servicio.mercado ? ` · precio de mercado ${clp(x.servicio.mercado)}` : ""}
-            </span>
-            <Link href={`/comenzar?servicio=${x.servicio.categoria}`} className="lookup-signal-cta">Resolverlo con ENQORA →</Link>
-          </li>
-        ))}
-      </ol>
+      <div className={`report-verdict ${NIVEL[rep.nivel][0]}`}>
+        <span className="report-tag">{NIVEL[rep.nivel][1]}</span>
+        <b>{rep.veredicto}</b>
+      </div>
+      {intro ? <p className="report-note">{intro}</p> : null}
 
-      <h4 className="lookup-acts-title">Lo que aún debe comprobarse</h4>
-      <ul className="report-check">
-        {rep.porComprobar.map((c) => <li key={c.tema}><b>{c.tema}</b> <span>· {c.como}</span></li>)}
-      </ul>
+      {rep.conclusiones.length ? (
+        <>
+          <h4 className="lookup-acts-title">Nuestro análisis</h4>
+          <ul className="report-insights">{rep.conclusiones.map((c) => <li key={c}>{c}</li>)}</ul>
+        </>
+      ) : null}
+
+      {rep.obligaciones.length ? (
+        <>
+          <h4 className="lookup-acts-title">Lo que debes cumplir y cuándo</h4>
+          <table className="report-cal">
+            <tbody>
+              {rep.obligaciones.map((o) => (
+                <tr key={o.que}>
+                  <th scope="row">{o.que}{o.nota ? <small>{o.nota}</small> : null}</th>
+                  <td>{o.cuando}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      ) : null}
+
+      {rep.servicios.length ? (
+        <>
+          <h4 className="lookup-acts-title">Lo que ENQORA te recomienda</h4>
+          <ol className="report-recs">
+            {rep.servicios.map((s) => (
+              <li key={s.id} className="lookup-signal">
+                <b>{s.nombre}</b>
+                <span>{s.porque}</span>
+                <PriceLine s={s} />
+                <Link href={`/comenzar?servicio=${s.categoria}`} className="lookup-signal-cta">Contratar o cotizar →</Link>
+              </li>
+            ))}
+          </ol>
+        </>
+      ) : null}
 
       <div className="lookup-deep">
-        <b>Próximos pasos</b>
-        <ol className="report-steps">{rep.proximas.map((p) => <li key={p}>{p}</li>)}</ol>
-        <span className="report-note">
-          Informe preliminar basado solo en datos públicos del SII. No afirma deudas ni incumplimientos: los confirma un profesional
-          ENQORA con la información de la empresa. ENQORA nunca te pedirá la clave del SII.
-        </span>
+        <b>Diagnóstico completo gratis</b>
+        <span>Crea tu cuenta, sube tu Carpeta Tributaria Electrónica (la generas gratis en sii.cl) y un profesional ENQORA confirma este análisis, el costo y los plazos antes de actuar. ENQORA nunca te pedirá tu clave del SII.</span>
+        <details className="report-detail">
+          <summary>Qué revisa el diagnóstico completo</summary>
+          <ul className="report-check">{rep.porComprobar.map((c) => <li key={c}>{c}</li>)}</ul>
+        </details>
         <div className="inline-form">
-          <Link href={`/comenzar?servicio=${first?.servicio.categoria ?? "contabilidad"}`} className="btn btn-gold btn-inline btn-sm">Crear mi cuenta y comenzar</Link>
-          <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => window.print()}>Imprimir o guardar en PDF</button>
+          <Link href={`/comenzar?servicio=${first?.categoria ?? "contabilidad"}`} className="btn btn-gold btn-inline btn-sm">Crear mi cuenta gratis</Link>
+          <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => window.print()}>Guardar en PDF</button>
         </div>
       </div>
     </div>
+  );
+}
+
+function InitialReportView({ r }: { r: PublicCompany }) {
+  return <ReportView rep={buildInitialReport(r, (r.catalogo ?? []) as Catalog)} when={consultedAt(r.consultado)} />;
+}
+
+// Persona natural: 4 preguntas. Las respuestas se procesan aquí, en el navegador: no se envían ni se guardan.
+const QUESTIONS: { key: keyof NaturalAnswers; q: string; options: [string, string][] }[] = [
+  { key: "venta", q: "¿Cómo vendes hoy?", options: [
+    ["facturas", "Vendo productos o servicios con boletas o facturas"],
+    ["honorarios", "Emito boletas de honorarios"],
+    ["ambas", "Ambas"],
+    ["sin_inicio", "Aún no inicio actividades"],
+  ] },
+  { key: "trabajadores", q: "¿Tienes trabajadores contratados?", options: [["no", "No"], ["si", "Sí"]] },
+  { key: "contador", q: "¿Quién lleva tus impuestos?", options: [["nadie", "Yo mismo"], ["contador", "Un contador"], ["no_se", "No lo tengo claro"]] },
+  { key: "lugar", q: "¿Dónde funciona tu negocio?", options: [["local", "En un local"], ["casa", "Desde mi casa"], ["online", "Solo en línea"]] },
+];
+
+function NaturalFlow({ r }: { r: PublicCompany }) {
+  const [a, setA] = useState<Partial<NaturalAnswers>>({});
+  const done = QUESTIONS.every((q) => a[q.key]);
+  return (
+    <>
+      <h3>RUT de persona · {formatRut(r.rut ?? "")}</h3>
+      <p className="lookup-note">
+        El SII no publica información de personas naturales, y ENQORA no la busca por otros medios. Si emprendes con tu RUT
+        personal, responde 4 preguntas y te entregamos tu diagnóstico al instante. Tus respuestas no se envían ni se guardan.
+      </p>
+      <div className="natural-q">
+        {QUESTIONS.map((q) => (
+          <fieldset key={q.key}>
+            <legend>{q.q}</legend>
+            <div className="natural-opts">
+              {q.options.map(([v, label]) => (
+                <button key={v} type="button" className={`natural-opt${a[q.key] === v ? " is-on" : ""}`} aria-pressed={a[q.key] === v}
+                  onClick={() => setA((x) => ({ ...x, [q.key]: v }))}>{label}</button>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+      </div>
+      {done ? (
+        <ReportView rep={buildNaturalReport(a as NaturalAnswers, (r.catalogo ?? []) as Catalog)} when={consultedAt(r.consultado)}
+          intro="Análisis según tus respuestas y la normativa vigente." />
+      ) : (
+        <p className="report-note">Responde las 4 preguntas para ver tu diagnóstico.</p>
+      )}
+    </>
   );
 }
