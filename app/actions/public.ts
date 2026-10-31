@@ -7,11 +7,14 @@ import { dbCode } from "@/lib/db-errors";
 import { isValidRut, normalizeRut } from "@/lib/rut";
 import { createClient } from "@/lib/supabase/server";
 
-// Consulta pública por RUT (puerta de entrada). Solo datos abiertos del SII sobre personas
-// jurídicas; una empresa por consulta y con límite por visitante (lo aplica la base de datos).
+// Consulta pública por RUT (puerta de entrada). Empresas: datos abiertos del SII (personas jurídicas).
+// Personas naturales: no hay fuente pública lícita; se reconoce el RUT y se ofrece el diagnóstico guiado.
+// Una consulta por vez y con límite por visitante (lo aplica la base de datos).
 
 export type PublicCompany = {
-  estado: "encontrada" | "no_encontrada" | "sin_datos";
+  // persona_natural: RUT de una persona (con o sin giro). El SII no publica datos de personas naturales,
+  // así que ENQORA no busca nada: el informe se arma con las respuestas del propio visitante.
+  estado: "encontrada" | "no_encontrada" | "sin_datos" | "persona_natural";
   rut?: string;
   razon_social?: string;
   inicio_actividades?: string | null;
@@ -67,8 +70,14 @@ async function lookup(fd: FormData): Promise<LookupState> {
     return { error: "No pudimos hacer la consulta en este momento. Intenta nuevamente.", query: raw };
   }
   const result = { ...(data as PublicCompany), consultado: new Date().toISOString() };
+  // Los RUT de personas naturales son menores a 50.000.000; los de personas jurídicas, mayores.
+  // Si no está en las nóminas de empresas, se trata como persona natural (con o sin giro).
+  if (result.estado !== "encontrada" && Number(rut.split("-")[0]) < 50_000_000) {
+    result.estado = "persona_natural";
+    result.rut = rut;
+  }
   // Servicios del catálogo con su tarifa vigente publicada («desde»), para el informe inicial.
-  if (result.estado === "encontrada") {
+  if (result.estado === "encontrada" || result.estado === "persona_natural") {
     const { data: cat } = await supabase.rpc("public_catalog");
     result.catalogo = ((cat ?? []) as { code: string; module: string; name: string; price_from: number | null; market_price: number | null; welcome_pct: number | null; welcome_months: number | null }[])
       .map((c) => ({ code: c.code, module: c.module, name: c.name, price_from: c.price_from, market_price: c.market_price ?? null,

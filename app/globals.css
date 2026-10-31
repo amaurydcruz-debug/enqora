@@ -2725,6 +2725,29 @@ details.inline-more > summary { display: inline-flex; }
 .report-check span { color: var(--text-3); }
 .report-steps { margin: 4px 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
 .report-note { font-size: 0.78rem; color: var(--text-3); }
+.report-verdict { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--hairline); border-left: 4px solid var(--gold); background: rgba(229, 199, 131, 0.06); }
+.report-verdict b { color: var(--text); font-size: 1.02rem; line-height: 1.4; }
+.report-verdict.is-alta { border-left-color: #e9a49c; background: rgba(233, 164, 156, 0.07); }
+.report-verdict.is-alta .report-tag { color: #e9a49c; }
+.report-verdict.is-baja { border-left-color: #9fd3b0; }
+.report-verdict.is-baja .report-tag { color: #9fd3b0; }
+.report-insights { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; color: var(--text-2); font-size: 0.92rem; line-height: 1.5; }
+.report-cal { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.report-cal th, .report-cal td { text-align: left; vertical-align: top; padding: 8px 0; border-bottom: 1px solid var(--hairline); }
+.report-cal th { font-weight: 500; color: var(--text); padding-right: 12px; }
+.report-cal th small { display: block; color: var(--text-3); font-weight: 400; font-size: 0.76rem; margin-top: 2px; }
+.report-cal td { color: var(--gold); white-space: nowrap; font-weight: 600; }
+.report-price { font-size: 0.86rem; color: var(--text-2); }
+.report-price b { color: var(--gold); }
+.lookup-acts summary { cursor: pointer; }
+.natural-q { display: flex; flex-direction: column; gap: 12px; }
+.natural-q fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.natural-q legend { font-size: 0.9rem; color: var(--text); font-weight: 600; margin-bottom: 6px; }
+.natural-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+.natural-opt { font: inherit; font-size: 0.86rem; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--hairline-strong); background: transparent; color: var(--text-2); cursor: pointer; }
+.natural-opt:hover { border-color: var(--gold); }
+.natural-opt.is-on { border-color: var(--gold); background: rgba(229, 199, 131, 0.14); color: var(--text); }
+@media print { .natural-q { display: none; } }
 @media print {
   body * { visibility: hidden; }
   .lookup-result, .lookup-result * { visibility: visible; }
