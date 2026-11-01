@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import { EmblemDefs } from "@/components/emblems";
+import { PwaClient } from "@/components/pwa";
 import { publicSiteUrl } from "@/lib/site";
 import "./globals.css";
 
@@ -24,11 +25,16 @@ export const metadata: Metadata = {
   },
   twitter: { card: "summary" },
   formatDetection: { telephone: false },
+  // ENQORA instalable en iPhone/iPad (Safari → Agregar a pantalla de inicio): pantalla completa con barra de
+  // estado oscura (el contenido empieza bajo ella). El ícono de Apple es app/apple-icon.png (logotipo oficial).
+  appleWebApp: { capable: true, title: "ENQORA", statusBarStyle: "black" },
 };
 
 export const viewport: Viewport = {
   themeColor: "#101B2D",
   colorScheme: "dark",
+  // Ocupa toda la pantalla en teléfonos con muesca; las áreas seguras las respeta el CSS (env(safe-area-inset-*)).
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -37,6 +43,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <EmblemDefs />
         {children}
+        <PwaClient />
       </body>
     </html>
   );
