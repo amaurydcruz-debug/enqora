@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { lookupRutAction, type LookupState } from "@/app/actions/public";
 import { PriceLine } from "@/app/diagnostico-360";
+import { PropuestaView } from "@/app/cora-solucion";
 import { ExpedienteCora } from "@/app/expediente-cora";
+import { investigarPersona, PREGUNTAS_PERSONA, type ExpedientePersona, type PersonaAnswers } from "@/lib/cora/personas";
 import { EnqoraClockLoader } from "@/components/clock-loader";
-import { buildInitialReport, buildNaturalReport, type Catalog, type InitialReport, type NaturalAnswers } from "@/lib/initial-report";
+import { buildInitialReport, type Catalog, type InitialReport } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
 import type { PublicCompany } from "@/app/actions/public";
 import { formatRut, isValidRut } from "@/lib/rut";
@@ -68,7 +70,7 @@ export function RutLookup() {
         <span id="rut-hint" className="lookup-hint">
           {rut && !valid && rut.replace(/[^0-9kK]/g, "").length >= 8
             ? "El dígito verificador no coincide."
-            : "Empresas: usamos solo información pública del SII. Personas: te hacemos 4 preguntas, sin guardar nada."}
+            : "Empresas: usamos solo información pública del SII. Personas: 7 preguntas, sin guardar nada."}
         </span>
       </form>
 
@@ -264,31 +266,23 @@ function InitialReportView({ r }: { r: PublicCompany }) {
   );
 }
 
-// Persona natural: 4 preguntas. Las respuestas se procesan aquí, en el navegador: no se envían ni se guardan.
-const QUESTIONS: { key: keyof NaturalAnswers; q: string; options: [string, string][] }[] = [
-  { key: "venta", q: "¿Cómo vendes hoy?", options: [
-    ["facturas", "Vendo productos o servicios con boletas o facturas"],
-    ["honorarios", "Emito boletas de honorarios"],
-    ["ambas", "Ambas"],
-    ["sin_inicio", "Aún no inicio actividades"],
-  ] },
-  { key: "trabajadores", q: "¿Tienes trabajadores contratados?", options: [["no", "No"], ["si", "Sí"]] },
-  { key: "contador", q: "¿Quién lleva tus impuestos?", options: [["nadie", "Yo mismo"], ["contador", "Un contador"], ["no_se", "No lo tengo claro"]] },
-  { key: "lugar", q: "¿Dónde funciona tu negocio?", options: [["local", "En un local"], ["casa", "Desde mi casa"], ["online", "Solo en línea"]] },
-];
-
+// CORA PERSONAS (modalidad pública): con un RUT de persona, CORA no consulta ninguna fuente sobre ella.
+// 7 preguntas, respondidas en el navegador, arman su perfil emprendedor, sus necesidades y su plan.
+// Nada se envía ni se guarda.
 function NaturalFlow({ r }: { r: PublicCompany }) {
-  const [a, setA] = useState<Partial<NaturalAnswers>>({});
-  const done = QUESTIONS.every((q) => a[q.key]);
+  const [a, setA] = useState<Partial<PersonaAnswers>>({});
+  const done = PREGUNTAS_PERSONA.every((q) => a[q.key]);
+  const catalog = (r.catalogo ?? []) as Catalog;
   return (
     <>
-      <h3>RUT de persona · {formatRut(r.rut ?? "")}</h3>
+      <h3>CORA Personas · RUT {formatRut(r.rut ?? "")}</h3>
       <p className="lookup-note">
-        El SII no publica información de personas naturales, y ENQORA no la busca por otros medios. Si emprendes con tu RUT
-        personal, responde 4 preguntas y te entregamos tu diagnóstico al instante. Tus respuestas no se envían ni se guardan.
+        Para proteger a las personas, CORA no investiga a nadie solo por su RUT: cualquiera podría escribir uno ajeno. Si este es tu RUT
+        y emprendes o quieres emprender, responde 7 preguntas y CORA arma tu perfil, tus necesidades y tu plan al instante.
+        Tus respuestas no se envían ni se guardan.
       </p>
       <div className="natural-q">
-        {QUESTIONS.map((q) => (
+        {PREGUNTAS_PERSONA.map((q) => (
           <fieldset key={q.key}>
             <legend>{q.q}</legend>
             <div className="natural-opts">
@@ -300,12 +294,58 @@ function NaturalFlow({ r }: { r: PublicCompany }) {
           </fieldset>
         ))}
       </div>
-      {done ? (
-        <ReportView rep={buildNaturalReport(a as NaturalAnswers, (r.catalogo ?? []) as Catalog)} when={consultedAt(r.consultado)}
-          intro="Análisis según tus respuestas y la normativa vigente." />
-      ) : (
-        <p className="report-note">Responde las 4 preguntas para ver tu diagnóstico.</p>
+      {done ? <PersonaReport e={investigarPersona(a as PersonaAnswers, catalog)} when={consultedAt(r.consultado)} /> : (
+        <p className="report-note">Responde las {PREGUNTAS_PERSONA.length - Object.keys(a).length} preguntas que faltan para ver tu expediente.</p>
       )}
     </>
+  );
+}
+
+function PersonaReport({ e, when }: { e: ExpedientePersona; when: string | null }) {
+  return (
+    <div className="report cora">
+      <div className="report-head">
+        <span className="eyebrow">CORA Personas · tu perfil emprendedor</span>
+        <small>{when ? `Generado el ${when}` : null} · según tus respuestas y la normativa vigente · no se guarda</small>
+      </div>
+      <dl className="lookup-facts">{e.perfil.map((x) => <div key={x.etiqueta}><dt>{x.etiqueta}</dt><dd>{x.valor}</dd></div>)}</dl>
+      {e.fortalezas.length ? (
+        <>
+          <h4 className="lookup-acts-title">Tus fortalezas</h4>
+          <ul className="report-insights">{e.fortalezas.map((f) => <li key={f}>{f}</li>)}</ul>
+        </>
+      ) : null}
+      {e.conclusiones.length ? (
+        <>
+          <h4 className="lookup-acts-title">Lo que CORA entiende de tu situación</h4>
+          <ul className="report-insights">{e.conclusiones.map((c) => <li key={c}>{c}</li>)}</ul>
+        </>
+      ) : null}
+      <PropuestaView propuesta={e.propuesta} />
+      {e.obligaciones.length ? (
+        <>
+          <h4 className="lookup-acts-title">Lo que debes cumplir y cuándo</h4>
+          <table className="report-cal">
+            <tbody>{e.obligaciones.map((o) => <tr key={o.que}><th scope="row">{o.que}{o.nota ? <small>{o.nota}</small> : null}</th><td>{o.cuando}</td></tr>)}</tbody>
+          </table>
+        </>
+      ) : null}
+      {e.beneficios.length ? (
+        <>
+          <h4 className="lookup-acts-title">Oportunidades que podrían aplicar</h4>
+          <ul className="report-insights">
+            {e.beneficios.map((b) => <li key={b.nombre}><a href={b.url} target="_blank" rel="noopener noreferrer"><b>{b.nombre}</b></a>. {b.porque} <span className="report-note">Falta confirmar: {b.falta}</span></li>)}
+          </ul>
+        </>
+      ) : null}
+      <div className="lookup-deep">
+        <b>Tu expediente personal completo</b>
+        <span>Con tu cuenta ENQORA podrás, con tu autorización, sumar tu Carpeta Tributaria y otros documentos para que un profesional confirme este análisis. ENQORA nunca te pedirá tu clave del SII.</span>
+        <div className="inline-form">
+          <Link href={`/comenzar?servicio=${e.propuesta.planes[0]?.etapas[0]?.necesidad.servicio?.categoria ?? "formalizacion"}`} className="btn btn-gold btn-inline btn-sm">Crear mi cuenta gratis</Link>
+          <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => window.print()}>Guardar en PDF</button>
+        </div>
+      </div>
+    </div>
   );
 }

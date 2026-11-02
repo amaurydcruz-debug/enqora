@@ -2850,3 +2850,22 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .cora-table td b { color: var(--text); }
 .cora-table-wrap { overflow-x: auto; }
 @media print { .cora-section { break-inside: avoid; } .cora-section > *:not(summary) { display: block; } }
+
+/* CORA · Etapa 1B: propuesta de solución e investigación en vivo */
+.cora-propuesta { gap: 10px; }
+.cora-plan { border: 1px solid var(--hairline); border-radius: 14px; padding: 12px 14px; background: rgba(5, 9, 20, 0.35); }
+.cora-plan > summary { cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
+.cora-plan > summary b { color: var(--text); }
+.cora-plan[open] { border-color: rgba(229, 199, 131, 0.35); }
+.cora-etapas { list-style: none; margin: 10px 0 8px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.cora-etapas > li { padding: 10px 12px; border-left: 2px solid var(--gold); background: rgba(229, 199, 131, 0.04); border-radius: 0 10px 10px 0; display: flex; flex-direction: column; gap: 2px; }
+.cora-etapas > li > b { color: var(--text); }
+.cora-live { display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 18px; border: 1px solid rgba(229, 199, 131, 0.35); background: rgba(8, 15, 29, 0.6); }
+.cora-live > b { color: var(--text); }
+.cora-live > .btn { align-self: flex-start; }
+.cora-live ol { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; font-size: 0.86rem; color: var(--text-2); }
+.cora-live li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; animation: rise 0.35s ease both; }
+.cora-live li b { color: var(--text); }
+.cora-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex: 0 0 auto; transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .cora-live li { animation: none; } }
+@media print { .cora-live { display: none; } .cora-plan > *:not(summary) { display: block; } }

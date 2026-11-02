@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { InvestigacionEnVivo, PropuestaView } from "@/app/cora-solucion";
 import { PriceLine } from "@/app/diagnostico-360";
 import { investigar } from "@/lib/cora/director";
 import { ESTADOS, type Estado } from "@/lib/cora/secciones";
@@ -28,8 +29,11 @@ export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForRep
   const [preguntas, setPreguntas] = useState(false);
   const exp = useMemo(() => investigar(p, catalog, answers), [p, catalog, answers]);
   const pendientes = exp.preguntas.length - exp.respondidas;
+  const necesidad = useMemo(() => new Map(exp.necesidades.map((n) => [n.id, n])), [exp.necesidades]);
+  const [pasos] = useState(() => exp.bitacora);
 
   return (
+    <InvestigacionEnVivo pasos={pasos}>
     <div className="report cora">
       <div className="report-head">
         <span className="eyebrow">CORA · Expediente de inteligencia empresarial</span>
@@ -110,6 +114,8 @@ export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForRep
         ) : null}
       </div>
 
+      <PropuestaView propuesta={exp.propuesta} />
+
       <h4 className="lookup-acts-title">Mapa del expediente (16 secciones)</h4>
       <ul className="d360-map">
         {exp.secciones.map((s) => (
@@ -141,7 +147,11 @@ export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForRep
                     {h.consecuencias ? <div><dt>Qué consecuencias podría tener</dt><dd>{h.consecuencias}</dd></div> : null}
                     <div><dt>Qué debería hacer</dt><dd>{h.hacer}</dd></div>
                     {h.siNoSeAtiende ? <div><dt>Qué pasaría si no se atiende</dt><dd>{h.siNoSeAtiende}</dd></div> : null}
+                    {necesidad.get(h.id) ? <div><dt>Qué ganas al resolverlo</dt><dd>{necesidad.get(h.id)!.beneficio}</dd></div> : null}
                     {h.servicio ? <div><dt>Cómo ayuda ENQORA</dt><dd>{h.servicio.nombre} · <PriceLine s={h.servicio} /></dd></div> : null}
+                    {necesidad.get(h.id)?.externa ? (
+                      <div><dt>O por tu cuenta</dt><dd><a href={necesidad.get(h.id)!.externa!.url} target="_blank" rel="noopener noreferrer">{necesidad.get(h.id)!.externa!.nombre}</a>. {necesidad.get(h.id)!.externa!.nota}</dd></div>
+                    ) : null}
                     <div><dt>Evidencia</dt><dd>{h.fuente} · {h.fecha}</dd></div>
                   </dl>
                 </details>
@@ -221,5 +231,6 @@ export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForRep
         </div>
       </div>
     </div>
+    </InvestigacionEnVivo>
   );
 }
