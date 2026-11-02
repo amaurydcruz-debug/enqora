@@ -2765,3 +2765,27 @@ details.inline-more > summary { display: inline-flex; }
 .cat-market s { opacity: 0.8; }
 .cat-save { color: var(--gold); font-weight: 600; }
 .welcome-note { color: var(--gold); }
+
+/* =====================================================================
+   ENQORA Everywhere: aviso de instalación y de nueva versión
+   ===================================================================== */
+.pwa-toast {
+  position: fixed; z-index: 60; right: 24px; bottom: calc(24px + env(safe-area-inset-bottom)); max-width: 440px;
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px 16px; border-radius: 18px;
+  border: 1px solid rgba(229, 199, 131, 0.35); background: rgba(8, 15, 29, 0.94);
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45); animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.pwa-toast-icon { width: 40px; height: 40px; border-radius: 10px; flex: 0 0 auto; }
+.pwa-toast-text { flex: 1 1 220px; min-width: 0; display: flex; flex-direction: column; gap: 2px; color: var(--text-2); font-size: 0.86rem; line-height: 1.45; }
+.pwa-toast-text > b { color: var(--text); font-size: 0.92rem; }
+.pwa-inline { color: var(--gold); font-weight: 600; }
+.pwa-toast-actions { display: flex; gap: 8px; flex: 0 0 auto; }
+@media (max-width: 960px) {
+  /* Sobre la barra inferior, sin taparla, y dentro del área segura */
+  .pwa-toast { left: 12px; right: 12px; max-width: none; bottom: calc(84px + env(safe-area-inset-bottom)); }
+}
+@media (prefers-reduced-motion: reduce) { .pwa-toast { animation: none; } }
+/* Teléfonos con muesca en horizontal: el contenido no queda bajo la muesca (en otros equipos vale 0). */
+body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+@media print { .pwa-toast { display: none !important; } }
