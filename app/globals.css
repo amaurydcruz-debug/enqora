@@ -2820,3 +2820,33 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .d360-route > b { color: var(--text); }
 .report-insights a { color: var(--gold); }
 @media print { .d360-cta, .d360-progress { display: none !important; } .d360-map li { break-inside: avoid; } }
+
+/* =====================================================================
+   CORA · Expediente de inteligencia empresarial
+   ===================================================================== */
+.cora { gap: 16px; }
+.cora-complete { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; border-radius: 18px; border: 1px solid var(--hairline-strong); background: rgba(60, 118, 210, 0.06); }
+.cora-complete > div:first-child { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.cora-pct { font-family: var(--font-brand); font-size: 2rem; color: var(--gold); line-height: 1; }
+.cora-estado { grid-column: 2; font-size: 0.72rem; color: var(--text-3); }
+.cora-sections { display: flex; flex-direction: column; gap: 6px; }
+.cora-section { border: 1px solid var(--hairline); border-radius: 14px; padding: 10px 14px; background: rgba(255, 255, 255, 0.015); }
+.cora-section > summary { cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cora-section > summary b { color: var(--text); font-size: 0.92rem; }
+.cora-section[open] { border-color: var(--hairline-strong); }
+.cora-dl { margin: 10px 0 0; display: flex; flex-direction: column; gap: 10px; }
+.cora-dl dt { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-3); font-weight: 600; }
+.cora-dl dd { margin: 4px 0 0; color: var(--text-2); font-size: 0.88rem; }
+.cora-dl a { color: var(--gold); }
+.cora-obl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cora-obl li { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--hairline); opacity: 0.75; }
+.cora-obl li.is-on { opacity: 1; border-color: rgba(229, 199, 131, 0.4); }
+.cora-obl li b { color: var(--text); }
+.cora-obl small { color: var(--text-3); font-size: 0.78rem; line-height: 1.45; }
+.cora-obl .cora-estado { color: var(--gold); }
+.cora-table { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
+.cora-table th, .cora-table td { text-align: left; vertical-align: top; padding: 9px 8px; border-bottom: 1px solid var(--hairline); }
+.cora-table th { color: var(--text-3); font-size: 0.66rem; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; }
+.cora-table td b { color: var(--text); }
+.cora-table-wrap { overflow-x: auto; }
+@media print { .cora-section { break-inside: avoid; } .cora-section > *:not(summary) { display: block; } }
