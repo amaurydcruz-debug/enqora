@@ -2789,3 +2789,34 @@ details.inline-more > summary { display: inline-flex; }
 /* Teléfonos con muesca en horizontal: el contenido no queda bajo la muesca (en otros equipos vale 0). */
 body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
 @media print { .pwa-toast { display: none !important; } }
+
+/* =====================================================================
+   Diagnóstico empresarial 360°
+   ===================================================================== */
+.d360 { display: flex; flex-direction: column; gap: 14px; }
+.d360-cta { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; padding: 16px 18px; border-radius: 18px;
+  border: 1px solid rgba(229, 199, 131, 0.4); background: linear-gradient(135deg, rgba(229, 199, 131, 0.09), rgba(60, 118, 210, 0.07)); color: var(--text-2); font-size: 0.9rem; }
+.d360-cta b { color: var(--text); font-size: 1rem; line-height: 1.4; }
+.d360-progress { height: 4px; border-radius: 4px; background: var(--hairline); overflow: hidden; }
+.d360-progress span { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--gold-bright, var(--gold))); transition: width 0.3s ease; }
+.d360-area { display: flex; flex-direction: column; gap: 12px; padding-top: 4px; }
+.d360-help { color: var(--text-3); font-size: 0.78rem; margin-top: -2px; }
+.d360-map { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+.d360-map li { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--hairline); background: rgba(255, 255, 255, 0.02); }
+.d360-map li b { color: var(--text); font-size: 0.9rem; }
+.d360-map .d360-level { grid-column: 2; }
+.d360-profile { margin: 0; color: var(--text-2); font-size: 0.86rem; }
+.d360-level { font-size: 0.78rem; font-weight: 600; }
+.d360-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--text-3); grid-row: 1; }
+.d360-map .is-solido .d360-dot, .d360-map li.is-solido .d360-dot { background: #9fd3b0; }
+.d360-map li.is-solido .d360-level { color: #9fd3b0; }
+.d360-map li.is-atencion .d360-dot { background: var(--gold); }
+.d360-map li.is-atencion .d360-level { color: var(--gold); }
+.d360-map li.is-prioritario { border-color: rgba(233, 164, 156, 0.45); background: rgba(233, 164, 156, 0.06); }
+.d360-map li.is-prioritario .d360-dot { background: #e9a49c; }
+.d360-map li.is-prioritario .d360-level { color: #e9a49c; }
+.d360-map li.is-sininfo .d360-level { color: var(--text-3); }
+.d360-route { display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; border-radius: 18px; border: 1px solid rgba(229, 199, 131, 0.35); background: rgba(229, 199, 131, 0.05); }
+.d360-route > b { color: var(--text); }
+.report-insights a { color: var(--gold); }
+@media print { .d360-cta, .d360-progress { display: none !important; } .d360-map li { break-inside: avoid; } }

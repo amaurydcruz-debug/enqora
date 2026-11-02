@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { lookupRutAction, type LookupState } from "@/app/actions/public";
+import { Diagnostic360, PriceLine } from "@/app/diagnostico-360";
 import { EnqoraClockLoader } from "@/components/clock-loader";
-import { buildInitialReport, buildNaturalReport, type Catalog, type InitialReport, type NaturalAnswers, type ServiceOffer } from "@/lib/initial-report";
+import { buildInitialReport, buildNaturalReport, type Catalog, type InitialReport, type NaturalAnswers } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
 import type { PublicCompany } from "@/app/actions/public";
 import { formatRut, isValidRut } from "@/lib/rut";
@@ -161,7 +162,6 @@ export function RutLookup() {
   );
 }
 
-const clp = (n: number) => `$${n.toLocaleString("es-CL")}`;
 const NIVEL = {
   alerta: ["is-alta", "Requiere acción"],
   atencion: ["is-media", "Requiere revisión"],
@@ -170,22 +170,6 @@ const NIVEL = {
 
 function consultedAt(iso?: string) {
   return iso ? new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(iso)) : null;
-}
-
-function PriceLine({ s }: { s: ServiceOffer }) {
-  if (s.precio === 0) return <span className="report-price"><b>Sin costo</b></span>;
-  if (!s.precio) return <span className="report-price">Precio según evaluación previa (sin costo)</span>;
-  const welcome = s.bienvenida ? Math.round(s.precio * (100 - s.bienvenida.pct) / 100) : null;
-  return (
-    <span className="report-price">
-      {welcome != null && s.bienvenida ? (
-        <><b>{clp(welcome)}</b> tus primeros {s.bienvenida.meses} meses (−{s.bienvenida.pct}%) · luego desde {clp(s.precio)}</>
-      ) : (
-        <>Desde <b>{clp(s.precio)}</b></>
-      )}
-      {s.mercado ? <> · mercado {clp(s.mercado)}</> : null}
-    </span>
-  );
 }
 
 // Informe: veredicto, análisis, obligaciones con fecha y los 3 servicios que lo resuelven.
@@ -236,7 +220,7 @@ function ReportView({ rep, when, intro }: { rep: InitialReport; when: string | n
                 <b>{s.nombre}</b>
                 <span>{s.porque}</span>
                 <PriceLine s={s} />
-                <Link href={`/comenzar?servicio=${s.categoria}`} className="lookup-signal-cta">Contratar o cotizar →</Link>
+                <Link href={`/comenzar?servicio=${s.categoria}`} className="lookup-signal-cta">{s.disponible ? "Contratar o cotizar →" : "Solicitar contacto →"}</Link>
               </li>
             ))}
           </ol>
@@ -259,8 +243,25 @@ function ReportView({ rep, when, intro }: { rep: InitialReport; when: string | n
   );
 }
 
+// Empresa: informe público y, a continuación, la invitación al diagnóstico 360° (autoevaluación).
 function InitialReportView({ r }: { r: PublicCompany }) {
-  return <ReportView rep={buildInitialReport(r, (r.catalogo ?? []) as Catalog)} when={consultedAt(r.consultado)} />;
+  const [d360, setD360] = useState(false);
+  const catalog = (r.catalogo ?? []) as Catalog;
+  if (d360) return <Diagnostic360 p={r} catalog={catalog} onClose={() => setD360(false)} />;
+  return (
+    <>
+      <ReportView rep={buildInitialReport(r, catalog)} when={consultedAt(r.consultado)} />
+      {!r.termino_giro ? (
+        <div className="d360-cta">
+          <span className="eyebrow">Diagnóstico 360°</span>
+          <b>Los datos públicos muestran solo una parte. Completa el diagnóstico de tu empresa en 2 minutos.</b>
+          <span>12 preguntas sobre finanzas, clientes, marca, patente, trabajadores, tecnología y crecimiento. Recibes un mapa de tu empresa
+            por áreas y los 3 pasos que recomendamos atender primero. Tus respuestas no se envían ni se guardan.</span>
+          <button type="button" className="btn btn-gold btn-inline btn-sm" onClick={() => { setD360(true); }}>Comenzar diagnóstico 360°</button>
+        </div>
+      ) : null}
+    </>
+  );
 }
 
 // Persona natural: 4 preguntas. Las respuestas se procesan aquí, en el navegador: no se envían ni se guardan.

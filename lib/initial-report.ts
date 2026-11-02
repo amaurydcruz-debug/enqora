@@ -28,6 +28,7 @@ export type ServiceOffer = {
   nombre: string;
   codigo: string | null;
   categoria: string; // categoría de /comenzar
+  disponible: boolean; // false = el servicio aún no está activo en el catálogo: «Próximamente · Solicitar contacto»
   precio: number | null; // tarifa vigente «desde»; 0 = sin costo; null = requiere evaluación
   mercado: number | null;
   bienvenida: { pct: number; meses: number } | null;
@@ -71,10 +72,12 @@ function nextPatente(today: Date) {
   return a < b ? a : b;
 }
 
-function offer(catalog: Catalog, id: string, code: string | null, fallback: string, categoria: string, porque: string): ServiceOffer {
+// El catálogo público solo trae servicios ACTIVOS: si el código no está, el servicio no se ofrece como disponible.
+export function offer(catalog: Catalog, id: string, code: string | null, fallback: string, categoria: string, porque: string): ServiceOffer {
   const s = code ? catalog.find((x) => x.code === code) : undefined;
   return {
     id, porque, categoria,
+    disponible: code === null || !!s,
     nombre: s?.name ?? fallback,
     codigo: s?.code ?? null,
     precio: code === null ? 0 : (s?.price_from ?? null),
