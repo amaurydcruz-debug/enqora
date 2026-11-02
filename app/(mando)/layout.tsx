@@ -36,6 +36,7 @@ export default async function MandoLayout({ children }: { children: React.ReactN
     { href: "/mando/aprendizajes", label: "Aprendizajes y rutas", short: "Rutas", icon: "casos", group: "operacion", bottom: false },
     { href: "/mando/vigilancia", label: "Vigilancia normativa", short: "Normas", icon: "novedades", group: "operacion" },
     { href: "/mando/datos-publicos", label: "Datos públicos (SII)", short: "Datos", icon: "empresas", group: "operacion" },
+    { href: "/mando/fuentes", label: "CORA · Fuentes y agentes", short: "CORA", icon: "novedades", group: "operacion", bottom: false },
     { href: "/mando/catalogo", label: "Catálogo y precios", short: "Catálogo", icon: "contabilidad", group: "configuracion", bottom: false },
     { href: "/mando/planes", label: "Planes", short: "Planes", icon: "pagos", group: "configuracion", bottom: false },
     ...(supervisor

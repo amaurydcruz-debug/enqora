@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { lookupRutAction, type LookupState } from "@/app/actions/public";
-import { Diagnostic360, PriceLine } from "@/app/diagnostico-360";
+import { PriceLine } from "@/app/diagnostico-360";
+import { ExpedienteCora } from "@/app/expediente-cora";
 import { EnqoraClockLoader } from "@/components/clock-loader";
 import { buildInitialReport, buildNaturalReport, type Catalog, type InitialReport, type NaturalAnswers } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
@@ -243,23 +244,22 @@ function ReportView({ rep, when, intro }: { rep: InitialReport; when: string | n
   );
 }
 
-// Empresa: informe público y, a continuación, la invitación al diagnóstico 360° (autoevaluación).
+// Empresa: informe público y, a continuación, el expediente CORA (investigación por 16 agentes).
+// El expediente CORA reemplaza al diagnóstico 360°: incluye sus preguntas, su mapa y sus beneficios.
 function InitialReportView({ r }: { r: PublicCompany }) {
-  const [d360, setD360] = useState(false);
+  const [cora, setCora] = useState(false);
   const catalog = (r.catalogo ?? []) as Catalog;
-  if (d360) return <Diagnostic360 p={r} catalog={catalog} onClose={() => setD360(false)} />;
+  if (cora) return <ExpedienteCora p={r} catalog={catalog} onClose={() => setCora(false)} />;
   return (
     <>
       <ReportView rep={buildInitialReport(r, catalog)} when={consultedAt(r.consultado)} />
-      {!r.termino_giro ? (
-        <div className="d360-cta">
-          <span className="eyebrow">Diagnóstico 360°</span>
-          <b>Los datos públicos muestran solo una parte. Completa el diagnóstico de tu empresa en 2 minutos.</b>
-          <span>12 preguntas sobre finanzas, clientes, marca, patente, trabajadores, tecnología y crecimiento. Recibes un mapa de tu empresa
-            por áreas y los 3 pasos que recomendamos atender primero. Tus respuestas no se envían ni se guardan.</span>
-          <button type="button" className="btn btn-gold btn-inline btn-sm" onClick={() => { setD360(true); }}>Comenzar diagnóstico 360°</button>
-        </div>
-      ) : null}
+      <div className="d360-cta">
+        <span className="eyebrow">CORA · Inteligencia empresarial</span>
+        <b>Abre el expediente completo de esta empresa: 16 secciones investigadas por agentes especializados.</b>
+        <span>Identidad, tributación, obligaciones laborales, previsionales y de seguridad con su fundamento legal, permisos, marca, oportunidades y más.
+          CORA te muestra qué encontró, en qué fuente, qué falta verificar y tus 3 prioridades. Nada se guarda.</span>
+        <button type="button" className="btn btn-gold btn-inline btn-sm" onClick={() => setCora(true)}>Abrir expediente CORA</button>
+      </div>
     </>
   );
 }
