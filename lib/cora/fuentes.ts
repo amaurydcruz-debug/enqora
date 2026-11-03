@@ -99,8 +99,8 @@ export const FUENTES: Fuente[] = [
   {
     id: "diario_oficial", pais: "CL", organismo: "Diario Oficial", nombre: "Publicaciones de sociedades",
     url: "https://www.diariooficial.interior.gob.cl", secciones: ["legal"], nivel: "B",
-    metodo: "Búsqueda manual de extractos de constitución y modificaciones", campos: ["extractos societarios"],
-    restricciones: "Sin API conocida.", frecuencia: "Diaria", estado: "manual", verificada: null,
+    metodo: "Edición electrónica por fecha (desde 17-08-2016); no tiene buscador por empresa", campos: ["extractos societarios"],
+    restricciones: "Sin API ni buscador por razón social: se consulta por la fecha de publicación.", frecuencia: "Diaria", estado: "manual", verificada: "2026-11-03",
   },
   // ── Laboral, previsión y seguridad ──
   {

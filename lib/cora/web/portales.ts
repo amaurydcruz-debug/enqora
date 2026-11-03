@@ -227,4 +227,6 @@ export const DIARIO_OFICIAL: Procedimiento = {
 };
 
 // Orden de ejecución del piloto (Mercado Público entra por API cuando exista el ticket).
-export const PROCEDIMIENTOS: Procedimiento[] = [INAPI, RES, DIARIO_OFICIAL];
+// El Diario Oficial no tiene buscador por empresa (solo ediciones por fecha, verificado el 03-11-2026): queda fuera
+// de la consulta automática. Su procedimiento se conserva para una búsqueda por fecha de constitución (etapa siguiente).
+export const PROCEDIMIENTOS: Procedimiento[] = [INAPI, RES];
