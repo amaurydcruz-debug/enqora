@@ -8,7 +8,7 @@ import { InvestigacionEnVivo, PropuestaView } from "@/app/cora-solucion";
 import { PriceLine } from "@/app/diagnostico-360";
 import { ExpedienteCora } from "@/app/expediente-cora";
 import { investigar } from "@/lib/cora/director";
-import { evidenciasDe, MAX_PREGUNTAS, type Informe, type Turno } from "@/lib/cora/estratega";
+import { evidenciasDe, MAX_PREGUNTAS, type Evidencia, type Informe, type Turno } from "@/lib/cora/estratega";
 import { QUESTIONS, type Answer } from "@/lib/diagnostic-360";
 import type { Catalog } from "@/lib/initial-report";
 
@@ -25,11 +25,14 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
   const [turno, setTurno] = useState<Turno | null>(null);
   const [informe, setInforme] = useState<Informe | null>(null);
   const [origen, setOrigen] = useState<"ia" | "reglas" | null>(null);
+  const [motivo, setMotivo] = useState<string | null>(null);
+  const [evServidor, setEvServidor] = useState<Evidencia[]>([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expediente, setExpediente] = useState(false);
   const exp = useMemo(() => investigar(r, catalog, respuestas), [r, catalog, respuestas]);
-  const ev = useMemo(() => new Map(evidenciasDe(exp, respuestas).map((e) => [e.id, e])), [exp, respuestas]);
+  // Las evidencias que cita el estratega son las que armó el servidor (misma numeración que su respuesta).
+  const ev = useMemo(() => new Map((evServidor.length ? evServidor : evidenciasDe(exp, respuestas)).map((e) => [e.id, e])), [evServidor, exp, respuestas]);
   const [pasos] = useState(() => exp.bitacora);
   const iniciado = useRef(false);
 
@@ -39,6 +42,8 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
     setCargando(false);
     if (!res.ok) { setError(res.error); return; }
     setOrigen(res.origen);
+    setMotivo(res.motivo ?? null);
+    setEvServidor(res.evidencias ?? []);
     if (res.fase === "turno") {
       setTurno(res.turno);
       if (!res.turno.pregunta_id) await pedir("informe", resp);
@@ -76,7 +81,7 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
         <div className="report-head">
           <span className="eyebrow">CORA · Consulta estratégica 360°</span>
           <small>
-            {origen === "ia" ? "Análisis del estratega CORA, validado con evidencias" : origen === "reglas" ? "Análisis por reglas: el estratega IA no estuvo disponible" : "Preparando el análisis…"}
+            {origen === "ia" ? "Análisis del estratega CORA, validado con evidencias" : origen === "reglas" ? `Análisis por reglas: el estratega IA no estuvo disponible${motivo ? ` (${motivo})` : ""}` : "Preparando el análisis…"}
             {" "}· expediente {exp.completitud.pct}% completo · no se guarda
           </small>
         </div>

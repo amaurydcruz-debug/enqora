@@ -6,7 +6,7 @@ import type { PublicCompany } from "@/app/actions/public";
 import { investigar } from "@/lib/cora/director";
 import {
   distintas, evidenciasDe, informeReglas, MANUAL, preguntasDisponibles, promptInforme, promptTurno, TOOL_INFORME, TOOL_TURNO, turnoReglas,
-  validarInforme, validarTurno, type Informe, type Turno,
+  validarInforme, validarTurno, type Evidencia, type Informe, type Turno,
 } from "@/lib/cora/estratega";
 import { dbCode } from "@/lib/db-errors";
 import { QUESTIONS, type Answer } from "@/lib/diagnostic-360";
@@ -18,9 +18,11 @@ import { createClient } from "@/lib/supabase/server";
 // hechos enviados por el navegador), arma el expediente y llama al estratega. Cada llamada cuenta en el
 // límite de consultas por visitante de la base de datos. Nada se guarda.
 
+// motivo: por qué se usó el motor de reglas (diagnóstico visible para el equipo y en los registros de Vercel).
+type Origen = { origen: "ia" | "reglas"; motivo?: string; evidencias: Evidencia[] };
 export type CoraResult =
-  | { ok: true; fase: "turno"; turno: Turno; origen: "ia" | "reglas" }
-  | { ok: true; fase: "informe"; informe: Informe; origen: "ia" | "reglas" }
+  | ({ ok: true; fase: "turno"; turno: Turno } & Origen)
+  | ({ ok: true; fase: "informe"; informe: Informe } & Origen)
   | { ok: false; error: string };
 
 const VALID: Answer[] = ["si", "no", "no_se", "ayuda", "na"];
@@ -54,15 +56,19 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
 
     if (input.fase === "informe") {
       const necesidades = distintas(exp).map((n) => ({ id: n.id, necesidad: n.necesidad, evidencia: n.evidencia, servicio: n.servicio ? `${n.servicio.nombre}${n.servicio.disponible ? "" : " (próximamente)"}` : n.externa?.nombre ?? "ruta oficial" }));
-      const raw = await askClaude(promptInforme(ev, necesidades), TOOL_INFORME);
-      const informe = raw ? validarInforme(raw, ev, distintas(exp).map((n) => n.id)) : null;
-      return informe ? { ok: true, fase: "informe", informe, origen: "ia" } : { ok: true, fase: "informe", informe: informeReglas(exp, ev), origen: "reglas" };
+      const ia = await askClaude(promptInforme(ev, necesidades), TOOL_INFORME);
+      const informe = ia.input ? validarInforme(ia.input, ev, distintas(exp).map((n) => n.id)) : null;
+      const motivo = informe ? undefined : ia.motivo ?? "validador";
+      if (motivo) console.error("[ENQORA CORA] informe por reglas:", motivo);
+      return informe ? { ok: true, fase: "informe", informe, origen: "ia", evidencias: ev } : { ok: true, fase: "informe", informe: informeReglas(exp, ev), origen: "reglas", motivo, evidencias: ev };
     }
 
     const disp = preguntasDisponibles(exp, respuestas);
-    const raw = await askClaude(promptTurno(ev, disp.map((q) => ({ id: q.id, q: q.q })), respuestas), TOOL_TURNO);
-    const turno = raw ? validarTurno(raw, ev, disp.map((q) => q.id)) : null;
-    return turno ? { ok: true, fase: "turno", turno, origen: "ia" } : { ok: true, fase: "turno", turno: turnoReglas(exp, ev, respuestas), origen: "reglas" };
+    const ia = await askClaude(promptTurno(ev, disp.map((q) => ({ id: q.id, q: q.q })), respuestas), TOOL_TURNO);
+    const turno = ia.input ? validarTurno(ia.input, ev, disp.map((q) => q.id)) : null;
+    const motivo = turno ? undefined : ia.motivo ?? "validador";
+    if (motivo) console.error("[ENQORA CORA] turno por reglas:", motivo);
+    return turno ? { ok: true, fase: "turno", turno, origen: "ia", evidencias: ev } : { ok: true, fase: "turno", turno: turnoReglas(exp, ev, respuestas), origen: "reglas", motivo, evidencias: ev };
   } catch (e) {
     console.error("[ENQORA CORA]", e instanceof Error ? e.message : e);
     return { ok: false, error: "CORA no pudo completar la consulta. Intenta nuevamente." };
@@ -71,25 +77,27 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
 
 type ApiResponse = { content?: { type: string; name?: string; input?: unknown }[] };
 
-// Llamada al estratega con salida forzada a la herramienta. Sin clave o ante cualquier error: null (se usa el motor de reglas).
-async function askClaude(prompt: string, tool: { name: string; description: string; input_schema: unknown }): Promise<unknown | null> {
+// Llamada al estratega con salida forzada a la herramienta. Nunca lanza: devuelve la salida o el motivo del fallo
+// (sin_clave, http_XXX, tiempo, sin_herramienta, red) para el diagnóstico.
+async function askClaude(prompt: string, tool: { name: string; description: string; input_schema: unknown }): Promise<{ input: unknown | null; motivo?: string }> {
   const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return null;
+  if (!key) return { input: null, motivo: "sin_clave" };
   try {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(25_000),
+      method: "POST", signal: AbortSignal.timeout(45_000),
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5", max_tokens: 2500,
+        model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5", max_tokens: 3000,
         system: `Eres CORA, el estratega de inteligencia empresarial de ENQORA (Chile). Tu trabajo es descubrir valor que el cliente aún no ve, a partir de evidencia.\n\n${MANUAL}\n\nResponde solo llamando a la herramienta ${tool.name}.`,
         tools: [tool], tool_choice: { type: "tool", name: tool.name },
         messages: [{ role: "user", content: prompt }],
       }),
     });
-    if (!res.ok) return null;
-    const data = (await res.json().catch(() => ({}))) as ApiResponse;
-    return data.content?.find((b) => b.type === "tool_use" && b.name === tool.name)?.input ?? null;
-  } catch {
-    return null;
+    const data = (await res.json().catch(() => ({}))) as ApiResponse & { error?: { type?: string; message?: string } };
+    if (!res.ok) return { input: null, motivo: `http_${res.status}${data.error?.type ? `_${data.error.type}` : ""}` };
+    const input = data.content?.find((b) => b.type === "tool_use" && b.name === tool.name)?.input ?? null;
+    return input ? { input } : { input: null, motivo: "sin_herramienta" };
+  } catch (e) {
+    return { input: null, motivo: e instanceof Error && e.name === "TimeoutError" ? "tiempo" : "red" };
   }
 }
