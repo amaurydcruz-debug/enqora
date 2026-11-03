@@ -68,7 +68,7 @@ export default async function InvestigadorPage({ searchParams }: { searchParams:
         <form action={iniciarInvestigacionAction} className="inline-form">
           <input type="hidden" name="modo" value="investigacion" />
           <input name="rut" className="input input-sm mono" placeholder="RUT de prueba autorizado" maxLength={12} required style={{ width: 200 }} />
-          <SubmitButton className="btn-inline btn-sm" pendingText="Iniciando…">2 · Investigar (INAPI, Registro de Empresas, Diario Oficial)</SubmitButton>
+          <SubmitButton className="btn-inline btn-sm" pendingText="Iniciando…">2 · Investigar (INAPI y Registro de Empresas)</SubmitButton>
         </form>
         <p className="muted-line">La investigación sigue en el servidor aunque cierres esta página (hasta 5 minutos). Recarga para ver el avance.</p>
       </section>

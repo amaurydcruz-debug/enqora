@@ -62,7 +62,8 @@ export async function ejecutarInvestigacion(supabase: SupabaseClient, run: Run) 
         duration_ms: duracion, detail: res.detail.slice(0, 1000),
       });
       if (insErr) console.error("[ENQORA bot] evidencia no guardada", proc.id, insErr.message);
-      await ctx.close().catch(() => undefined);
+      // No se cierra la pestaña aquí: el Chromium de Vercel corre en modo de proceso único y cerrar un contexto
+      // mientras otros trabajan cierra el navegador completo. Todo se cierra al final, juntos.
       return res.status;
     };
     const estados = await Promise.all(procedimientos.map((p) => consultar(p).catch(() => "error" as const)));
