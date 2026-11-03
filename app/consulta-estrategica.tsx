@@ -8,7 +8,8 @@ import { InvestigacionEnVivo, PropuestaView } from "@/app/cora-solucion";
 import { PriceLine } from "@/app/diagnostico-360";
 import { ExpedienteCora } from "@/app/expediente-cora";
 import { investigar } from "@/lib/cora/director";
-import { evidenciasDe, MAX_PREGUNTAS, type Evidencia, type Informe, type Turno } from "@/lib/cora/estratega";
+import { CAPACIDADES, evidenciasDe, MAX_PREGUNTAS, type Evidencia, type Informe, type Turno } from "@/lib/cora/estratega";
+import type { HallazgoWeb } from "@/lib/cora/web/hallazgos";
 import { QUESTIONS, type Answer } from "@/lib/diagnostic-360";
 import type { Catalog } from "@/lib/initial-report";
 
@@ -27,10 +28,11 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
   const [origen, setOrigen] = useState<"ia" | "reglas" | null>(null);
   const [motivo, setMotivo] = useState<string | null>(null);
   const [evServidor, setEvServidor] = useState<Evidencia[]>([]);
+  const [web, setWeb] = useState<HallazgoWeb[]>([]);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expediente, setExpediente] = useState(false);
-  const exp = useMemo(() => investigar(r, catalog, respuestas), [r, catalog, respuestas]);
+  const exp = useMemo(() => investigar(r, catalog, respuestas, new Date(), web), [r, catalog, respuestas, web]);
   // Las evidencias que cita el estratega son las que armó el servidor (misma numeración que su respuesta).
   const ev = useMemo(() => new Map((evServidor.length ? evServidor : evidenciasDe(exp, respuestas)).map((e) => [e.id, e])), [evServidor, exp, respuestas]);
   const [pasos] = useState(() => exp.bitacora);
@@ -44,6 +46,7 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
     setOrigen(res.origen);
     setMotivo(res.motivo ?? null);
     setEvServidor(res.evidencias ?? []);
+    setWeb(res.web ?? []);
     if (res.fase === "turno") {
       setTurno(res.turno);
       if (!res.turno.pregunta_id) await pedir("informe", resp);
@@ -177,6 +180,21 @@ function InformeView({ informe, exp, Evidencias }: { informe: Informe; exp: Retu
         <span className="eyebrow">Resumen estratégico</span>
         <b>{informe.resumen_estrategico}</b>
         <span>{informe.situacion}</span>
+      </section>
+
+      {informe.oportunidades_perdidas.length ? (
+        <section className="elite-sec elite-loss">
+          <span className="eyebrow">Lo que podrías estar dejando pasar</span>
+          <ul className="report-insights">{informe.oportunidades_perdidas.map((o) => <li key={o.texto}>{o.texto} <Evidencias ids={o.evidencias} /></li>)}</ul>
+        </section>
+      ) : null}
+
+      <section className="elite-sec elite-enqora">
+        <span className="eyebrow">Tu empresa con ENQORA</span>
+        <b>{informe.propuesta_enqora}</b>
+        {informe.capacidades.length ? (
+          <ul className="elite-caps">{informe.capacidades.map((c) => <li key={c}>{CAPACIDADES[c]}</li>)}</ul>
+        ) : null}
       </section>
 
       <section className="d360-route">

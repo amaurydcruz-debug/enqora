@@ -27,8 +27,13 @@ MANUAL DEL ESTRATEGA CORA (procedimientos obligatorios)
    público). Con una sola evidencia, márcala como hipótesis.
 6. Decisiones basadas en evidencia: cita SIEMPRE los identificadores de evidencia (E-…) que respaldan cada afirmación.
    "Sin resultados localizados" nunca significa "no tiene". No inventes cifras, multas, plazos, normas ni precios.
-7. Tono: consultor senior, claro y cercano, en español de Chile, sin alarmismo ni presión comercial. Recomendar no contratar nada
-   también es válido. No garantices resultados legales, tributarios ni financieros.
+7. Persuasión ética del dueño de empresa: los dueños deciden por tiempo, tranquilidad (fiscalizaciones, multas), control del
+   negocio, crecimiento y orden. Haz VISIBLE lo que la evidencia muestra que podría estar dejando pasar (oportunidades no
+   aprovechadas, costos de no actuar con fundamento) y conéctalo con lo que gana al resolverlo. Contrasta su situación actual con
+   cómo quedaría con ENQORA, usando SOLO las capacidades reales listadas. Una sola llamada a la acción clara.
+   Prohibido: urgencia o escasez inventadas, miedo sin fundamento, cifras no verificadas, presentar hipótesis como hechos.
+8. Tono: consultor senior, claro y cercano, en español de Chile. Recomendar no contratar nada también es válido cuando corresponde.
+   No garantices resultados legales, tributarios ni financieros.
 `.trim();
 
 export const FORBIDDEN = /\bno tiene\b|\bno posee\b|garantiz|\$\s?\d|\d{1,3}(\.\d{3})+\s?(pesos|clp)|certificamos|incumple\b|está incumpliendo/i;
@@ -68,7 +73,21 @@ export type Turno = {
   contexto: string; // por qué se hace la pregunta
   pregunta_id: string | null;
 };
+// Capacidades reales de ENQORA (la IA solo puede prometer estas).
+export const CAPACIDADES: Record<string, string> = {
+  contabilidad: "Contabilidad, IVA (F29) y renta con profesionales",
+  cumplimiento: "Calendario de obligaciones con alertas de vencimiento",
+  hoja_de_vida: "Hoja de vida tributaria de la empresa a partir de su Carpeta Tributaria",
+  expedientes: "Expedientes con profesionales: formalización, patentes, marcas y asesoría",
+  cotizaciones: "Cotizaciones con precio y plazos antes de decidir",
+  documentos: "Documentos y mandatos firmados en un solo lugar",
+  oportunidades: "Vigilancia de normas y beneficios públicos que aplican a tu empresa",
+};
+
 export type Informe = {
+  oportunidades_perdidas: { texto: string; evidencias: string[] }[]; // lo que podría estar dejando pasar
+  propuesta_enqora: string; // cómo quedaría su empresa con ENQORA (solo capacidades reales)
+  capacidades: string[]; // ids de CAPACIDADES
   resumen_estrategico: string;
   situacion: string;
   hallazgos_verificados: { texto: string; evidencias: string[] }[];
@@ -104,6 +123,9 @@ export const TOOL_INFORME = {
     properties: {
       resumen_estrategico: { type: "string" },
       situacion: { type: "string" },
+      oportunidades_perdidas: { type: "array", maxItems: 4, description: "Lo que la evidencia muestra que podría estar dejando pasar (oportunidades no aprovechadas o costos de no actuar con fundamento).", items: { type: "object", properties: { texto: { type: "string" }, evidencias: evid }, required: ["texto", "evidencias"] } },
+      propuesta_enqora: { type: "string", description: "2 a 4 frases: cómo quedaría su empresa con ENQORA (más ordenada, todo en un lugar, creciendo), usando solo las capacidades listadas." },
+      capacidades: { type: "array", items: { type: "string" }, description: "Ids de las capacidades de ENQORA que aplican a este caso." },
       hallazgos_verificados: { type: "array", items: { type: "object", properties: { texto: { type: "string" }, evidencias: evid }, required: ["texto", "evidencias"] } },
       fortalezas: { type: "array", items: { type: "object", properties: { texto: { type: "string" }, evidencias: evid }, required: ["texto", "evidencias"] } },
       oportunidades: { type: "array", items: { type: "object", properties: { titulo: { type: "string" }, explicacion: { type: "string" }, estado: { type: "string", enum: ["confirmada", "hipotesis"] }, evidencias: evid }, required: ["titulo", "explicacion", "estado", "evidencias"] } },
@@ -112,7 +134,7 @@ export const TOOL_INFORME = {
       pendientes: { type: "array", items: { type: "string" } },
       prioridades: { type: "array", maxItems: 3, items: { type: "object", properties: { necesidad_id: { type: "string" }, por_que: { type: "string" } }, required: ["necesidad_id", "por_que"] } },
     },
-    required: ["resumen_estrategico", "situacion", "hallazgos_verificados", "fortalezas", "oportunidades", "necesidades_confirmadas", "riesgos", "pendientes", "prioridades"],
+    required: ["resumen_estrategico", "situacion", "oportunidades_perdidas", "propuesta_enqora", "capacidades", "hallazgos_verificados", "fortalezas", "oportunidades", "necesidades_confirmadas", "riesgos", "pendientes", "prioridades"],
   },
 };
 
@@ -176,8 +198,12 @@ export function validarInforme(raw: unknown, ev: Evidencia[], necesidadIds: stri
     const por = clean(p.por_que, 300);
     if (necesidadIds.includes(id) && okText(por) && !prioridades.some((x) => x.necesidad_id === id)) prioridades.push({ necesidad_id: id, por_que: por });
   }
+  const caps = (Array.isArray(r.capacidades) ? r.capacidades : []).filter((c): c is string => typeof c === "string" && c in CAPACIDADES);
   return {
     resumen_estrategico: resumen, situacion,
+    oportunidades_perdidas: textos(r.oportunidades_perdidas).slice(0, 4),
+    propuesta_enqora: clean(r.propuesta_enqora, 700) || "Con ENQORA, tu información, tus obligaciones con sus fechas, tus documentos y los profesionales que te asesoran quedan en un solo lugar.",
+    capacidades: [...new Set(caps)].slice(0, 6),
     hallazgos_verificados: textos(r.hallazgos_verificados),
     fortalezas: textos(r.fortalezas),
     oportunidades: arr(r.oportunidades).map((o) => ({ titulo: clean(o.titulo, 160), explicacion: clean(o.explicacion, 400), estado: (o.estado === "confirmada" ? "confirmada" : "hipotesis") as "confirmada" | "hipotesis", evidencias: okEvid(o.evidencias, ids) }))
@@ -221,7 +247,16 @@ export function turnoReglas(exp: Expediente, ev: Evidencia[], respuestas: Record
 export function informeReglas(exp: Expediente, ev: Evidencia[]): Informe {
   const e = (t: string) => evidPara(ev, t);
   const conf = exp.hallazgos.filter((h) => h.estado === "confirmado" || h.estado === "declarado");
+  const planes = new Set(exp.necesidades.map((n) => n.plan));
+  const caps = ["cumplimiento", "hoja_de_vida", ...(planes.has("regularizacion") || planes.has("gestion") ? ["contabilidad"] : []),
+    ...(planes.has("formalizacion") ? ["expedientes"] : []), ...(planes.has("crecimiento") ? ["oportunidades"] : []), "cotizaciones"];
   return {
+    oportunidades_perdidas: [
+      ...exp.beneficios.map((b) => ({ texto: `${b.nombre}: ${b.porque}`, evidencias: e(b.nombre) })),
+      ...exp.hallazgos.filter((h) => h.id === "marca_sin_registro").map((h) => ({ texto: h.importa, evidencias: e(h.encontro) })),
+    ].filter((x) => x.evidencias.length).slice(0, 4),
+    propuesta_enqora: "Con ENQORA, la información tributaria, las obligaciones con sus fechas, los documentos y los profesionales que te asesoran quedan en un solo lugar, y cada paso se cotiza antes de decidir.",
+    capacidades: caps,
     resumen_estrategico: `${exp.empresa.razon}: el expediente tiene ${exp.completitud.pct}% de completitud (${exp.completitud.verificadas} secciones verificadas en fuentes oficiales). ${exp.propuesta.mensaje}`,
     situacion: exp.secciones.find((s) => s.key === "tributacion")?.encontrado[0] ?? "Situación pública sin alertas.",
     hallazgos_verificados: exp.hallazgos.filter((h) => h.estado === "confirmado").map((h) => ({ texto: h.encontro, evidencias: e(h.encontro) })).filter((x) => x.evidencias.length),
@@ -256,6 +291,9 @@ export function promptInforme(ev: Evidencia[], necesidades: { id: string; necesi
     "NECESIDADES DISPONIBLES (para 'prioridades' usa solo estos id; cada una ya tiene servicio real o ruta oficial):",
     ...necesidades.map((n) => `${n.id}: ${n.necesidad} — evidencia: ${n.evidencia} — solución: ${n.servicio}`),
     "",
-    "Redacta el informe estratégico. Distingue hechos verificados de hipótesis. Elige como máximo 3 prioridades y explica por qué cada una va primero.",
+    "CAPACIDADES REALES DE ENQORA (usa solo estos id en 'capacidades' y solo estas en 'propuesta_enqora'):",
+    ...Object.entries(CAPACIDADES).map(([id, t]) => `${id}: ${t}`),
+    "",
+    "Redacta el informe estratégico. Distingue hechos verificados de hipótesis. Muestra lo que podría estar dejando pasar y cómo quedaría con ENQORA. Elige como máximo 3 prioridades y explica por qué cada una va primero.",
   ].join("\n");
 }

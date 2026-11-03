@@ -5,6 +5,7 @@ import { investigar } from "@/lib/cora/director";
 import { evidenciasDe, FORBIDDEN, informeReglas, turnoReglas, validarInforme, validarTurno } from "@/lib/cora/estratega";
 import { investigarPersona, type PersonaAnswers } from "@/lib/cora/personas";
 import type { Catalog, PublicProfileForReport } from "@/lib/initial-report";
+import type { HallazgoWeb } from "@/lib/cora/web/hallazgos";
 
 const HOY = new Date("2026-11-03T12:00:00Z");
 const catalog: Catalog = [{ code: "CON-04", module: "contabilidad", name: "Remuneraciones", price_from: 45000, market_price: null, welcome_pct: 40, welcome_months: 6 }];
@@ -25,8 +26,13 @@ const pj: [string, PublicProfileForReport][] = [
   ["Empresa con señal de ventas", empresa({ senales: [{ codigo: "sin_informacion_reciente", gravedad: "media", anio: 2021 }], perfil: { anio_comercial: 2021, tramo_ventas: "3", trabajadores: 4, rubro: "SERVICIOS", region: "RM" } })],
   ["Empresa con término de giro", empresa({ termino_giro: "2025-03-31", senales: [{ codigo: "termino_giro", gravedad: "alta", fecha: "2025-03-31" }] })],
 ];
+// Resultados del bot (simulados con la forma real de research_public_findings) para demostrar el escenario de marca.
+const webMarca: HallazgoWeb[] = [{ portal: "inapi", estado: "encontrado", consultado: "2026-11-03T15:00:00Z", url: "https://buscadormarcas.inapi.cl", detalle: "1 registro", version: "inapi-2026-11-03", coincidencias: 1, tabla: { headers: ["Marca", "Titular", "Estado"], rows: [["ANDES", "EMPRESA DE PRUEBA SPA", "Registrada"]] } }];
+const webSinMarca: HallazgoWeb[] = [{ ...webMarca[0], estado: "sin_resultados", coincidencias: 0, tabla: null }];
+const conWeb: Record<string, HallazgoWeb[]> = { "Empresa con marca registrada (resultado del bot)": webMarca, "Empresa sin marca localizada (resultado del bot)": webSinMarca };
+pj.push(["Empresa con marca registrada (resultado del bot)", empresa({})], ["Empresa sin marca localizada (resultado del bot)", empresa({ perfil: { anio_comercial: 2024, tramo_ventas: "8", trabajadores: 60, rubro: "SERVICIOS", region: "RM" } })]);
 for (const [nombre, p] of pj) {
-  const exp = investigar(p, catalog, {}, HOY);
+  const exp = investigar(p, catalog, {}, HOY, conWeb[nombre] ?? []);
   const ev = evidenciasDe(exp, {});
   const inf = informeReglas(exp, ev);
   const turno = turnoReglas(exp, ev, {});
@@ -71,7 +77,6 @@ if (turnoMalo) fallos.push("El validador aceptó un turno sin evidencias válida
 
 console.log("\nESCENARIOS CORA");
 for (const r of out) console.log(`- ${r.nombre}: prioridades [${r.top.join(", ")}] · ${r.detalle}`);
-console.log("- Empresa con marca registrada: NO DEMOSTRABLE en E1 (INAPI sin API; verificación asistida en E2)");
 console.log("- Proveedor del Estado: NO DEMOSTRABLE en E1 (Mercado Público se conecta en E2 con el ticket)");
 console.log(fallos.length ? `\nFALLAS (${fallos.length}):\n${fallos.map((f) => `  ✗ ${f}`).join("\n")}` : "\nTodas las comprobaciones pasaron ✓");
 if (fallos.length) process.exit(1);

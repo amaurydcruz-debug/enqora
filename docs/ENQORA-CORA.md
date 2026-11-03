@@ -182,3 +182,18 @@ deja la prueba de cada búsqueda: captura en Storage privado, fecha y hora, fuen
 1. En el Centro de Mando, abre **«1 · Probar el navegador en Vercel»**. Mide el lanzamiento, el tiempo, la memoria y
    la versión de Chromium. Si falla de forma estable, se evalúa Browserbase.
 2. Usa **«2 · Investigar»** con el RUT de prueba autorizado. Debe dejar una evidencia con captura por cada portal.
+
+## El orquestador recibe al bot y la persuasión ética (03-11-2026)
+
+- **Migración `0027_hallazgos_web.sql`**: función `research_public_findings(rut)`. Entrega a la consulta pública la
+  última investigación completada del bot en los últimos 30 días: portal, estado, fecha, URL, detalle y las primeras
+  filas. No expone capturas ni datos internos.
+- **Uso en el orquestador** (`investigar(…, web)`):
+  - **INAPI:** confirma marcas registradas o informa «sin marcas localizadas con titular X», con su fuente y fecha.
+  - **Registro de Empresas y Diario Oficial:** alimentan la sección «Constitución y legal».
+- **Nuevo procedimiento del bot:** Diario Oficial, por validar en la primera ejecución con su captura.
+- **Informe:**
+  - **«Lo que podrías estar dejando pasar»**, con evidencias;
+  - **«Tu empresa con ENQORA»**, que solo usa capacidades reales (`CAPACIDADES`).
+- **Manual del estratega:** incluye la persuasión ética del dueño de empresa (tiempo, tranquilidad, control,
+  crecimiento, orden). Prohíbe urgencia o escasez inventadas, miedo sin fundamento y presentar hipótesis como hechos.

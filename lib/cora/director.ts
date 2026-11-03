@@ -1,6 +1,7 @@
 import { AGENTES, agentePorSeccion, type Agente } from "@/lib/cora/agentes";
 import { fuente, FUENTES } from "@/lib/cora/fuentes";
 import { necesidadesDe, type Necesidad } from "@/lib/cora/necesidades";
+import { filaLegible, PORTAL_NOMBRE, type HallazgoWeb } from "@/lib/cora/web/hallazgos";
 import { evaluarObligaciones, type ObligacionEvaluada } from "@/lib/cora/normativa-laboral";
 import { construirPropuesta, type Propuesta } from "@/lib/cora/soluciones";
 import { SECCIONES, type Estado, type SectionKey } from "@/lib/cora/secciones";
@@ -83,7 +84,7 @@ export function preguntasCora(p: PublicProfileForReport): Question[] {
   return PREGUNTAS_CORA.map((q) => (q.id === "contratos" && w > 0 ? { ...q, noAplica: undefined } : q));
 }
 
-export function investigar(p: PublicProfileForReport, catalog: Catalog, answers: Record<string, Answer> = {}, today = new Date()): Expediente {
+export function investigar(p: PublicProfileForReport, catalog: Catalog, answers: Record<string, Answer> = {}, today = new Date(), web: HallazgoWeb[] = []): Expediente {
   const hoy = today.toISOString().slice(0, 10);
   const svc = (id: string, code: string | null, nombre: string, cat: string, porque: string) => offer(catalog, id, code, nombre, cat, porque);
   const siiPub = (p.fuentes ?? []).map((f) => ({ nombre: f.nombre, url: f.url, fecha: `publicada el ${fmt(f.publicada)}` }));
@@ -258,15 +259,68 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
       profesional: r.prioridad === "alta",
     });
   }
-  if (!answers.marca && !cerrada) {
+  // ── Agente 10 · Propiedad intelectual: resultado del bot en INAPI (si existe) ──
+  const inapi = web.find((w) => w.portal === "inapi");
+  const fechaWeb = (w: HallazgoWeb) => `consultado por el bot CORA el ${new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeZone: "America/Santiago" }).format(new Date(w.consultado))}`;
+  if (inapi && (inapi.estado === "encontrado" || inapi.estado === "sin_resultados")) {
+    const m = sec.marca;
+    m.investigado = m.investigado.filter((x) => !x.startsWith("INAPI: sin API"));
+    m.investigado.unshift(`Búsqueda real en INAPI por titular «${p.razon_social}»`);
+    m.fuentes.unshift({ nombre: PORTAL_NOMBRE.inapi, url: inapi.url, fecha: fechaWeb(inapi) });
+    m.conInformacion = m.verificadaEnFuente = true;
+    m.falta = m.falta.filter((f) => !f.startsWith("Búsqueda de la marca"));
+    if (inapi.estado === "encontrado") {
+      m.estado = "confirmado";
+      const filas = (inapi.tabla?.rows ?? []).slice(0, 5).map((r) => filaLegible(inapi.tabla?.headers ?? [], r));
+      m.encontrado.push(`${inapi.coincidencias ?? filas.length} registro(s) en INAPI con titular «${p.razon_social}»`, ...filas);
+      m.proxima = "Revisar la vigencia y las clases protegidas de cada marca (renovación cada 10 años).";
+      hallazgos.push({
+        id: "marca_registrada", seccion: "marca", agente: "10 · Propiedad intelectual", estado: "confirmado", prioridad: "baja",
+        encontro: `INAPI registra ${inapi.coincidencias ?? filas.length} marca(s) o solicitud(es) con titular «${p.razon_social}».`,
+        importa: "La marca es un activo: su vigencia, clases y renovación determinan si el nombre queda protegido donde vendes.",
+        hacer: "Revisar el estado, la vigencia y si las clases cubren todo lo que vendes hoy.",
+        servicio: svc("marca", "BRA-01", "Registro de marca ante INAPI", "marcas", "Revisar clases, vigencia y nuevas solicitudes."),
+        fuente: PORTAL_NOMBRE.inapi, fecha: fechaWeb(inapi),
+      });
+    } else {
+      m.estado = "no_encontrado";
+      m.encontrado.push(`Sin marcas localizadas en INAPI con titular exactamente «${p.razon_social}» (puede estar a nombre de otra persona o con otro nombre).`);
+      m.proxima = "Confirmar a nombre de quién está la marca y, si no está registrada, evaluar su registro.";
+      if (!cerrada) hallazgos.push({
+        id: "marca_sin_registro", seccion: "marca", agente: "10 · Propiedad intelectual", estado: "no_encontrado", prioridad: "media",
+        encontro: `No localizamos marcas en INAPI con titular «${p.razon_social}».`,
+        importa: "La razón social en el SII no protege el nombre comercial: si la marca no está registrada a nombre de la empresa, un tercero podría inscribirla.",
+        hacer: "Confirmar si la marca está a nombre de otra persona o con otra denominación y, si no existe, solicitar su registro.",
+        servicio: svc("marca", "BRA-01", "Registro de marca ante INAPI", "marcas", "Búsqueda y solicitud de marca."),
+        fuente: PORTAL_NOMBRE.inapi, fecha: fechaWeb(inapi),
+      });
+    }
+    bitacora.push({ agente: "10 · Propiedad intelectual (bot)", resultado: inapi.detalle ?? inapi.estado });
+  } else if (!answers.marca && !cerrada) {
     hallazgos.push({
       id: "marca_pendiente", seccion: "marca", agente: "10 · Propiedad intelectual", estado: "requiere_documentacion", prioridad: "baja",
-      encontro: "CORA no puede comprobar automáticamente si la marca está registrada: INAPI no ofrece una API.",
+      encontro: inapi ? `El bot CORA no pudo completar la búsqueda en INAPI (${inapi.estado === "bloqueado" ? "el portal pidió una verificación" : "el procedimiento debe revalidarse"}).` : "La búsqueda en INAPI para esta empresa aún no se ha realizado.",
       importa: "La razón social en el SII no protege la marca comercial.",
       hacer: "Buscar la marca en INAPI o pedir una búsqueda profesional antes de invertir en ella.",
       servicio: svc("marca", "BRA-01", "Registro de marca ante INAPI", "marcas", "Búsqueda y solicitud de marca."),
       fuente: "INAPI · Buscador de marcas", fecha: `verificada el ${fmt("2026-11-02")}`,
     });
+  }
+
+  // ── Agentes 01 y 03 · Registro de Empresas y Diario Oficial (bot) ──
+  for (const w of web.filter((x) => x.portal === "res" || x.portal === "diario_oficial")) {
+    if (w.estado !== "encontrado" && w.estado !== "sin_resultados") { bitacora.push({ agente: `01 · ${PORTAL_NOMBRE[w.portal] ?? w.portal} (bot)`, resultado: w.detalle ?? w.estado }); continue; }
+    const l = sec.legal;
+    l.investigado.unshift(`Búsqueda real en ${PORTAL_NOMBRE[w.portal] ?? w.portal}`);
+    l.fuentes.unshift({ nombre: PORTAL_NOMBRE[w.portal] ?? w.portal, url: w.url, fecha: fechaWeb(w) });
+    l.conInformacion = l.verificadaEnFuente = true;
+    if (w.estado === "encontrado") {
+      l.estado = "confirmado";
+      l.encontrado.push(`${PORTAL_NOMBRE[w.portal]}: ${w.detalle ?? "resultados localizados"}`, ...(w.tabla?.rows ?? []).slice(0, 5).map((r) => filaLegible(w.tabla?.headers ?? [], r)));
+    } else {
+      l.encontrado.push(`${PORTAL_NOMBRE[w.portal]}: sin resultados localizados (${w.portal === "res" ? "puede haberse constituido por notaría" : "sin publicaciones localizadas"}).`);
+    }
+    bitacora.push({ agente: `01 · ${PORTAL_NOMBRE[w.portal] ?? w.portal} (bot)`, resultado: w.detalle ?? w.estado });
   }
 
   // ── Agente 09 · Mercado público / 13 · Comercio exterior (próxima etapa) ──
