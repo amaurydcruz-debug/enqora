@@ -99,3 +99,56 @@ convierte en necesidad.
 ### Investigación en vivo (`app/cora-solucion.tsx`)
 
 Muestra, uno a uno, los pasos que CORA realmente ejecutó: es su bitácora real, no pasos simulados.
+
+## Consulta Estratégica 360° · Etapa E1 (autorizada el 03-11-2026)
+
+La consulta de una empresa es ahora **una sola experiencia** (`app/consulta-estrategica.tsx`). Antes había tres capas
+que se repetían: el informe inicial, el expediente y la propuesta.
+
+La consulta sigue este orden:
+1. **Investigación en vivo**: la bitácora real de los agentes.
+2. **Apertura estratégica**: lo más relevante que encontró CORA, con su evidencia.
+3. **Conversación**: una pregunta a la vez, como máximo 5, y solo sobre lo que no aparece en fuentes públicas.
+4. **Informe ejecutivo**:
+   - resumen y situación;
+   - plan de acción priorizado, con beneficio, documentos, servicio y ruta oficial;
+   - hallazgos verificados, fortalezas, oportunidades (confirmadas o por confirmar) y necesidades confirmadas;
+   - riesgos, fundamento normativo y pendientes;
+   - todas las soluciones, por plan.
+5. **Expediente completo** de 16 secciones, plegado.
+
+### Estratega (`lib/cora/estratega.ts` y `app/actions/cora.ts`)
+
+- **Evidencias**: el servidor vuelve a consultar el RUT y arma el expediente. Nunca usa hechos enviados por el navegador.
+  Cada hecho lleva un identificador (E-…), su fuente y su fecha.
+- **Manual**: Jobs to Be Done, Customer Discovery (The Mom Test), SPIN, Value Proposition Design, reconocimiento de
+  oportunidades y decisiones basadas en evidencia, traducidos a procedimientos con redacción propia.
+- **Salida estructurada** (Claude, herramienta forzada) y **validador**. El validador descarta:
+  - afirmaciones sin evidencia válida;
+  - montos;
+  - «no tiene» o «no posee»;
+  - garantías;
+  - preguntas fuera del banco;
+  - prioridades fuera del listado de necesidades, que ya trae servicios reales.
+- **Respaldo**: si la IA no responde o no pasa el validador, se usa el motor de reglas, y la pantalla lo indica.
+- Cada llamada cuenta en el límite de consultas por visitante (30 por hora). Nada se guarda.
+
+### Personas
+
+La conversación muestra una pregunta a la vez, se adapta y permite cambiar cada respuesta. Con el RUT de una persona
+no se consulta ninguna fuente (ver la Etapa 1B).
+
+### Pruebas (`scripts/cora-escenarios.ts`)
+
+Se ejecutan con `npx tsx scripts/cora-escenarios.ts`. Cubren 7 escenarios: persona sin inicio, profesional
+independiente, emprendedor establecido, empresa con trabajadores, empresa sin hallazgos, empresa con señal de ventas y
+empresa con término de giro. Comprueban que:
+- las prioridades difieren entre escenarios;
+- toda afirmación tiene evidencia válida;
+- no hay lenguaje prohibido;
+- ningún servicio inactivo se muestra como disponible;
+- el validador rechaza salidas de IA sin evidencia o con montos.
+
+Dos escenarios **no se pueden demostrar en E1**:
+- empresa con marca registrada: INAPI no tiene API;
+- proveedor del Estado: Mercado Público llega en E2.

@@ -23,7 +23,7 @@ export const SECCIONES: { key: SectionKey; nombre: string }[] = [
   { key: "crecimiento", nombre: "Crecimiento y oportunidades" },
 ];
 
-// «No encontrado» nunca significa incumplimiento.
+// «Sin resultados localizados» nunca significa que no exista ni que haya incumplimiento.
 export type Estado =
   | "confirmado" | "parcial" | "no_encontrado" | "requiere_autorizacion" | "requiere_documentacion" | "requiere_profesional" | "fuente_no_disponible"
   | "declarado"; // lo informó el propio empresario en la autoevaluación
@@ -31,7 +31,7 @@ export type Estado =
 export const ESTADOS: Record<Estado, string> = {
   confirmado: "Confirmado",
   parcial: "Parcial",
-  no_encontrado: "No encontrado",
+  no_encontrado: "Sin resultados localizados",
   requiere_autorizacion: "Requiere autorización",
   requiere_documentacion: "Requiere documentación",
   requiere_profesional: "Requiere evaluación profesional",

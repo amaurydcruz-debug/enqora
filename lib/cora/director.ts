@@ -131,7 +131,7 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
   if (tipo) {
     sec.legal.encontrado.push(`Tipo de sociedad (indicio por la razón social): ${tipo.nombre}`);
     sec.legal.estado = "parcial"; sec.legal.conInformacion = true;
-    if (tipo.deber) {
+    if (tipo.deber && !cerrada) {
       hallazgos.push({
         id: "deber_societario", seccion: "legal", agente: "03 · Jurídico", estado: "requiere_documentacion", prioridad: "baja",
         encontro: `Por ser una ${tipo.nombre}, la empresa debe ${tipo.deber}.`,
@@ -213,7 +213,7 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
     hallazgos.push({
       id: "seguridad_potencial", seccion: "seguridad", agente: "06 · Salud y seguridad", estado: "requiere_documentacion", prioridad: "media",
       encontro: `Según el DS 44, una empresa con ${workers} trabajador(es) debe contar con encargado de prevención, matriz de riesgos y programa preventivo${workers > 25 ? ", y comité paritario" : workers >= 10 ? ", y delegado de seguridad (si no hay comité paritario)" : ""}.`,
-      importa: "El DS 44 rige desde el 1 de febrero de 2025 y reemplazó a los DS 40 y 54: muchas empresas aún no se adaptan.",
+      importa: "El DS 44 rige desde el 1 de febrero de 2025 y reemplazó a los DS 40 y 54, con nuevas exigencias de gestión preventiva.",
       hacer: "Revisar con la mutualidad o el ISL la matriz de riesgos y la organización preventiva exigible.",
       servicio: svc("seguridad", "SST-PROX", "ENQORA Seguridad Laboral", "profesionales", "Implementar el DS 44 y el protocolo Ley Karin."),
       fuente: "Decreto 44 (ISL) + trabajadores informados al SII", fecha: `verificada el ${fmt("2026-11-02")}`,
@@ -258,7 +258,7 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
       profesional: r.prioridad === "alta",
     });
   }
-  if (!answers.marca) {
+  if (!answers.marca && !cerrada) {
     hallazgos.push({
       id: "marca_pendiente", seccion: "marca", agente: "10 · Propiedad intelectual", estado: "requiere_documentacion", prioridad: "baja",
       encontro: "CORA no puede comprobar automáticamente si la marca está registrada: INAPI no ofrece una API.",
