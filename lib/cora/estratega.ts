@@ -91,7 +91,7 @@ export const TOOL_TURNO = {
       apertura: { type: "string", description: "2 a 3 frases: lo más relevante que encontró CORA y por qué importa. Sin cifras inventadas." },
       descubrimientos: { type: "array", maxItems: 3, items: { type: "object", properties: { titulo: { type: "string" }, por_que_importa: { type: "string" }, evidencias: evid }, required: ["titulo", "por_que_importa", "evidencias"] } },
       contexto: { type: "string", description: "Por qué necesitas confirmar esto antes de recomendar un camino (1 a 2 frases)." },
-      pregunta_id: { type: ["string", "null"], description: "Id de UNA pregunta del banco disponible, o null si ya no hace falta preguntar." },
+      pregunta_id: { type: "string", description: "Id de UNA pregunta del banco disponible, o la palabra «ninguna» si ya no hace falta preguntar." },
     },
     required: ["apertura", "descubrimientos", "contexto", "pregunta_id"],
   },
@@ -158,7 +158,8 @@ export function validarTurno(raw: unknown, ev: Evidencia[], disponibles: string[
   const pid = typeof r.pregunta_id === "string" && disponibles.includes(r.pregunta_id) ? r.pregunta_id : null;
   const contexto = clean(r.contexto, 400);
   if (!descubrimientos.length) return null;
-  return { apertura, descubrimientos, contexto: okText(contexto) ? contexto : "", pregunta_id: disponibles.length ? pid ?? disponibles[0] : null };
+  const ninguna = typeof r.pregunta_id === "string" && /^ninguna$/i.test(r.pregunta_id.trim());
+  return { apertura, descubrimientos, contexto: okText(contexto) ? contexto : "", pregunta_id: !disponibles.length || ninguna ? null : pid ?? disponibles[0] };
 }
 
 export function validarInforme(raw: unknown, ev: Evidencia[], necesidadIds: string[]): Informe | null {
@@ -240,10 +241,10 @@ export function promptTurno(ev: Evidencia[], disponibles: { id: string; q: strin
     ...ev.map((e) => `${e.id} [${e.tipo}] ${e.texto} — Fuente: ${e.fuente}${e.fecha ? `, ${e.fecha}` : ""}`),
     "",
     `PREGUNTAS YA RESPONDIDAS: ${Object.keys(respuestas).length}/${MAX_PREGUNTAS}.`,
-    "BANCO DE PREGUNTAS DISPONIBLE (elige UNA por id, o null si ya no hace falta):",
+    "BANCO DE PREGUNTAS DISPONIBLE (elige UNA por id, o «ninguna» si ya no hace falta):",
     ...disponibles.map((q) => `${q.id}: ${q.q}`),
     "",
-    "Entrega la apertura (lo más relevante y por qué importa), hasta 3 descubrimientos con sus evidencias y la siguiente pregunta con su contexto.",
+    "Entrega la apertura (lo más relevante y por qué importa), hasta 3 descubrimientos con sus evidencias y la siguiente pregunta con su contexto (o «ninguna»).",
   ].join("\n");
 }
 
