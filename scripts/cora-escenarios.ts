@@ -5,6 +5,7 @@ import { investigar } from "@/lib/cora/director";
 import { evidenciasDe, FORBIDDEN, informeReglas, turnoReglas, validarInforme, validarTurno } from "@/lib/cora/estratega";
 import { investigarPersona, type PersonaAnswers } from "@/lib/cora/personas";
 import type { Catalog, PublicProfileForReport } from "@/lib/initial-report";
+import type { HallazgoWeb } from "@/lib/cora/web/hallazgos";
 
 const HOY = new Date("2026-11-03T12:00:00Z");
 const catalog: Catalog = [{ code: "CON-04", module: "contabilidad", name: "Remuneraciones", price_from: 45000, market_price: null, welcome_pct: 40, welcome_months: 6 }];
@@ -26,9 +27,9 @@ const pj: [string, PublicProfileForReport][] = [
   ["Empresa con término de giro", empresa({ termino_giro: "2025-03-31", senales: [{ codigo: "termino_giro", gravedad: "alta", fecha: "2025-03-31" }] })],
 ];
 // Resultados del bot (simulados con la forma real de research_public_findings) para demostrar el escenario de marca.
-const webMarca = [{ portal: "inapi", estado: "encontrado" as const, consultado: "2026-11-03T15:00:00Z", url: "https://buscadormarcas.inapi.cl", detalle: "1 registro", version: "inapi-2026-11-03", coincidencias: 1, tabla: { headers: ["Marca", "Titular", "Estado"], rows: [["ANDES", "EMPRESA DE PRUEBA SPA", "Registrada"]] } }];
-const webSinMarca = [{ ...webMarca[0], estado: "sin_resultados" as const, coincidencias: 0, tabla: null }];
-const conWeb: Record<string, typeof webMarca> = { "Empresa con marca registrada (resultado del bot)": webMarca, "Empresa sin marca localizada (resultado del bot)": webSinMarca };
+const webMarca: HallazgoWeb[] = [{ portal: "inapi", estado: "encontrado", consultado: "2026-11-03T15:00:00Z", url: "https://buscadormarcas.inapi.cl", detalle: "1 registro", version: "inapi-2026-11-03", coincidencias: 1, tabla: { headers: ["Marca", "Titular", "Estado"], rows: [["ANDES", "EMPRESA DE PRUEBA SPA", "Registrada"]] } }];
+const webSinMarca: HallazgoWeb[] = [{ ...webMarca[0], estado: "sin_resultados", coincidencias: 0, tabla: null }];
+const conWeb: Record<string, HallazgoWeb[]> = { "Empresa con marca registrada (resultado del bot)": webMarca, "Empresa sin marca localizada (resultado del bot)": webSinMarca };
 pj.push(["Empresa con marca registrada (resultado del bot)", empresa({})], ["Empresa sin marca localizada (resultado del bot)", empresa({ perfil: { anio_comercial: 2024, tramo_ventas: "8", trabajadores: 60, rubro: "SERVICIOS", region: "RM" } })]);
 for (const [nombre, p] of pj) {
   const exp = investigar(p, catalog, {}, HOY, conWeb[nombre] ?? []);
