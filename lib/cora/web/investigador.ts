@@ -49,7 +49,7 @@ export async function ejecutarInvestigacion(supabase: SupabaseClient, run: Run) 
       // Captura: la prueba de que el portal fue consultado (también cuando falla o hay barrera).
       let path: string | null = null;
       try {
-        const png = await page.screenshot({ type: "png", fullPage: false, timeout: 15_000 });
+        const png = await page.screenshot({ type: "png", fullPage: true, timeout: 15_000 });
         path = `${run.id}/${proc.id}-${Date.now()}.png`;
         const { error } = await supabase.storage.from(BUCKET).upload(path, png, { contentType: "image/png", upsert: false });
         if (error) { res.detail = `${res.detail} · Captura no guardada: ${error.message}`.slice(0, 990); path = null; }
