@@ -27,6 +27,9 @@ export default async function InvestigadorPage({ searchParams }: { searchParams:
   const role = await myStaffRole();
   if (!role) notFound();
   const supabase = await createClient();
+  // Una ejecución que no terminó en 6 minutos fue interrumpida por la plataforma: queda registrada como fallida.
+  await supabase.from("research_runs").update({ status: "fallida", finished_at: new Date().toISOString(), error: "Interrumpida: la ejecución superó el tiempo máximo de la plataforma." })
+    .in("status", ["en_curso", "en_cola"]).lt("created_at", new Date(Date.now() - 6 * 60_000).toISOString());
   const { data: runRows } = await supabase.from("research_runs").select("*").order("created_at", { ascending: false }).limit(10);
   const runs = (runRows ?? []) as Run[];
   const selected = runs.find((r) => r.id === sp.run) ?? runs[0];
