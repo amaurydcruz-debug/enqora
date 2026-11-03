@@ -1,6 +1,8 @@
 import { AGENTES, agentePorSeccion, type Agente } from "@/lib/cora/agentes";
 import { fuente, FUENTES } from "@/lib/cora/fuentes";
+import { necesidadesDe, type Necesidad } from "@/lib/cora/necesidades";
 import { evaluarObligaciones, type ObligacionEvaluada } from "@/lib/cora/normativa-laboral";
+import { construirPropuesta, type Propuesta } from "@/lib/cora/soluciones";
 import { SECCIONES, type Estado, type SectionKey } from "@/lib/cora/secciones";
 import { build360, QUESTIONS, type Answer, type Question } from "@/lib/diagnostic-360";
 import { buildInitialReport, companyType, offer, type Catalog, type PublicProfileForReport, type ServiceOffer } from "@/lib/initial-report";
@@ -59,6 +61,8 @@ export type Expediente = {
   respondidas: number;
   bitacora: { agente: string; resultado: string }[];
   beneficios: ReturnType<typeof build360>["beneficios"];
+  necesidades: Necesidad[]; // Motor de Necesidades
+  propuesta: Propuesta; // Motor de Soluciones
   obligacionesTributarias: ReturnType<typeof buildInitialReport>["obligaciones"];
 };
 
@@ -329,6 +333,9 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
     else otras.push(h.servicio);
   }
 
+  // ── Motor de Necesidades: cada hallazgo con conocimiento verificado se vuelve una necesidad priorizada ──
+  const necesidades = necesidadesDe(unicos);
+
   const secciones = SECCIONES.map(({ key }) => sec[key]);
   const conInformacion = secciones.filter((s) => s.conInformacion).length;
   const verificadas = secciones.filter((s) => s.verificadaEnFuente).length;
@@ -339,7 +346,7 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
     completitud: { pct: Math.round((conInformacion / secciones.length) * 100), conInformacion, verificadas, total: secciones.length },
     secciones, hallazgos: unicos, prioridades, otras, contradicciones,
     preguntas: qs, respondidas: qs.filter((q) => answers[q.id]).length,
-    bitacora, beneficios: r360.beneficios, obligacionesTributarias: cerrada ? [] : base.obligaciones,
+    bitacora, beneficios: r360.beneficios, necesidades, propuesta: construirPropuesta(necesidades), obligacionesTributarias: cerrada ? [] : base.obligaciones,
   };
 }
 

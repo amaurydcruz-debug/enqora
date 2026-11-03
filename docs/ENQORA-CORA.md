@@ -64,3 +64,38 @@ CORA reutiliza piezas que ya existían:
 | 2 | Conector del Registro de Empresas y Sociedades (datos abiertos) y API de Mercado Público (ticket `MERCADOPUBLICO_TICKET` en Vercel) |
 | 3 | Memoria empresarial: historial y cambios del expediente en Supabase. Nivel C con documentos de Previred, F30 y mutualidad, más consentimiento. Revisión legal por la Ley 21.719 |
 | 4 | Agente de reputación digital con búsqueda web y aprobación humana, INAPI asistido y fuentes sectoriales (SMA/SEA, Aduanas) |
+
+## Etapa 1B (aprobada el 02-11-2026)
+
+### Tres modalidades
+
+| Modalidad | Quién la usa | Regla |
+| --- | --- | --- |
+| CORA Empresas | Cualquier visitante | Datos públicos de personas jurídicas (expediente de 16 secciones) |
+| CORA Personas | Solo la propia persona | **Pública:** con un RUT de persona, CORA no consulta ninguna fuente sobre ella. 7 preguntas en el navegador, sin guardar nada (`lib/cora/personas.ts`). **Con cuenta** (etapa posterior): documentos y consentimiento |
+| CORA Vinculación | Una empresa que verifica a un socio, representante o proveedor | Postergada hasta la revisión legal (Ley 21.719): requiere finalidad legítima, consentimiento de la persona verificada y registro de cada consulta |
+
+### Motor de Necesidades (`lib/cora/necesidades.ts`)
+
+Cada hallazgo con conocimiento verificado se convierte en una necesidad con estos elementos:
+- evidencia, fuente y fecha, y certeza;
+- la necesidad misma;
+- la consecuencia, solo con fundamento;
+- el beneficio de resolverla;
+- la solución: un servicio de ENQORA y una ruta externa oficial;
+- el próximo paso.
+
+Las necesidades se priorizan por urgencia, impacto y evidencia. Un hallazgo sin conocimiento verificado no se
+convierte en necesidad.
+
+### Motor de Soluciones (`lib/cora/soluciones.ts`)
+
+- Agrupa las necesidades en planes por etapas: regularización tributaria, cumplimiento laboral y preventivo,
+  formalización y protección, orden y gestión, y oportunidades y crecimiento.
+- Suma el costo solo con tarifas publicadas.
+- Siempre ofrece la alternativa oficial («O por tu cuenta»).
+- Si no hay nada urgente lo dice, y si no detecta necesidades dice «hoy no necesitas contratar nada».
+
+### Investigación en vivo (`app/cora-solucion.tsx`)
+
+Muestra, uno a uno, los pasos que CORA realmente ejecutó: es su bitácora real, no pasos simulados.
