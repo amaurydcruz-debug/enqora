@@ -99,7 +99,7 @@ export async function runWatch(signal: AbortSignal, date = new Date()): Promise<
     if (!use) {
       messages.push({ role: "assistant", content: data.content?.length ? data.content : [{ type: "text", text: "(sin respuesta)" }] });
       messages.push({ role: "user", content: "Registra ahora lo verificado con registrar_novedades." });
-      data = await call({ type: "tool", name: TOOL.name });
+      data = await call({ type: "auto" }); // el modelo no admite forzar la herramienta
       use = find(data);
     }
     const raw = (use?.input as { novedades?: unknown })?.novedades;

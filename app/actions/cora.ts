@@ -77,29 +77,35 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
 
 type ApiResponse = { content?: { type: string; name?: string; input?: unknown }[] };
 
-// Llamada al estratega con salida forzada a la herramienta. Nunca lanza: devuelve la salida o el motivo del fallo
-// (sin_clave, http_XXX, tiempo, sin_herramienta, red) para el diagnóstico.
+// Llamada al estratega. Este modelo no admite forzar la herramienta (tool_choice «tool»/«any»): se usa «auto»
+// con la instrucción de responder solo con la herramienta y, si no la usa, un segundo intento recordándoselo.
+// Nunca lanza: devuelve la salida o el motivo del fallo (sin_clave, http_XXX, tiempo, sin_herramienta, red).
 async function askClaude(prompt: string, tool: { name: string; description: string; input_schema: unknown }): Promise<{ input: unknown | null; motivo?: string }> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return { input: null, motivo: "sin_clave" };
+  const system = `Eres CORA, el estratega de inteligencia empresarial de ENQORA (Chile). Tu trabajo es descubrir valor que el cliente aún no ve, a partir de evidencia.\n\n${MANUAL}\n\nResponde ÚNICAMENTE llamando a la herramienta ${tool.name}, sin texto adicional.`;
+  const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: prompt }];
   try {
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST", signal: AbortSignal.timeout(45_000),
-      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5", max_tokens: 3000,
-        system: `Eres CORA, el estratega de inteligencia empresarial de ENQORA (Chile). Tu trabajo es descubrir valor que el cliente aún no ve, a partir de evidencia.\n\n${MANUAL}\n\nResponde solo llamando a la herramienta ${tool.name}.`,
-        tools: [tool], tool_choice: { type: "tool", name: tool.name },
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-    const data = (await res.json().catch(() => ({}))) as ApiResponse & { error?: { type?: string; message?: string } };
-    if (!res.ok) {
-      console.error("[ENQORA CORA] API", res.status, data.error?.type, data.error?.message);
-      return { input: null, motivo: `http_${res.status}${data.error?.type ? `_${data.error.type}` : ""}${data.error?.message ? `: ${data.error.message.slice(0, 160)}` : ""}` };
+    for (let intento = 0; intento < 2; intento++) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", signal: AbortSignal.timeout(45_000),
+        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify({
+          model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5", max_tokens: 3000,
+          system, tools: [tool], tool_choice: { type: "auto" }, messages,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as ApiResponse & { error?: { type?: string; message?: string } };
+      if (!res.ok) {
+        console.error("[ENQORA CORA] API", res.status, data.error?.type, data.error?.message);
+        return { input: null, motivo: `http_${res.status}${data.error?.type ? `_${data.error.type}` : ""}${data.error?.message ? `: ${data.error.message.slice(0, 160)}` : ""}` };
+      }
+      const input = data.content?.find((b) => b.type === "tool_use" && b.name === tool.name)?.input ?? null;
+      if (input) return { input };
+      messages.push({ role: "assistant", content: data.content?.length ? data.content : [{ type: "text", text: "(sin respuesta)" }] });
+      messages.push({ role: "user", content: `Entrega ahora tu respuesta llamando a la herramienta ${tool.name}.` });
     }
-    const input = data.content?.find((b) => b.type === "tool_use" && b.name === tool.name)?.input ?? null;
-    return input ? { input } : { input: null, motivo: "sin_herramienta" };
+    return { input: null, motivo: "sin_herramienta" };
   } catch (e) {
     return { input: null, motivo: e instanceof Error && e.name === "TimeoutError" ? "tiempo" : "red" };
   }
