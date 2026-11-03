@@ -25,10 +25,30 @@ export type Procedimiento = {
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase().replace(/[.,]/g, " ").replace(/\s+/g, " ").trim();
 
+// Barrera = un desafío que la persona TENDRÍA QUE RESOLVER (casilla «No soy un robot», imágenes, hCaptcha, Turnstile)
+// o un inicio de sesión. La protección invisible por puntaje (insignia reCAPTCHA v3) no es un desafío: el portal decide
+// si atiende la búsqueda; si responde con un desafío, el bot se detiene. Nunca se intenta resolver ni evadir.
 async function hayBarrera(page: Page): Promise<string | null> {
-  const captcha = await page.locator('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="turnstile"], .g-recaptcha, .h-captcha, .cf-turnstile').count();
-  if (captcha) return "El portal muestra un CAPTCHA: CORA no lo intenta resolver.";
-  const login = await page.locator('input[type="password"]').count();
+  const desafio = await page.evaluate(() => {
+    const visible = (el: Element) => {
+      const r = el.getBoundingClientRect();
+      const st = getComputedStyle(el as HTMLElement);
+      return r.width > 40 && r.height > 40 && st.visibility !== "hidden" && st.display !== "none" && st.opacity !== "0";
+    };
+    for (const f of Array.from(document.querySelectorAll("iframe"))) {
+      const src = f.getAttribute("src") ?? "";
+      if (f.closest(".grecaptcha-badge")) continue; // insignia invisible v3
+      if (/recaptcha\/api2\/(anchor|bframe)|recaptcha\/enterprise\/(anchor|bframe)/.test(src) && visible(f)) return "reCAPTCHA";
+      if (/hcaptcha/.test(src) && visible(f)) return "hCaptcha";
+      if (/challenges\.cloudflare|turnstile/.test(src) && visible(f)) return "Turnstile";
+    }
+    for (const el of Array.from(document.querySelectorAll(".g-recaptcha, .h-captcha, .cf-turnstile"))) {
+      if ((el as HTMLElement).dataset.size !== "invisible" && visible(el)) return "CAPTCHA";
+    }
+    return null;
+  }).catch(() => null);
+  if (desafio) return `El portal pide resolver un desafío (${desafio}): CORA no lo intenta resolver.`;
+  const login = await page.locator('input[type="password"]:visible').count();
   if (login) return "El portal pide iniciar sesión: CORA no usa credenciales.";
   return null;
 }
