@@ -157,7 +157,7 @@ export function buildInitialReport(p: PublicProfileForReport, catalog: Catalog, 
     if (workers > 0) partes.push(`informa ${plural(workers, "trabajador", "trabajadores")}`);
     if (partes.length) {
       let txt = `Según el SII ${partes.join(" e ")}.`;
-      if (workers > 0) txt += " Su carga mensual principal es el IVA (F29) más las remuneraciones: liquidaciones, cotizaciones y Libro de Remuneraciones Electrónico.";
+      if (workers > 0) txt += " Su carga mensual principal es el IVA (F29) más las remuneraciones: liquidaciones, cotizaciones y, desde 5 trabajadores, el Libro de Remuneraciones Electrónico.";
       else txt += " Su carga mensual principal es el IVA (F29), y en abril la renta (F22).";
       if (tramo >= 2 && tramo <= 9) txt += " Por su tamaño puede optar al régimen Pro Pyme y a fondos de Sercotec o Corfo; conviene revisar si está en el régimen que más le conviene.";
       conclusiones.push(txt);
@@ -245,7 +245,7 @@ export function buildNaturalReport(a: NaturalAnswers, catalog: Catalog, today = 
     pushUnique(servicios, offer(catalog, "renta", "CON-05", "Declaración anual de renta", "contabilidad", "Tu F22 de abril revisado por un profesional."));
   }
   if (a.lugar === "local") pushUnique(servicios, offer(catalog, "patente", "FOR-02", "Patente municipal", "formalizacion", "La patente y los permisos de tu local."));
-  if (a.trabajadores === "si") conclusiones.push("Con trabajadores aplican contratos, liquidaciones, cotizaciones (día 13 si se pagan en línea) y el Libro de Remuneraciones Electrónico.");
+  if (a.trabajadores === "si") conclusiones.push("Con trabajadores aplican contratos, liquidaciones, cotizaciones (día 13 si se pagan en línea), el protocolo de la Ley Karin y, desde 5 trabajadores, el Libro de Remuneraciones Electrónico.");
 
   if (a.venta !== "sin_inicio") {
     if (iva) obligaciones.push({ que: "IVA mensual (F29)", cuando: dm(nextMonthly(20, today)), nota: "Día 20 si declaras en línea y emites documentos electrónicos; si no, día 12. Aun sin ventas." });

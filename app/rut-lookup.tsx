@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { lookupRutAction, type LookupState } from "@/app/actions/public";
-import { PriceLine } from "@/app/diagnostico-360";
 import { PropuestaView } from "@/app/cora-solucion";
-import { ExpedienteCora } from "@/app/expediente-cora";
+import { ConsultaEstrategica } from "@/app/consulta-estrategica";
 import { investigarPersona, PREGUNTAS_PERSONA, type ExpedientePersona, type PersonaAnswers } from "@/lib/cora/personas";
 import { EnqoraClockLoader } from "@/components/clock-loader";
-import { buildInitialReport, type Catalog, type InitialReport } from "@/lib/initial-report";
+import type { Catalog } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
 import type { PublicCompany } from "@/app/actions/public";
 import { formatRut, isValidRut } from "@/lib/rut";
@@ -70,7 +69,7 @@ export function RutLookup() {
         <span id="rut-hint" className="lookup-hint">
           {rut && !valid && rut.replace(/[^0-9kK]/g, "").length >= 8
             ? "El dígito verificador no coincide."
-            : "Empresas: usamos solo información pública del SII. Personas: 7 preguntas, sin guardar nada."}
+            : "Empresas: usamos solo información pública del SII. Personas: una conversación breve, sin guardar nada."}
         </span>
       </form>
 
@@ -112,7 +111,7 @@ export function RutLookup() {
                   </ul>
                 </details>
               ) : null}
-              <InitialReportView r={r} />
+              <ConsultaEstrategica r={r} />
             </>
           ) : r.estado === "persona_natural" ? (
             <NaturalFlow r={r} />
@@ -165,105 +164,8 @@ export function RutLookup() {
   );
 }
 
-const NIVEL = {
-  alerta: ["is-alta", "Requiere acción"],
-  atencion: ["is-media", "Requiere revisión"],
-  sin_alertas: ["is-baja", "Sin alertas"],
-} as const;
-
 function consultedAt(iso?: string) {
   return iso ? new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(iso)) : null;
-}
-
-// Informe: veredicto, análisis, obligaciones con fecha y los 3 servicios que lo resuelven.
-function ReportView({ rep, when, intro }: { rep: InitialReport; when: string | null; intro?: string }) {
-  const first = rep.servicios[0];
-  return (
-    <div className="report">
-      <div className="report-head">
-        <span className="eyebrow">Diagnóstico ENQORA</span>
-        <small>{when ? `Generado el ${when}` : null}{rep.completo ? "" : " · carga de nóminas del SII en curso: se completará"}</small>
-      </div>
-
-      <div className={`report-verdict ${NIVEL[rep.nivel][0]}`}>
-        <span className="report-tag">{NIVEL[rep.nivel][1]}</span>
-        <b>{rep.veredicto}</b>
-      </div>
-      {intro ? <p className="report-note">{intro}</p> : null}
-
-      {rep.conclusiones.length ? (
-        <>
-          <h4 className="lookup-acts-title">Nuestro análisis</h4>
-          <ul className="report-insights">{rep.conclusiones.map((c) => <li key={c}>{c}</li>)}</ul>
-        </>
-      ) : null}
-
-      {rep.obligaciones.length ? (
-        <>
-          <h4 className="lookup-acts-title">Lo que debes cumplir y cuándo</h4>
-          <table className="report-cal">
-            <tbody>
-              {rep.obligaciones.map((o) => (
-                <tr key={o.que}>
-                  <th scope="row">{o.que}{o.nota ? <small>{o.nota}</small> : null}</th>
-                  <td>{o.cuando}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      ) : null}
-
-      {rep.servicios.length ? (
-        <>
-          <h4 className="lookup-acts-title">Lo que ENQORA te recomienda</h4>
-          <ol className="report-recs">
-            {rep.servicios.map((s) => (
-              <li key={s.id} className="lookup-signal">
-                <b>{s.nombre}</b>
-                <span>{s.porque}</span>
-                <PriceLine s={s} />
-                <Link href={`/comenzar?servicio=${s.categoria}`} className="lookup-signal-cta">{s.disponible ? "Contratar o cotizar →" : "Solicitar contacto →"}</Link>
-              </li>
-            ))}
-          </ol>
-        </>
-      ) : null}
-
-      <div className="lookup-deep">
-        <b>Diagnóstico completo gratis</b>
-        <span>Crea tu cuenta, sube tu Carpeta Tributaria Electrónica (la generas gratis en sii.cl) y un profesional ENQORA confirma este análisis, el costo y los plazos antes de actuar. ENQORA nunca te pedirá tu clave del SII.</span>
-        <details className="report-detail">
-          <summary>Qué revisa el diagnóstico completo</summary>
-          <ul className="report-check">{rep.porComprobar.map((c) => <li key={c}>{c}</li>)}</ul>
-        </details>
-        <div className="inline-form">
-          <Link href={`/comenzar?servicio=${first?.categoria ?? "contabilidad"}`} className="btn btn-gold btn-inline btn-sm">Crear mi cuenta gratis</Link>
-          <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => window.print()}>Guardar en PDF</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Empresa: informe público y, a continuación, el expediente CORA (investigación por 16 agentes).
-// El expediente CORA reemplaza al diagnóstico 360°: incluye sus preguntas, su mapa y sus beneficios.
-function InitialReportView({ r }: { r: PublicCompany }) {
-  const [cora, setCora] = useState(false);
-  const catalog = (r.catalogo ?? []) as Catalog;
-  if (cora) return <ExpedienteCora p={r} catalog={catalog} onClose={() => setCora(false)} />;
-  return (
-    <>
-      <ReportView rep={buildInitialReport(r, catalog)} when={consultedAt(r.consultado)} />
-      <div className="d360-cta">
-        <span className="eyebrow">CORA · Inteligencia empresarial</span>
-        <b>Abre el expediente completo de esta empresa: 16 secciones investigadas por agentes especializados.</b>
-        <span>Identidad, tributación, obligaciones laborales, previsionales y de seguridad con su fundamento legal, permisos, marca, oportunidades y más.
-          CORA te muestra qué encontró, en qué fuente, qué falta verificar y tus 3 prioridades. Nada se guarda.</span>
-        <button type="button" className="btn btn-gold btn-inline btn-sm" onClick={() => setCora(true)}>Abrir expediente CORA</button>
-      </div>
-    </>
-  );
 }
 
 // CORA PERSONAS (modalidad pública): con un RUT de persona, CORA no consulta ninguna fuente sobre ella.
@@ -271,32 +173,41 @@ function InitialReportView({ r }: { r: PublicCompany }) {
 // Nada se envía ni se guarda.
 function NaturalFlow({ r }: { r: PublicCompany }) {
   const [a, setA] = useState<Partial<PersonaAnswers>>({});
-  const done = PREGUNTAS_PERSONA.every((q) => a[q.key]);
   const catalog = (r.catalogo ?? []) as Catalog;
+  // Conversación: una pregunta a la vez. Si aún no inicia actividades, no se pregunta quién lleva sus impuestos.
+  const visibles = PREGUNTAS_PERSONA.filter((q) => !(q.key === "contador" && a.venta === "sin_inicio"));
+  const siguiente = visibles.find((q) => !a[q.key]);
+  const completo = !siguiente;
+  const respuestas = { contador: "nadie", ...a } as PersonaAnswers;
   return (
     <>
       <h3>CORA Personas · RUT {formatRut(r.rut ?? "")}</h3>
       <p className="lookup-note">
         Para proteger a las personas, CORA no investiga a nadie solo por su RUT: cualquiera podría escribir uno ajeno. Si este es tu RUT
-        y emprendes o quieres emprender, responde 7 preguntas y CORA arma tu perfil, tus necesidades y tu plan al instante.
+        y emprendes o quieres emprender, conversa con CORA: unas pocas preguntas, una a la vez, y recibes tu perfil, tus necesidades y tu plan.
         Tus respuestas no se envían ni se guardan.
       </p>
-      <div className="natural-q">
-        {PREGUNTAS_PERSONA.map((q) => (
-          <fieldset key={q.key}>
-            <legend>{q.q}</legend>
+      <div className="cora-chat">
+        {visibles.filter((q) => a[q.key]).map((q) => (
+          <div key={q.key} className="cora-turn">
+            <span className="cora-q">{q.q}</span>
+            <span className="cora-a">{q.options.find(([v]) => v === a[q.key])?.[1]}</span>
+            <button type="button" className="cora-edit" onClick={() => setA((x) => { const y = { ...x }; for (const k of PREGUNTAS_PERSONA.slice(PREGUNTAS_PERSONA.findIndex((z) => z.key === q.key)).map((z) => z.key)) delete y[k]; return y; })}>Cambiar</button>
+          </div>
+        ))}
+        {siguiente ? (
+          <fieldset className="cora-ask">
+            <legend>{siguiente.q}</legend>
             <div className="natural-opts">
-              {q.options.map(([v, label]) => (
-                <button key={v} type="button" className={`natural-opt${a[q.key] === v ? " is-on" : ""}`} aria-pressed={a[q.key] === v}
-                  onClick={() => setA((x) => ({ ...x, [q.key]: v }))}>{label}</button>
+              {siguiente.options.map(([v, label]) => (
+                <button key={v} type="button" className="natural-opt" onClick={() => setA((x) => ({ ...x, [siguiente.key]: v }))}>{label}</button>
               ))}
             </div>
+            <span className="report-note">Pregunta {visibles.filter((q) => a[q.key]).length + 1} de {visibles.length}.</span>
           </fieldset>
-        ))}
+        ) : null}
       </div>
-      {done ? <PersonaReport e={investigarPersona(a as PersonaAnswers, catalog)} when={consultedAt(r.consultado)} /> : (
-        <p className="report-note">Responde las {PREGUNTAS_PERSONA.length - Object.keys(a).length} preguntas que faltan para ver tu expediente.</p>
-      )}
+      {completo ? <PersonaReport e={investigarPersona(respuestas, catalog)} when={consultedAt(r.consultado)} /> : null}
     </>
   );
 }

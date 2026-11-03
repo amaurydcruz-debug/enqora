@@ -24,16 +24,19 @@ const APLICA: Record<Aplicacion, string> = {
   sin_datos: "Sin datos para determinarla",
 };
 
-export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForReport; catalog: Catalog; onClose: () => void }) {
-  const [answers, setAnswers] = useState<Record<string, Answer>>({});
+// embebido: el expediente completo dentro de la Consulta Estratégica (sin preguntas, propuesta ni pie propios).
+export function ExpedienteCora({ p, catalog, onClose, embebido = false, respuestas }: {
+  p: PublicProfileForReport; catalog: Catalog; onClose: () => void; embebido?: boolean; respuestas?: Record<string, Answer>;
+}) {
+  const [own, setAnswers] = useState<Record<string, Answer>>({});
+  const answers = respuestas ?? own;
   const [preguntas, setPreguntas] = useState(false);
   const exp = useMemo(() => investigar(p, catalog, answers), [p, catalog, answers]);
   const pendientes = exp.preguntas.length - exp.respondidas;
   const necesidad = useMemo(() => new Map(exp.necesidades.map((n) => [n.id, n])), [exp.necesidades]);
   const [pasos] = useState(() => exp.bitacora);
 
-  return (
-    <InvestigacionEnVivo pasos={pasos}>
+  const body = (
     <div className="report cora">
       <div className="report-head">
         <span className="eyebrow">CORA · Expediente de inteligencia empresarial</span>
@@ -65,6 +68,7 @@ export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForRep
         </div>
       ) : null}
 
+      {embebido ? null : <>
       <div className="d360-cta">
         <span className="eyebrow">Lo que CORA no puede comprobar en fuentes públicas</span>
         <b>{pendientes ? `${pendientes} preguntas para completar tu expediente (unos 2 minutos).` : "Respondiste todas las preguntas: el expediente ya las considera."}</b>
@@ -115,6 +119,7 @@ export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForRep
       </div>
 
       <PropuestaView propuesta={exp.propuesta} />
+      </>}
 
       <h4 className="lookup-acts-title">Mapa del expediente (16 secciones)</h4>
       <ul className="d360-map">
@@ -213,7 +218,7 @@ export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForRep
         <ul className="report-check">{exp.bitacora.map((b) => <li key={b.agente}><b>{b.agente}:</b> <span>{b.resultado}</span></li>)}</ul>
       </details>
 
-      <div className="lookup-deep">
+      {embebido ? null : <div className="lookup-deep">
         <b>Próximos pasos</b>
         <ol className="report-steps">
           <li>Atiende tu prioridad 1 (solicitar atención no tiene costo ni compromiso).</li>
@@ -221,7 +226,7 @@ export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForRep
           <li>Recibe la cotización con precio y plazos antes de decidir.</li>
         </ol>
         <span className="report-note">
-          CORA investiga solo fuentes públicas y lo que tú declaras. «No encontrado» no significa incumplimiento. Las conclusiones legales,
+          CORA investiga solo fuentes públicas y lo que tú declaras. «Sin resultados localizados» no significa que algo no exista ni que haya incumplimiento. Las conclusiones legales,
           laborales o tributarias de alto impacto las confirma un profesional ENQORA. ENQORA nunca te pedirá claves del SII, Previred, AFC ni bancos.
         </span>
         <div className="inline-form">
@@ -229,8 +234,8 @@ export function ExpedienteCora({ p, catalog, onClose }: { p: PublicProfileForRep
           <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => window.print()}>Guardar en PDF</button>
           <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={onClose}>Volver al informe</button>
         </div>
-      </div>
+      </div>}
     </div>
-    </InvestigacionEnVivo>
   );
+  return embebido ? body : <InvestigacionEnVivo pasos={pasos}>{body}</InvestigacionEnVivo>;
 }

@@ -2869,3 +2869,21 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .cora-live-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gold); flex: 0 0 auto; transform: translateY(-1px); }
 @media (prefers-reduced-motion: reduce) { .cora-live li { animation: none; } }
 @media print { .cora-live { display: none; } .cora-plan > *:not(summary) { display: block; } }
+
+/* CORA · Consulta estratégica 360° (conversación e informe ejecutivo) */
+.cora-chat { display: flex; flex-direction: column; gap: 10px; }
+.cora-turn { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; padding: 10px 14px; border-radius: 14px; border: 1px solid var(--hairline); background: rgba(255, 255, 255, 0.02); }
+.cora-q { color: var(--text-2); font-size: 0.88rem; flex: 1 1 260px; }
+.cora-a { color: var(--gold); font-weight: 600; font-size: 0.88rem; }
+.cora-edit { font: inherit; font-size: 0.78rem; color: var(--text-3); background: none; border: 0; cursor: pointer; text-decoration: underline; }
+.cora-ask { border: 1px solid rgba(229, 199, 131, 0.4); border-radius: 18px; padding: 16px 18px; margin: 0; display: flex; flex-direction: column; gap: 10px; background: rgba(229, 199, 131, 0.05); }
+.cora-ask legend { float: left; width: 100%; padding: 0; color: var(--text); font-weight: 600; font-size: 1rem; }
+.cora-ask > .btn { align-self: flex-start; }
+.cora-evid { display: inline-block; margin-left: 4px; }
+.cora-evid > summary { cursor: pointer; font-size: 0.74rem; color: var(--text-3); display: inline; }
+.cora-evid ul { margin: 6px 0 0; padding-left: 16px; font-size: 0.8rem; color: var(--text-2); display: flex; flex-direction: column; gap: 4px; }
+.elite { display: flex; flex-direction: column; gap: 16px; }
+.elite-sec { display: flex; flex-direction: column; gap: 6px; }
+.elite-lead { padding: 18px 20px; border-radius: 18px; border: 1px solid rgba(229, 199, 131, 0.4); background: linear-gradient(135deg, rgba(229, 199, 131, 0.08), rgba(60, 118, 210, 0.06)); color: var(--text-2); }
+.elite-lead > b { color: var(--text); font-size: 1.05rem; line-height: 1.45; }
+@media print { .cora-ask, .cora-edit { display: none !important; } .cora-evid > *:not(summary) { display: block; } }

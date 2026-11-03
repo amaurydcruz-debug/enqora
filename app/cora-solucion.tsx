@@ -30,6 +30,7 @@ export function PropuestaView({ propuesta }: { propuesta: Propuesta }) {
                   {n.consecuencia ? <div><dt>Si no se atiende</dt><dd>{n.consecuencia}</dd></div> : null}
                   <div><dt>Qué ganas al resolverlo</dt><dd>{n.beneficio}</dd></div>
                   <div><dt>Próximo paso</dt><dd>{n.proximo}</dd></div>
+                  {n.documentos ? <div><dt>Documentos necesarios</dt><dd>{n.documentos}</dd></div> : null}
                   {n.servicio ? (
                     <div>
                       <dt>Con ENQORA</dt>
