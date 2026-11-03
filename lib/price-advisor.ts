@@ -81,7 +81,7 @@ export async function researchPrices(s: ServiceToResearch, signal: AbortSignal):
   if (!use) {
     messages.push({ role: "assistant", content: data.content?.length ? data.content : [{ type: "text", text: "(sin respuesta)" }] });
     messages.push({ role: "user", content: "Registra ahora solo los precios verificados con registrar_precios." });
-    data = await call({ type: "tool", name: TOOL.name });
+    data = await call({ type: "auto" }); // el modelo no admite forzar la herramienta (tool_choice «tool»)
     use = find(data);
   }
   const raw = (use?.input as { precios?: unknown })?.precios;

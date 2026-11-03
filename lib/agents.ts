@@ -291,7 +291,7 @@ export async function runAgent(
           { type: "text", text: "Registra ahora tu resultado con la herramienta registrar_resultado." },
         ],
       });
-      data = await call({ type: "tool", name: RESULT_TOOL.name });
+      data = await call({ type: "auto" }); // el modelo no admite forzar la herramienta
       use = findResult(data);
     }
     if (!use) return fail("El agente no entregó un resultado");

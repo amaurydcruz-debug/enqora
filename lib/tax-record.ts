@@ -111,28 +111,37 @@ type ApiResponse = { content?: { type: string; name?: string; input?: unknown }[
 export async function extractTaxFolder(pdf: ArrayBuffer, signal: AbortSignal): Promise<Extract> {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error("Falta configurar ANTHROPIC_API_KEY en Vercel.");
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    signal,
-    headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({
-      model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5",
-      max_tokens: 12000,
-      system: EXTRACT_SYSTEM,
-      tools: [EXTRACT_TOOL],
-      tool_choice: { type: "tool", name: EXTRACT_TOOL.name },
-      messages: [{
-        role: "user",
-        content: [
-          { type: "document", source: { type: "base64", media_type: "application/pdf", data: Buffer.from(pdf).toString("base64") } },
-          { type: "text", text: "Transcribe esta carpeta tributaria con registrar_carpeta." },
-        ],
-      }],
-    }),
-  });
-  const data = (await res.json().catch(() => ({}))) as ApiResponse;
-  if (!res.ok) throw new Error(`No se pudo leer el documento (${res.status}${data.error?.type ? `: ${data.error.type}` : ""}).`);
-  const use = data.content?.find((b) => b.type === "tool_use" && b.name === EXTRACT_TOOL.name);
+  // El modelo no admite forzar la herramienta (tool_choice «tool»): se usa «auto» y, si no la llama, se le recuerda una vez.
+  const messages: { role: "user" | "assistant"; content: unknown }[] = [{
+    role: "user",
+    content: [
+      { type: "document", source: { type: "base64", media_type: "application/pdf", data: Buffer.from(pdf).toString("base64") } },
+      { type: "text", text: "Transcribe esta carpeta tributaria con registrar_carpeta." },
+    ],
+  }];
+  let use: { type: string; name?: string; input?: unknown } | undefined;
+  for (let intento = 0; intento < 2 && !use; intento++) {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      signal,
+      headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+      body: JSON.stringify({
+        model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5",
+        max_tokens: 12000,
+        system: EXTRACT_SYSTEM,
+        tools: [EXTRACT_TOOL],
+        tool_choice: { type: "auto" },
+        messages,
+      }),
+    });
+    const data = (await res.json().catch(() => ({}))) as ApiResponse;
+    if (!res.ok) throw new Error(`No se pudo leer el documento (${res.status}${data.error?.type ? `: ${data.error.type}` : ""}${data.error?.message ? ` · ${data.error.message.slice(0, 160)}` : ""}).`);
+    use = data.content?.find((b) => b.type === "tool_use" && b.name === EXTRACT_TOOL.name);
+    if (!use) {
+      messages.push({ role: "assistant", content: data.content?.length ? data.content : [{ type: "text", text: "(sin respuesta)" }] });
+      messages.push({ role: "user", content: "Registra ahora la transcripción con registrar_carpeta." });
+    }
+  }
   if (!use?.input || typeof use.input !== "object") throw new Error("La lectura del documento no devolvió datos.");
   return sanitize(use.input as Partial<Extract>);
 }
