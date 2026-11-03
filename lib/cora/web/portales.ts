@@ -54,12 +54,57 @@ async function hayBarrera(page: Page): Promise<string | null> {
 }
 
 // Campo de texto asociado a una etiqueta visible (etiqueta <label>, o el primer input que sigue al texto).
-async function campoPorEtiqueta(page: Page, etiqueta: RegExp, texto: string): Promise<Locator | null> {
-  const byLabel = page.getByLabel(etiqueta).first();
-  if (await byLabel.count().catch(() => 0)) return byLabel;
-  const near = page.locator(`xpath=(//*[contains(normalize-space(text()), "${texto}")])[1]/following::input[(not(@type) or @type="text" or @type="search")][1]`).first();
-  if (await near.count().catch(() => 0)) return near;
+type Tabla = { headers: string[]; rows: string[][] };
+
+// Solo campos VISIBLES: hay portales con pestañas ocultas que repiten las mismas etiquetas (p. ej. «Anotación»).
+async function primeroVisible(loc: Locator): Promise<Locator | null> {
+  const n = Math.min(await loc.count().catch(() => 0), 10);
+  for (let i = 0; i < n; i++) if (await loc.nth(i).isVisible().catch(() => false)) return loc.nth(i);
   return null;
+}
+
+async function campoPorEtiqueta(page: Page, etiqueta: RegExp, texto: string): Promise<Locator | null> {
+  const byLabel = await primeroVisible(page.getByLabel(etiqueta));
+  if (byLabel) return byLabel;
+  const textos = page.locator(`xpath=//*[contains(normalize-space(text()), "${texto}")]`);
+  const n = Math.min(await textos.count().catch(() => 0), 10);
+  for (let i = 0; i < n; i++) {
+    if (!(await textos.nth(i).isVisible().catch(() => false))) continue;
+    const input = await primeroVisible(textos.nth(i).locator(`xpath=following::input[(not(@type) or @type="text" or @type="search")]`));
+    if (input) return input;
+  }
+  return null;
+}
+
+// Despliega paneles plegados de resultados («Lista de Aciertos», «Resultados»), si existen.
+async function desplegarResultados(page: Page) {
+  for (const t of [/lista de aciertos/i, /resultados/i]) {
+    const h = page.getByText(t).first();
+    if (await h.isVisible().catch(() => false)) await h.click({ timeout: 3_000 }).catch(() => undefined);
+  }
+}
+
+// Busca dentro de una respuesta JSON del portal la primera lista de objetos (también si viene como texto JSON
+// anidado, como en los servicios ASP.NET «{"d": "…"}») y la convierte en tabla.
+function tablaDesdeJson(body: string): Tabla | null {
+  const parse = (v: unknown, depth = 0): unknown => {
+    if (depth > 4) return v;
+    if (typeof v === "string" && /^\s*[[{]/.test(v)) { try { return parse(JSON.parse(v), depth + 1); } catch { return v; } }
+    if (Array.isArray(v)) return v.map((x) => parse(x, depth + 1));
+    if (v && typeof v === "object") return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, parse(x, depth + 1)]));
+    return v;
+  };
+  let raiz: unknown;
+  try { raiz = parse(JSON.parse(body)); } catch { return null; }
+  const buscar = (v: unknown): Record<string, unknown>[] | null => {
+    if (Array.isArray(v) && v.length && v.every((x) => x && typeof x === "object" && !Array.isArray(x))) return v as Record<string, unknown>[];
+    if (v && typeof v === "object") for (const x of Object.values(v)) { const r = buscar(x); if (r) return r; }
+    return null;
+  };
+  const lista = buscar(raiz);
+  if (!lista) return null;
+  const headers = Object.keys(lista[0]).slice(0, 10);
+  return { headers, rows: lista.slice(0, 50).map((o) => headers.map((h) => (o[h] == null ? "" : String(o[h])).slice(0, 200))) };
 }
 
 async function botonBuscar(page: Page): Promise<Locator | null> {
@@ -78,7 +123,6 @@ async function leerTablas(page: Page) {
     const out: { headers: string[]; rows: string[][] }[] = [];
     for (const t of Array.from(document.querySelectorAll("table"))) {
       const el = t as HTMLElement;
-      if (!el.offsetParent) continue;
       const trs = Array.from(t.querySelectorAll("tr"));
       const headers = Array.from(t.querySelectorAll("th")).map((th) => (th.textContent ?? "").replace(/\s+/g, " ").trim());
       const rows = trs.map((tr) => Array.from(tr.querySelectorAll("td")).map((td) => (td.textContent ?? "").replace(/\s+/g, " ").trim()))
@@ -106,19 +150,25 @@ function capturarJson(page: Page, host: string) {
 
 const SIN_RESULTADOS = /no se (encontraron|han encontrado|registran)|sin resultados|0 aciertos|no existen (registros|resultados)|no hay (registros|resultados)/i;
 
-type Tabla = { headers: string[]; rows: string[][] };
 const firma = (t: Tabla) => JSON.stringify(t);
 
 // Espera a que la búsqueda termine: aparece un mensaje de «sin resultados» que antes no estaba, o una tabla
 // distinta de las que ya existían antes de buscar (el formulario mismo puede ser una tabla).
-async function esperarResultado(page: Page, ms: number, antes: { tablas: Tabla[]; sin: boolean }) {
+async function esperarResultado(page: Page, ms: number, antes: { tablas: Tabla[]; sin: boolean }, json?: { bodies: { body: string }[] }) {
   const previas = new Set(antes.tablas.map(firma));
   const fin = Date.now() + ms;
+  let desplegado = false;
   while (Date.now() < fin) {
-    const text = (await page.locator("body").innerText().catch(() => "")).slice(0, 200_000);
+    const text = (await page.locator("body").textContent().catch(() => "") ?? "").slice(0, 200_000);
     if (!antes.sin && SIN_RESULTADOS.test(text)) return { fin: "sin" as const, nuevas: [] };
     const nuevas = (await leerTablas(page).catch(() => [] as Tabla[])).filter((t) => !previas.has(firma(t)));
     if (nuevas.length) return { fin: "tablas" as const, nuevas };
+    // Respuesta JSON del propio portal con una lista: también es un resultado verificable.
+    for (const b of json?.bodies ?? []) {
+      const t = tablaDesdeJson(b.body);
+      if (t) return { fin: t.rows.length ? "tablas" as const : "sin" as const, nuevas: t.rows.length ? [t] : [] };
+    }
+    if (!desplegado && Date.now() > fin - ms + 4_000) { await desplegarResultados(page); desplegado = true; }
     await page.waitForTimeout(800);
   }
   return { fin: "timeout" as const, nuevas: [] as Tabla[] };
@@ -146,7 +196,7 @@ export const INAPI: Procedimiento = {
     const json = capturarJson(page, "inapi.cl");
     const antes = await estadoInicial(page);
     if (boton) await boton.click(); else await campo.press("Enter");
-    const { fin, nuevas: tablas } = await esperarResultado(page, 30_000, antes);
+    const { fin, nuevas: tablas } = await esperarResultado(page, 30_000, antes, json);
     json.stop();
     if (await hayBarrera(page)) return { status: "bloqueado", query, url: page.url(), result: null, detail: "Apareció una verificación anti-robot al buscar." };
     if (fin === "timeout") return { status: "procedimiento_fallo", query, url: page.url(), result: { json: json.bodies }, detail: "No se pudo verificar que la búsqueda terminara (sin tabla ni mensaje de «sin resultados»)." };
@@ -182,7 +232,7 @@ export const RES: Procedimiento = {
     const json = capturarJson(page, "registrodeempresasysociedades.cl");
     const antes = await estadoInicial(page);
     if (boton) await boton.click(); else await campo.press("Enter");
-    const { fin, nuevas: tablas } = await esperarResultado(page, 30_000, antes);
+    const { fin, nuevas: tablas } = await esperarResultado(page, 30_000, antes, json);
     json.stop();
     if (await hayBarrera(page)) return { status: "bloqueado", query, url: page.url(), result: null, detail: "Apareció una verificación anti-robot al buscar." };
     if (fin === "timeout") return { status: "procedimiento_fallo", query, url: page.url(), result: { json: json.bodies }, detail: "No se pudo verificar que la búsqueda terminara." };
@@ -210,7 +260,7 @@ export const DIARIO_OFICIAL: Procedimiento = {
     const json = capturarJson(page, "diariooficial.interior.gob.cl");
     const antes = await estadoInicial(page);
     if (boton) await boton.click(); else await campo.press("Enter");
-    const { fin, nuevas: tablas } = await esperarResultado(page, 30_000, antes);
+    const { fin, nuevas: tablas } = await esperarResultado(page, 30_000, antes, json);
     json.stop();
     if (await hayBarrera(page)) return { status: "bloqueado", query, url: page.url(), result: null, detail: "Apareció una verificación anti-robot al buscar." };
     if (fin === "timeout") return { status: "procedimiento_fallo", query, url: page.url(), result: { json: json.bodies }, detail: "No se pudo verificar que la búsqueda terminara: el procedimiento debe validarse con la captura." };
