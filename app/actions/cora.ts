@@ -94,7 +94,10 @@ async function askClaude(prompt: string, tool: { name: string; description: stri
       }),
     });
     const data = (await res.json().catch(() => ({}))) as ApiResponse & { error?: { type?: string; message?: string } };
-    if (!res.ok) return { input: null, motivo: `http_${res.status}${data.error?.type ? `_${data.error.type}` : ""}` };
+    if (!res.ok) {
+      console.error("[ENQORA CORA] API", res.status, data.error?.type, data.error?.message);
+      return { input: null, motivo: `http_${res.status}${data.error?.type ? `_${data.error.type}` : ""}${data.error?.message ? `: ${data.error.message.slice(0, 160)}` : ""}` };
+    }
     const input = data.content?.find((b) => b.type === "tool_use" && b.name === tool.name)?.input ?? null;
     return input ? { input } : { input: null, motivo: "sin_herramienta" };
   } catch (e) {
