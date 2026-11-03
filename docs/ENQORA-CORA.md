@@ -152,3 +152,33 @@ empresa con término de giro. Comprueban que:
 Dos escenarios **no se pueden demostrar en E1**:
 - empresa con marca registrada: INAPI no tiene API;
 - proveedor del Estado: Mercado Público llega en E2.
+
+## CORA Web Research Agent · piloto (aprobado el 03-11-2026)
+
+Es un bot con un navegador en la nube (Vercel, Playwright y `@sparticuz/chromium`). Consulta los portales oficiales y
+deja la prueba de cada búsqueda: captura en Storage privado, fecha y hora, fuente, consulta, resultado y estado.
+
+| Pieza | Archivo |
+| --- | --- |
+| Tablas y bucket privado | `supabase/migrations/0026_investigador_web.sql` (prueba en `supabase/tests/0026_…`) |
+| Navegador | `lib/cora/web/navegador.ts` |
+| Procedimientos por portal (memoria operativa) | `lib/cora/web/portales.ts`: INAPI (por titular = razón social) y Registro de Empresas y Sociedades (por RUT) |
+| Ejecución y evidencias | `lib/cora/web/investigador.ts` |
+| Ejecución en la nube (202 + after, hasta 300 s) | `app/api/cora/investigador/route.ts` |
+| Centro de Mando | `/mando/investigador`: prueba de entorno, investigación y evidencias con captura |
+
+### Reglas
+
+- **CAPTCHA o inicio de sesión:** el bot no los intenta superar; marca «Bloqueado» y se detiene.
+- **Búsqueda sin término verificable:** marca «Procedimiento por validar» y guarda la captura. Un humano valida el
+  procedimiento nuevo antes de que se use; el bot no lo cambia solo.
+- **Cada búsqueda** genera una fila de evidencia con su captura, también cuando falla.
+- **Coincidencias en INAPI:** cuentan solo las que tienen el titular exacto. Lo demás es «sin resultados localizados».
+- **Uso en el piloto:** solo el equipo ENQORA lo usa, con su sesión. No se conecta a la consulta pública hasta superar
+  el piloto con 3 portales.
+
+### Prueba del piloto
+
+1. En el Centro de Mando, abre **«1 · Probar el navegador en Vercel»**. Mide el lanzamiento, el tiempo, la memoria y
+   la versión de Chromium. Si falla de forma estable, se evalúa Browserbase.
+2. Usa **«2 · Investigar»** con el RUT de prueba autorizado. Debe dejar una evidencia con captura por cada portal.

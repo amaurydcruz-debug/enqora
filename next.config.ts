@@ -13,6 +13,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // CORA Web Research Agent: Chromium liviano para Vercel. Se empaqueta solo en la función del investigador.
+  serverExternalPackages: ["@sparticuz/chromium", "playwright-core"],
+  outputFileTracingIncludes: { "/api/cora/investigador": ["./node_modules/@sparticuz/chromium/bin/**"] },
   reactStrictMode: true,
   async headers() {
     return [
