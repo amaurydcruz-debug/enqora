@@ -8,6 +8,7 @@ import {
   distintas, evidenciasDe, informeReglas, MANUAL, preguntasDisponibles, promptInforme, promptTurno, TOOL_INFORME, TOOL_TURNO, turnoReglas,
   validarInforme, validarTurno, type Evidencia, type Informe, type Turno,
 } from "@/lib/cora/estratega";
+import { sanearHallazgos, type HallazgoWeb } from "@/lib/cora/web/hallazgos";
 import { dbCode } from "@/lib/db-errors";
 import { QUESTIONS, type Answer } from "@/lib/diagnostic-360";
 import type { Catalog } from "@/lib/initial-report";
@@ -19,7 +20,7 @@ import { createClient } from "@/lib/supabase/server";
 // límite de consultas por visitante de la base de datos. Nada se guarda.
 
 // motivo: por qué se usó el motor de reglas (diagnóstico visible para el equipo y en los registros de Vercel).
-type Origen = { origen: "ia" | "reglas"; motivo?: string; evidencias: Evidencia[] };
+type Origen = { origen: "ia" | "reglas"; motivo?: string; evidencias: Evidencia[]; web: HallazgoWeb[] };
 export type CoraResult =
   | ({ ok: true; fase: "turno"; turno: Turno } & Origen)
   | ({ ok: true; fase: "informe"; informe: Informe } & Origen)
@@ -51,7 +52,10 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
     const { data: cat } = await supabase.rpc("public_catalog");
     const catalog = ((cat ?? []) as Catalog);
 
-    const exp = investigar(p, catalog, respuestas);
+    // Resultados del bot investigador (INAPI, Registro de Empresas…) para este RUT, si existen.
+    const { data: webRaw } = await supabase.rpc("research_public_findings", { p_rut: rut });
+    const web = sanearHallazgos(webRaw);
+    const exp = investigar(p, catalog, respuestas, new Date(), web);
     const ev = evidenciasDe(exp, respuestas);
 
     if (input.fase === "informe") {
@@ -60,7 +64,7 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
       const informe = ia.input ? validarInforme(ia.input, ev, distintas(exp).map((n) => n.id)) : null;
       const motivo = informe ? undefined : ia.motivo ?? "validador";
       if (motivo) console.error("[ENQORA CORA] informe por reglas:", motivo);
-      return informe ? { ok: true, fase: "informe", informe, origen: "ia", evidencias: ev } : { ok: true, fase: "informe", informe: informeReglas(exp, ev), origen: "reglas", motivo, evidencias: ev };
+      return informe ? { ok: true, fase: "informe", informe, origen: "ia", evidencias: ev, web } : { ok: true, fase: "informe", informe: informeReglas(exp, ev), origen: "reglas", motivo, evidencias: ev, web };
     }
 
     const disp = preguntasDisponibles(exp, respuestas);
@@ -68,7 +72,7 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
     const turno = ia.input ? validarTurno(ia.input, ev, disp.map((q) => q.id)) : null;
     const motivo = turno ? undefined : ia.motivo ?? "validador";
     if (motivo) console.error("[ENQORA CORA] turno por reglas:", motivo);
-    return turno ? { ok: true, fase: "turno", turno, origen: "ia", evidencias: ev } : { ok: true, fase: "turno", turno: turnoReglas(exp, ev, respuestas), origen: "reglas", motivo, evidencias: ev };
+    return turno ? { ok: true, fase: "turno", turno, origen: "ia", evidencias: ev, web } : { ok: true, fase: "turno", turno: turnoReglas(exp, ev, respuestas), origen: "reglas", motivo, evidencias: ev, web };
   } catch (e) {
     console.error("[ENQORA CORA]", e instanceof Error ? e.message : e);
     return { ok: false, error: "CORA no pudo completar la consulta. Intenta nuevamente." };

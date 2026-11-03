@@ -172,5 +172,39 @@ export const RES: Procedimiento = {
   },
 };
 
+// ── Diario Oficial · búsqueda de publicaciones por razón social (procedimiento por validar en el piloto) ──
+const DO_URL = "https://www.diariooficial.interior.gob.cl/";
+export const DIARIO_OFICIAL: Procedimiento = {
+  id: "diario_oficial", nombre: "Diario Oficial", version: "do-2026-11-03", url: DO_URL,
+  async ejecutar(page, { razon }) {
+    const query = { razon_social: razon };
+    await page.goto(DO_URL, { waitUntil: "domcontentloaded", timeout: 30_000 });
+    await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+    const barrera = await hayBarrera(page);
+    if (barrera) return { status: "bloqueado", query, url: page.url(), result: null, detail: barrera };
+    const campo = (await campoPorEtiqueta(page, /buscar|b[uú]squeda|raz[oó]n social|empresa/i, "Buscar"))
+      ?? (await page.locator('input[type="search"], input[name*="buscar" i], input[placeholder*="buscar" i]').first().count() ? page.locator('input[type="search"], input[name*="buscar" i], input[placeholder*="buscar" i]').first() : null);
+    if (!campo) return { status: "procedimiento_fallo", query, url: page.url(), result: null, detail: "No se encontró un buscador en la portada del Diario Oficial: el procedimiento debe validarse con la captura." };
+    await campo.fill(razon);
+    const boton = await botonBuscar(page);
+    const json = capturarJson(page, "diariooficial.interior.gob.cl");
+    const antes = await estadoInicial(page);
+    if (boton) await boton.click(); else await campo.press("Enter");
+    const { fin, nuevas: tablas } = await esperarResultado(page, 30_000, antes);
+    json.stop();
+    if (await hayBarrera(page)) return { status: "bloqueado", query, url: page.url(), result: null, detail: "Apareció una verificación anti-robot al buscar." };
+    if (fin === "timeout") return { status: "procedimiento_fallo", query, url: page.url(), result: { json: json.bodies }, detail: "No se pudo verificar que la búsqueda terminara: el procedimiento debe validarse con la captura." };
+    if (fin === "sin") return { status: "sin_resultados", query, url: page.url(), result: { json: json.bodies }, detail: "El Diario Oficial no muestra publicaciones para esta razón social." };
+    const objetivo = norm(razon);
+    const filas = tablas.flatMap((t) => t.rows);
+    const conNombre = filas.filter((r) => r.some((c) => norm(c).includes(objetivo)));
+    return {
+      status: conNombre.length ? "encontrado" : "sin_resultados", query, url: page.url(),
+      result: { tablas: tablas.slice(0, 3), coincidencias_exactas: conNombre.length, json: json.bodies },
+      detail: conNombre.length ? `${conNombre.length} publicación(es) que mencionan «${razon}».` : "Hay resultados, pero ninguno menciona exactamente la razón social.",
+    };
+  },
+};
+
 // Orden de ejecución del piloto (Mercado Público entra por API cuando exista el ticket).
-export const PROCEDIMIENTOS: Procedimiento[] = [INAPI, RES];
+export const PROCEDIMIENTOS: Procedimiento[] = [INAPI, RES, DIARIO_OFICIAL];
