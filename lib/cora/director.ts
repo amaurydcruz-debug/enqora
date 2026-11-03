@@ -290,7 +290,7 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
     sec.crecimiento.falta.push(...r360.beneficios.map((b) => `${b.nombre}: ${b.falta}`));
     hallazgos.push({
       id: "oportunidades", seccion: "crecimiento", agente: "15 · Crecimiento", estado: "parcial", prioridad: "baja",
-      encontro: `${r360.beneficios.length} programa(s) público(s) podrían aplicar según el tamaño y los trabajadores informados al SII.`,
+      encontro: `${r360.beneficios.length} programa(s) público(s) podrían aplicar según los datos públicos de la empresa: ${r360.beneficios.map((b) => b.nombre).join(", ")}.`,
       importa: "Son apoyos no reembolsables, beneficios tributarios u oportunidades de venta al Estado.",
       hacer: "Confirmar requisitos y convocatorias vigentes antes de postular.",
       servicio: svc("crecimiento", "GEN-01", "Consulta profesional", "crecimiento", "Revisar las convocatorias que calzan con tu empresa."),

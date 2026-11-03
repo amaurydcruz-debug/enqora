@@ -131,7 +131,13 @@ export function preguntasDisponibles(exp: Expediente, respuestas: Record<string,
 }
 
 // ── Validadores ──
-const clean = (s: unknown, max = 600) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim().slice(0, max) : "");
+// Limpia el texto y quita solo las oraciones con lenguaje prohibido (no descarta la respuesta completa).
+const clean = (s: unknown, max = 600) => {
+  if (typeof s !== "string") return "";
+  const t = s.replace(/\s+/g, " ").trim();
+  const frases = t.split(/(?<=[.!?])\s+/).filter((f) => !FORBIDDEN.test(f));
+  return frases.join(" ").slice(0, max).trim();
+};
 const okText = (s: string) => !!s && !FORBIDDEN.test(s);
 function okEvid(raw: unknown, ids: Set<string>): string[] | null {
   if (!Array.isArray(raw)) return null;
