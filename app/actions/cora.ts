@@ -9,6 +9,7 @@ import {
   validarInforme, validarTurno, type Evidencia, type Informe, type Turno,
 } from "@/lib/cora/estratega";
 import { sanearHallazgos, type HallazgoWeb } from "@/lib/cora/web/hallazgos";
+import { mercadoPublico, registroEmpresas } from "@/lib/cora/web/oficiales";
 import { dbCode } from "@/lib/db-errors";
 import { QUESTIONS, type Answer } from "@/lib/diagnostic-360";
 import type { Catalog } from "@/lib/initial-report";
@@ -53,8 +54,12 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
     const catalog = ((cat ?? []) as Catalog);
 
     // Resultados del bot investigador (INAPI, Registro de Empresas…) para este RUT, si existen.
-    const { data: webRaw } = await supabase.rpc("research_public_findings", { p_rut: rut });
-    const web = sanearHallazgos(webRaw);
+    // Fuentes oficiales por vía legal (datos abiertos del Registro y API de Mercado Público) + resultados del bot.
+    const [{ data: webRaw }, registro, compras] = await Promise.all([
+      supabase.rpc("research_public_findings", { p_rut: rut }), registroEmpresas(supabase, rut), mercadoPublico(rut),
+    ]);
+    const oficiales = [registro, compras].filter((x): x is HallazgoWeb => !!x);
+    const web = [...oficiales, ...sanearHallazgos(webRaw).filter((w) => !oficiales.some((o) => o.portal === w.portal))];
     const exp = investigar(p, catalog, respuestas, new Date(), web);
     const ev = evidenciasDe(exp, respuestas);
 

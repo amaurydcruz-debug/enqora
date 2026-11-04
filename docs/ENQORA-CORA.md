@@ -197,3 +197,23 @@ deja la prueba de cada búsqueda: captura en Storage privado, fecha y hora, fuen
   - **«Tu empresa con ENQORA»**, que solo usa capacidades reales (`CAPACIDADES`).
 - **Manual del estratega:** incluye la persuasión ética del dueño de empresa (tiempo, tranquilidad, control,
   crecimiento, orden). Prohíbe urgencia o escasez inventadas, miedo sin fundamento y presentar hipótesis como hechos.
+
+## Fuentes oficiales por vía legal (03-11-2026)
+
+La prueba real del bot mostró que **INAPI y el Registro de Empresas exigen resolver un CAPTCHA**. El bot se detiene
+correctamente. Por eso CORA usa las vías oficiales:
+
+| Fuente | Vía | Archivos |
+| --- | --- | --- |
+| Registro de Empresas y Sociedades | **Datos abiertos** de datos.gob.cl (API CKAN y CSV), con carga semanal y por tramos (cursor en bytes) | `lib/res-sync.ts`, `app/api/cron/registro/route.ts`, migración `0028` |
+| Mercado Público | **API oficial** de ChileCompra: proveedor por RUT. Se activa con `MERCADOPUBLICO_TICKET` en Vercel | `lib/cora/web/oficiales.ts` |
+| INAPI | **Búsqueda asistida**: el equipo hace la búsqueda en el portal, resuelve la verificación y registra el resultado con su captura. Además, solicitud formal de acceso a INAPI | Centro de Mando → CORA · Investigador web |
+
+### Reglas
+
+- **Sin carga del Registro, no hay conclusiones:** mientras no exista al menos un archivo completo, CORA no deduce nada
+  de la ausencia de resultados.
+- **Evidencia vigente:** los hallazgos públicos usan la evidencia más reciente de cada portal. Una búsqueda asistida
+  reemplaza a un «bloqueado».
+- **Columnas no reconocidas:** si el CSV del Registro trae columnas que el conector no reconoce, se detiene y guarda la
+  cabecera real para ajustar el mapeo.

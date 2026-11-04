@@ -93,8 +93,8 @@ export const FUENTES: Fuente[] = [
     metodo: "Descarga de bases anuales de datos abiertos con el mismo conector de las nóminas del SII",
     campos: ["RUT", "razón social", "tipo de sociedad", "capital", "fecha de constitución", "comuna"],
     restricciones: "Cubre solo empresas creadas en el Registro (desde 2013), no las constituidas por notaría.",
-    frecuencia: "Mensual (por confirmar)", estado: "proxima_etapa", verificada: null,
-    nota: "Etapa 2: confirmar la URL oficial de descarga y sus campos antes de conectar.",
+    frecuencia: "Semanal (conector ENQORA)", estado: "proxima_etapa", verificada: "2026-11-03",
+    nota: "El buscador web del Registro exige CAPTCHA (verificado el 03-11-2026). Conector de datos abiertos listo (0028): se confirma con la primera carga completa.",
   },
   {
     id: "diario_oficial", pais: "CL", organismo: "Diario Oficial", nombre: "Publicaciones de sociedades",
@@ -159,7 +159,7 @@ export const FUENTES: Fuente[] = [
     id: "inapi", pais: "CL", organismo: "INAPI", nombre: "Buscador de marcas",
     url: "https://buscadormarcas.inapi.cl/Marca/BuscarMarca.aspx", secciones: ["marca"], nivel: "B",
     metodo: "Búsqueda manual por nombre de marca", campos: ["marcas", "solicitudes", "titular", "clases"],
-    restricciones: "Sin API ni descarga conocidas: ENQORA no lo automatiza.", frecuencia: "En línea", estado: "manual", verificada: "2026-11-02",
+    restricciones: "La búsqueda presenta CAPTCHA al bot (03-11-2026): ENQORA no lo evade. Vía: búsqueda asistida por el equipo y solicitud formal de acceso a INAPI.", frecuencia: "En línea", estado: "manual", verificada: "2026-11-03",
   },
   {
     id: "sma_sea", pais: "CL", organismo: "SMA · SEA", nombre: "Fiscalización ambiental y evaluación ambiental",
@@ -174,7 +174,7 @@ export const FUENTES: Fuente[] = [
     metodo: "API oficial: proveedor por RUT → licitaciones y órdenes de compra por código de proveedor",
     campos: ["código de proveedor", "licitaciones", "órdenes de compra", "estados"],
     restricciones: "Requiere un ticket gratuito (se pide con ClaveÚnica); 10.000 consultas diarias.",
-    frecuencia: "En línea", estado: "proxima_etapa", verificada: "2026-11-02", nota: "Etapa 2: requiere el ticket en Vercel (MERCADOPUBLICO_TICKET).",
+    frecuencia: "En línea", estado: "proxima_etapa", verificada: "2026-11-02", nota: "Conector listo: se activa al guardar el ticket en Vercel (MERCADOPUBLICO_TICKET).",
   },
   {
     id: "chilecompra_datos", pais: "CL", organismo: "ChileCompra", nombre: "Datos abiertos de compras públicas",

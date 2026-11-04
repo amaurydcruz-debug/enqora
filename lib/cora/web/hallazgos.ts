@@ -15,6 +15,7 @@ export const PORTAL_NOMBRE: Record<string, string> = {
   inapi: "INAPI · Buscador de marcas",
   res: "Registro de Empresas y Sociedades",
   diario_oficial: "Diario Oficial",
+  mercado_publico: "ChileCompra · Mercado Público",
 };
 
 export function sanearHallazgos(raw: unknown): HallazgoWeb[] {
