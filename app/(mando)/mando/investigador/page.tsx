@@ -2,7 +2,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { iniciarInvestigacionAction } from "@/app/actions/investigador";
+import { iniciarInvestigacionAction, registrarBusquedaAsistidaAction, sincronizarRegistroAction } from "@/app/actions/investigador";
 import { SubmitButton } from "@/components/submit-button";
 import { myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
@@ -18,11 +18,11 @@ const STATUS: Record<string, [string, string]> = {
   encontrado: ["Encontrado", "ok"], sin_resultados: ["Sin resultados localizados", "muted"], bloqueado: ["Bloqueado (CAPTCHA o login)", "warn"],
   procedimiento_fallo: ["Procedimiento por validar", "warn"], error: ["Error", "risk"],
 };
-const ERRORES: Record<string, string> = { rut: "El RUT no es válido.", no_encontrada: "Ese RUT no está en las nóminas públicas de empresas del SII.", registro: "No se pudo registrar la investigación. ¿Se ejecutó la migración 0026?" };
+const ERRORES: Record<string, string> = { asistida: "No se pudo registrar la búsqueda asistida.", captura: "Adjunta una captura PNG o JPG de hasta 5 MB.", resultado: "Si hay resultados, escribe al menos uno (una línea por marca o actuación).", rut: "El RUT no es válido.", no_encontrada: "Ese RUT no está en las nóminas públicas de empresas del SII.", registro: "No se pudo registrar la investigación. ¿Se ejecutó la migración 0026?" };
 const fmt = (iso: string | null) => (iso ? new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "medium", timeZone: "America/Santiago" }).format(new Date(iso)) : "—");
 
 // CORA Web Research Agent (piloto): el equipo lanza una investigación real y revisa la prueba de cada búsqueda.
-export default async function InvestigadorPage({ searchParams }: { searchParams: Promise<{ run?: string; error?: string }> }) {
+export default async function InvestigadorPage({ searchParams }: { searchParams: Promise<{ run?: string; error?: string; registro?: string }> }) {
   const sp = await searchParams;
   const role = await myStaffRole();
   if (!role) notFound();
@@ -37,6 +37,8 @@ export default async function InvestigadorPage({ searchParams }: { searchParams:
     ? await supabase.from("research_evidence").select("*").eq("run_id", selected.id).order("consulted_at")
     : { data: [] };
   const evs = (evRows ?? []) as Ev[];
+  const { data: resRaw } = await supabase.rpc("res_cargas_estado");
+  const cargas = (resRaw ?? []) as { recurso: string; nombre: string | null; filas: number; estado: string; detalle: string | null; actualizado: string }[];
   const paths = evs.map((e) => e.screenshot_path).filter((p): p is string => !!p);
   const { data: signed } = paths.length ? await supabase.storage.from("cora-evidencias").createSignedUrls(paths, 600) : { data: [] };
   const url = new Map<string, string>(((signed ?? []) as { path: string | null; signedUrl: string }[]).map((s) => [s.path ?? "", s.signedUrl]));
@@ -71,6 +73,28 @@ export default async function InvestigadorPage({ searchParams }: { searchParams:
           <SubmitButton className="btn-inline btn-sm" pendingText="Iniciando…">2 · Investigar (INAPI y Registro de Empresas)</SubmitButton>
         </form>
         <p className="muted-line">La investigación sigue en el servidor aunque cierres esta página (hasta 5 minutos). Recarga para ver el avance.</p>
+      </section>
+
+      <section className="card">
+        <h2>Registro de Empresas y Sociedades · datos abiertos</h2>
+        <p className="muted-line">
+          El buscador del Registro exige resolver un CAPTCHA, así que CORA usa la vía oficial: los archivos de datos abiertos que publica el
+          Ministerio de Economía en datos.gob.cl. Se actualizan solos cada semana.
+        </p>
+        {sp.registro ? <p className="muted-line" role="status">{sp.registro}</p> : null}
+        {cargas.length ? (
+          <ul className="ref-list" role="list">
+            {cargas.map((c) => (
+              <li key={c.recurso}>
+                <span className="ref-main"><b>{c.nombre ?? c.recurso}</b><small className="muted-line">{c.filas.toLocaleString("es-CL")} filas · {fmt(c.actualizado)}{c.detalle ? ` · ${c.detalle}` : ""}</small></span>
+                <span className={`status status-${c.estado === "completada" ? "ok" : c.estado === "error" ? "risk" : "gold"}`}>{c.estado}</span>
+              </li>
+            ))}
+          </ul>
+        ) : <p className="muted-line">Aún no se ha cargado ningún archivo.</p>}
+        <form action={sincronizarRegistroAction} className="inline-form">
+          <SubmitButton className="btn-inline btn-sm" pendingText="Cargando…">Cargar o continuar ahora</SubmitButton>
+        </form>
       </section>
 
       <section className="card">
@@ -124,6 +148,26 @@ export default async function InvestigadorPage({ searchParams }: { searchParams:
                     </div>
                   ) : null}
                 </dl>
+                {(e.status === "bloqueado" || e.status === "procedimiento_fallo") && !evs.some((x) => x.portal === e.portal && x.procedure_version === "asistida-humana") ? (
+                  <details className="report-detail" open>
+                    <summary>Registrar búsqueda asistida</summary>
+                    <form action={registrarBusquedaAsistidaAction} className="mini-form" style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+                      <input type="hidden" name="run" value={e.run_id} />
+                      <input type="hidden" name="portal" value={e.portal} />
+                      <span className="muted-line">
+                        1) Abre <a href={e.url} target="_blank" rel="noopener noreferrer">el portal oficial</a> y busca {Object.entries(e.query).map(([k, v]) => `${k}: ${v}`).join(" · ")}.
+                        2) Resuelve tú la verificación. 3) Registra aquí el resultado y una captura de la pantalla de resultados.
+                      </span>
+                      <select name="estado" className="input input-sm" defaultValue="encontrado">
+                        <option value="encontrado">Hay resultados</option>
+                        <option value="sin_resultados">Sin resultados</option>
+                      </select>
+                      <textarea name="resultado" className="input" rows={4} placeholder="Una línea por resultado. Ej.: CARTER · Registrada · Clase 35 · Vigente hasta 2031" />
+                      <input type="file" name="captura" accept="image/png,image/jpeg" required className="input input-sm" />
+                      <SubmitButton className="btn-inline btn-sm" pendingText="Guardando…">Guardar evidencia</SubmitButton>
+                    </form>
+                  </details>
+                ) : null}
                 {e.screenshot_path && url.get(e.screenshot_path) ? (
                   <a href={url.get(e.screenshot_path)!} target="_blank" rel="noopener noreferrer">
                     <img src={url.get(e.screenshot_path)!} alt={`Captura de ${e.portal} del ${fmt(e.consulted_at)}`} style={{ width: "100%", maxWidth: 900, borderRadius: 12, border: "1px solid var(--hairline)" }} />

@@ -261,11 +261,15 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
   }
   // ── Agente 10 · Propiedad intelectual: resultado del bot en INAPI (si existe) ──
   const inapi = web.find((w) => w.portal === "inapi");
-  const fechaWeb = (w: HallazgoWeb) => `consultado por el bot CORA el ${new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeZone: "America/Santiago" }).format(new Date(w.consultado))}`;
+  const fechaWeb = (w: HallazgoWeb) => {
+    const f = new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeZone: "America/Santiago" }).format(new Date(w.consultado));
+    return w.version === "datos-abiertos" ? `datos abiertos cargados el ${f}` : w.version.startsWith("api") ? `consultado el ${f}`
+      : w.version === "asistida-humana" ? `búsqueda asistida por el equipo ENQORA el ${f}` : `consultado por el bot CORA el ${f}`;
+  };
   if (inapi && (inapi.estado === "encontrado" || inapi.estado === "sin_resultados")) {
     const m = sec.marca;
     m.investigado = m.investigado.filter((x) => !x.startsWith("INAPI: sin API"));
-    m.investigado.unshift(`Búsqueda real en INAPI por titular «${p.razon_social}»`);
+    m.investigado.unshift(`${inapi.version === "asistida-humana" ? "Búsqueda asistida" : "Búsqueda"} en INAPI por titular «${p.razon_social}»`);
     m.fuentes.unshift({ nombre: PORTAL_NOMBRE.inapi, url: inapi.url, fecha: fechaWeb(inapi) });
     m.conInformacion = m.verificadaEnFuente = true;
     m.falta = m.falta.filter((f) => !f.startsWith("Búsqueda de la marca"));
@@ -311,7 +315,7 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
   for (const w of web.filter((x) => x.portal === "res" || x.portal === "diario_oficial")) {
     if (w.estado !== "encontrado" && w.estado !== "sin_resultados") { bitacora.push({ agente: `01 · ${PORTAL_NOMBRE[w.portal] ?? w.portal} (bot)`, resultado: w.detalle ?? w.estado }); continue; }
     const l = sec.legal;
-    l.investigado.unshift(`Búsqueda real en ${PORTAL_NOMBRE[w.portal] ?? w.portal}`);
+    l.investigado.unshift(`${w.version === "datos-abiertos" ? "Datos abiertos de" : "Búsqueda en"} ${PORTAL_NOMBRE[w.portal] ?? w.portal}`);
     l.fuentes.unshift({ nombre: PORTAL_NOMBRE[w.portal] ?? w.portal, url: w.url, fecha: fechaWeb(w) });
     l.conInformacion = l.verificadaEnFuente = true;
     if (w.estado === "encontrado") {
@@ -324,15 +328,42 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
   }
 
   // ── Agente 09 · Mercado público / 13 · Comercio exterior (próxima etapa) ──
-  fuenteCat("mercado_publico", "mercado_publico_api"); fuenteCat("mercado_publico", "chilecompra_datos");
-  sec.mercado_publico.investigado.push("API de Mercado Público (verificada; requiere ticket)");
-  sec.mercado_publico.falta.push("Registro como proveedor, licitaciones y órdenes de compra (Etapa 2)");
-  sec.mercado_publico.proxima = "Se activa en la Etapa 2 con la API oficial de ChileCompra.";
+  const mp = web.find((w) => w.portal === "mercado_publico");
+  if (mp && (mp.estado === "encontrado" || mp.estado === "sin_resultados")) {
+    const s9 = sec.mercado_publico;
+    s9.investigado.push("API oficial de Mercado Público (ChileCompra): proveedor por RUT");
+    s9.fuentes.push({ nombre: "ChileCompra · API de Mercado Público", url: mp.url, fecha: `consultada el ${fmt(mp.consultado)}` });
+    s9.conInformacion = s9.verificadaEnFuente = true;
+    s9.estado = mp.estado === "encontrado" ? "confirmado" : "no_encontrado";
+    s9.encontrado.push(mp.detalle ?? "", ...(mp.tabla?.rows ?? []).map((r) => filaLegible(mp.tabla?.headers ?? [], r)));
+    s9.falta.push("Licitaciones y órdenes de compra recientes (se agregan en la siguiente versión del conector)");
+    s9.proxima = mp.estado === "encontrado" ? "Revisar las licitaciones abiertas de su rubro y su desempeño como proveedor." : "Evaluar si sus productos o servicios calzan con lo que compra el Estado.";
+    if (!cerrada) hallazgos.push(mp.estado === "encontrado" ? {
+      id: "proveedor_estado", seccion: "mercado_publico", agente: "09 · Mercado público", estado: "confirmado", prioridad: "baja",
+      encontro: "La empresa está registrada como proveedora del Estado en Mercado Público.",
+      importa: "Ya tiene la puerta de entrada a las compras públicas: el valor está en postular de forma constante y con ofertas bien preparadas.",
+      hacer: "Revisar licitaciones y Compra Ágil de su rubro y preparar ofertas con su documentación al día.",
+      servicio: svc("crecimiento", "GEN-01", "Consulta profesional", "crecimiento", "Preparar ofertas para compras públicas."),
+      fuente: "ChileCompra · API de Mercado Público", fecha: `consultada el ${fmt(mp.consultado)}`,
+    } : {
+      id: "sin_proveedor", seccion: "mercado_publico", agente: "09 · Mercado público", estado: "no_encontrado", prioridad: "baja",
+      encontro: "No localizamos a la empresa como proveedora en Mercado Público.",
+      importa: "El Estado compra todos los días bienes y servicios a pymes; registrarse abre un canal de ventas adicional.",
+      hacer: "Evaluar si lo que vende calza con lo que compran los organismos públicos y, si es así, registrarse.",
+      servicio: svc("crecimiento", "GEN-01", "Consulta profesional", "crecimiento", "Evaluar y preparar el ingreso a Mercado Público."),
+      fuente: "ChileCompra · API de Mercado Público", fecha: `consultada el ${fmt(mp.consultado)}`,
+    });
+  } else {
+    fuenteCat("mercado_publico", "mercado_publico_api"); fuenteCat("mercado_publico", "chilecompra_datos");
+    sec.mercado_publico.investigado.push("API de Mercado Público (verificada; requiere ticket)");
+    sec.mercado_publico.falta.push("Registro como proveedor, licitaciones y órdenes de compra");
+    sec.mercado_publico.proxima = "Se activa al configurar el ticket de la API oficial de ChileCompra.";
+  }
   fuenteCat("comercio_exterior", "aduanas");
   sec.comercio_exterior.investigado.push("Servicio Nacional de Aduanas (fuente por investigar)");
   sec.comercio_exterior.falta.push("Operaciones de importación o exportación: no son de libre consulta");
   sec.comercio_exterior.proxima = "Si la empresa importa o exporta, indícalo al crear tu cuenta.";
-  bitacora.push({ agente: "09 · Mercado público", resultado: "Fuente verificada, conexión en la Etapa 2 (ticket de la API)." });
+  bitacora.push({ agente: "09 · Mercado público", resultado: mp ? (mp.detalle ?? mp.estado) : "Fuente verificada; falta el ticket de la API oficial." });
   bitacora.push({ agente: "13 · Comercio exterior", resultado: "Fuente por investigar: sin resultados." });
 
   // ── Agente 15 · Crecimiento (beneficios M16 con criterios verificables) ──
