@@ -85,15 +85,18 @@ $$;
 
 -- Consulta pública: actuaciones de una empresa en el Registro (datos abiertos del Estado sobre personas jurídicas).
 -- «cargado» indica si ya hay archivos completos: sin carga, la ausencia de resultados no significa nada.
+-- plpgsql: el cuerpo se valida al ejecutarse, no al crearse (no depende del orden de las sentencias).
 create or replace function public.res_registro(p_rut text) returns jsonb
-language sql stable security definer set search_path = '' as $$
-  select jsonb_build_object(
+language plpgsql stable security definer set search_path = '' as $$
+begin
+  return jsonb_build_object(
     'cargado', exists (select 1 from private.res_cargas where estado = 'completada'),
     'archivos', (select count(*) from private.res_cargas where estado = 'completada'),
     'actualizado', (select max(actualizado) from private.res_cargas where estado = 'completada'),
     'actuaciones', coalesce((select jsonb_agg(jsonb_build_object('fecha', a.fecha, 'actuacion', a.actuacion, 'tipo_social', a.tipo_social,
       'capital', a.capital, 'comuna', a.comuna, 'region', a.region, 'razon_social', a.razon_social) order by a.fecha)
-      from (select * from private.res_actuaciones where rut = p_rut order by fecha limit 30) a), '[]'::jsonb))
+      from (select * from private.res_actuaciones where rut = p_rut order by fecha limit 30) a), '[]'::jsonb));
+end
 $$;
 
 -- Estado de la carga para el Centro de Mando (equipo ENQORA).
