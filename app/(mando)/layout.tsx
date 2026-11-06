@@ -38,6 +38,7 @@ export default async function MandoLayout({ children }: { children: React.ReactN
     { href: "/mando/datos-publicos", label: "Datos públicos (SII)", short: "Datos", icon: "empresas", group: "operacion" },
     { href: "/mando/fuentes", label: "CORA · Fuentes y agentes", short: "CORA", icon: "novedades", group: "operacion", bottom: false },
     { href: "/mando/investigador", label: "CORA · Investigador web", short: "Bot", icon: "novedades", group: "operacion", bottom: false },
+    ...(supervisor ? [{ href: "/mando/laboratorio", label: "Laboratorio de IA", short: "IA", icon: "novedades", group: "operacion", bottom: false } as NavItem] : []),
     { href: "/mando/catalogo", label: "Catálogo y precios", short: "Catálogo", icon: "contabilidad", group: "configuracion", bottom: false },
     { href: "/mando/planes", label: "Planes", short: "Planes", icon: "pagos", group: "configuracion", bottom: false },
     ...(supervisor
