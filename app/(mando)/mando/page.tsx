@@ -111,6 +111,7 @@ export default async function CommandCenterPage({
           <Link href="/mando/vigilancia" className="btn btn-ghost btn-inline">Vigilancia normativa</Link>
           {supervisor ? <Link href="/mando/cobros" className="btn btn-ghost btn-inline">Cobros y pagos</Link> : null}
           {supervisor ? <Link href="/mando/estado" className="btn btn-ghost btn-inline">Estado del sistema</Link> : null}
+          {supervisor ? <Link href="/mando/laboratorio" className="btn btn-ghost btn-inline">Laboratorio de IA</Link> : null}
           {role === "enqora_admin" ? (
             <Link href="/mando/equipo" className="btn btn-ghost btn-inline"><IconUsers size={18} /> Equipo ENQORA</Link>
           ) : null}

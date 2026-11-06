@@ -3,6 +3,7 @@
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import type { PublicCompany } from "@/app/actions/public";
+import { llamarHerramienta } from "@/lib/ai/gateway";
 import { investigar } from "@/lib/cora/director";
 import {
   distintas, evidenciasDe, informeReglas, MANUAL, preguntasDisponibles, promptInforme, promptTurno, TOOL_INFORME, TOOL_TURNO, turnoReglas,
@@ -65,16 +66,18 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
 
     if (input.fase === "informe") {
       const necesidades = distintas(exp).map((n) => ({ id: n.id, necesidad: n.necesidad, evidencia: n.evidencia, servicio: n.servicio ? `${n.servicio.nombre}${n.servicio.disponible ? "" : " (próximamente)"}` : n.externa?.nombre ?? "ruta oficial" }));
-      const ia = await askClaude(promptInforme(ev, necesidades), TOOL_INFORME);
-      const informe = ia.input ? validarInforme(ia.input, ev, distintas(exp).map((n) => n.id)) : null;
+      const ids = distintas(exp).map((n) => n.id);
+      const ia = await estratega(promptInforme(ev, necesidades), TOOL_INFORME, (x) => !!validarInforme(x, ev, ids));
+      const informe = ia.input ? validarInforme(ia.input, ev, ids) : null;
       const motivo = informe ? undefined : ia.motivo ?? "validador";
       if (motivo) console.error("[ENQORA CORA] informe por reglas:", motivo);
       return informe ? { ok: true, fase: "informe", informe, origen: "ia", evidencias: ev, web } : { ok: true, fase: "informe", informe: informeReglas(exp, ev), origen: "reglas", motivo, evidencias: ev, web };
     }
 
     const disp = preguntasDisponibles(exp, respuestas);
-    const ia = await askClaude(promptTurno(ev, disp.map((q) => ({ id: q.id, q: q.q })), respuestas), TOOL_TURNO);
-    const turno = ia.input ? validarTurno(ia.input, ev, disp.map((q) => q.id)) : null;
+    const dispIds = disp.map((q) => q.id);
+    const ia = await estratega(promptTurno(ev, disp.map((q) => ({ id: q.id, q: q.q })), respuestas), TOOL_TURNO, (x) => !!validarTurno(x, ev, dispIds));
+    const turno = ia.input ? validarTurno(ia.input, ev, dispIds) : null;
     const motivo = turno ? undefined : ia.motivo ?? "validador";
     if (motivo) console.error("[ENQORA CORA] turno por reglas:", motivo);
     return turno ? { ok: true, fase: "turno", turno, origen: "ia", evidencias: ev, web } : { ok: true, fase: "turno", turno: turnoReglas(exp, ev, respuestas), origen: "reglas", motivo, evidencias: ev, web };
@@ -84,38 +87,12 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
   }
 }
 
-type ApiResponse = { content?: { type: string; name?: string; input?: unknown }[] };
-
-// Llamada al estratega. Este modelo no admite forzar la herramienta (tool_choice «tool»/«any»): se usa «auto»
-// con la instrucción de responder solo con la herramienta y, si no la usa, un segundo intento recordándoselo.
-// Nunca lanza: devuelve la salida o el motivo del fallo (sin_clave, http_XXX, tiempo, sin_herramienta, red).
-async function askClaude(prompt: string, tool: { name: string; description: string; input_schema: unknown }): Promise<{ input: unknown | null; motivo?: string }> {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) return { input: null, motivo: "sin_clave" };
-  const system = `Eres CORA, el estratega de inteligencia empresarial de ENQORA (Chile). Tu trabajo es descubrir valor que el cliente aún no ve, a partir de evidencia.\n\n${MANUAL}\n\nResponde ÚNICAMENTE llamando a la herramienta ${tool.name}, sin texto adicional.`;
-  const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: prompt }];
-  try {
-    for (let intento = 0; intento < 2; intento++) {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", signal: AbortSignal.timeout(45_000),
-        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify({
-          model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5", max_tokens: 3000,
-          system, tools: [tool], tool_choice: { type: "auto" }, messages,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as ApiResponse & { error?: { type?: string; message?: string } };
-      if (!res.ok) {
-        console.error("[ENQORA CORA] API", res.status, data.error?.type, data.error?.message);
-        return { input: null, motivo: `http_${res.status}${data.error?.type ? `_${data.error.type}` : ""}${data.error?.message ? `: ${data.error.message.slice(0, 160)}` : ""}` };
-      }
-      const input = data.content?.find((b) => b.type === "tool_use" && b.name === tool.name)?.input ?? null;
-      if (input) return { input };
-      messages.push({ role: "assistant", content: data.content?.length ? data.content : [{ type: "text", text: "(sin respuesta)" }] });
-      messages.push({ role: "user", content: `Entrega ahora tu respuesta llamando a la herramienta ${tool.name}.` });
-    }
-    return { input: null, motivo: "sin_herramienta" };
-  } catch (e) {
-    return { input: null, motivo: e instanceof Error && e.name === "TimeoutError" ? "tiempo" : "red" };
-  }
+// Llamada al estratega a través del ENQORA AI Gateway: usa el proveedor configurado (Claude por defecto) y, si
+// falla o su respuesta no pasa el validador, prueba con el siguiente (p. ej., un modelo abierto en Hugging Face).
+// Los datos de esta consulta son públicos (fuentes oficiales y respuestas del visitante sobre su empresa).
+// Nunca lanza: devuelve la salida o el motivo del fallo (sin_proveedor, http_XXX, tiempo, sin_herramienta, validador, red).
+async function estratega(prompt: string, tool: { name: string; description: string; input_schema: unknown }, validar: (x: unknown) => boolean): Promise<{ input: unknown | null; motivo?: string }> {
+  const system = `Eres CORA, el estratega de inteligencia empresarial de ENQORA (Chile). Tu trabajo es descubrir valor que el cliente aún no ve, a partir de evidencia.\n\n${MANUAL}`;
+  const r = await llamarHerramienta({ system, prompt, tool, datos: "publicos", maxTokens: 3000, timeoutMs: 45_000, validar });
+  return { input: r.input, motivo: r.motivo };
 }
