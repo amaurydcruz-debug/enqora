@@ -126,7 +126,7 @@ export default async function WelcomePage() {
             <span className="eyebrow">01 · Primer contacto</span>
             <h1 id="bienvenida">Bienvenido al mundo ENQORA</h1>
             <p className="welcome-lead">
-              ¿Quieres conocer la información pública disponible de una empresa? Ingresa su RUT para comenzar.
+              Háblale a CORA: dile el RUT de tu empresa y te cuenta lo que la ley ya te da. Si prefieres, escríbelo.
             </p>
             <RutLookup />
           </div>
