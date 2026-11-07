@@ -34,6 +34,20 @@ MANUAL DEL ESTRATEGA CORA (procedimientos obligatorios)
    Prohibido: urgencia o escasez inventadas, miedo sin fundamento, cifras no verificadas, presentar hipótesis como hechos.
 8. Tono: consultor senior, claro y cercano, en español de Chile. Recomendar no contratar nada también es válido cuando corresponde.
    No garantices resultados legales, tributarios ni financieros.
+9. Primer contacto (psicología del dueño de empresa). El dueño decide en segundos si esto es para él. Escribe para que sienta que
+   alguien estudió SU empresa y entendió lo que se juega:
+   a) Reconocimiento específico primero: su nombre, años de trayectoria, lo que ya hace bien según la evidencia. Genera confianza.
+   b) Luego la brecha más valiosa, en lenguaje de dueño (vender más, tiempo, tranquilidad, control), nunca de auditor. Evita jerga:
+      no escribas «hipótesis», «expediente», «no se puede determinar», «brecha de información». Para lo no confirmado usa
+      «por confirmar contigo» o «vale la pena revisarlo».
+   c) Cada descubrimiento sigue el arco: hecho (con evidencia) → qué significa para ti → qué está en juego (lo que gana o lo que
+      protege, solo con fundamento) → cómo lo resuelve ENQORA (solo capacidades reales). Título en forma de beneficio concreto,
+      p. ej. «Un canal de ventas que hoy no estás usando: el Estado», no «Posible camino para vender al Estado».
+   d) Lo que falta saber se presenta como la llave del siguiente paso: «con tu respuesta te digo exactamente qué te aplica y qué
+      te conviene primero». Nunca como una deficiencia del cliente.
+   e) Frases cortas, en segunda persona («tú»), concretas. Una idea por frase. Sin exclamaciones ni superlativos vacíos.
+   f) Encuadre de pérdida solo con hechos: «lo que hoy no estás aprovechando» es válido si la evidencia lo muestra; inventar
+      urgencia, escasez, miedo o cifras está prohibido. La confianza es el activo: si la evidencia es débil, dilo con naturalidad.
 `.trim();
 
 export const FORBIDDEN = /\bno tiene\b|\bno posee\b|garantiz|\$\s?\d|\d{1,3}(\.\d{3})+\s?(pesos|clp)|certificamos|incumple\b|está incumpliendo/i;
@@ -66,7 +80,7 @@ export function evidenciasDe(exp: Expediente, respuestas: Record<string, Answer>
 }
 
 // ── Tipos de salida ──
-export type Descubrimiento = { titulo: string; por_que_importa: string; evidencias: string[] };
+export type Descubrimiento = { titulo: string; por_que_importa: string; en_juego?: string; con_enqora?: string; evidencias: string[] };
 export type Turno = {
   apertura: string;
   descubrimientos: Descubrimiento[];
@@ -107,9 +121,15 @@ export const TOOL_TURNO = {
   input_schema: {
     type: "object",
     properties: {
-      apertura: { type: "string", description: "2 a 3 frases: lo más relevante que encontró CORA y por qué importa. Sin cifras inventadas." },
-      descubrimientos: { type: "array", maxItems: 3, items: { type: "object", properties: { titulo: { type: "string" }, por_que_importa: { type: "string" }, evidencias: evid }, required: ["titulo", "por_que_importa", "evidencias"] } },
-      contexto: { type: "string", description: "Por qué necesitas confirmar esto antes de recomendar un camino (1 a 2 frases)." },
+      apertura: { type: "string", description: "2 a 3 frases cortas: reconocimiento específico de la empresa (nombre, trayectoria, lo que hace bien) y la oportunidad o tema más valioso que encontró CORA. Sin cifras inventadas." },
+      descubrimientos: { type: "array", maxItems: 3, items: { type: "object", properties: {
+        titulo: { type: "string", description: "Beneficio concreto para el dueño, en pocas palabras." },
+        por_que_importa: { type: "string", description: "El hecho y qué significa para su negocio (1 a 2 frases)." },
+        en_juego: { type: "string", description: "Qué gana o qué protege si lo atiende, solo con fundamento en la evidencia (1 frase)." },
+        con_enqora: { type: "string", description: "Cómo lo resuelve ENQORA con una capacidad real (1 frase)." },
+        evidencias: evid,
+      }, required: ["titulo", "por_que_importa", "en_juego", "con_enqora", "evidencias"] } },
+      contexto: { type: "string", description: "Por qué la siguiente pregunta es la llave: qué podrás decirle con su respuesta (1 a 2 frases)." },
       pregunta_id: { type: "string", description: "Id de UNA pregunta del banco disponible, o la palabra «ninguna» si ya no hace falta preguntar." },
     },
     required: ["apertura", "descubrimientos", "contexto", "pregunta_id"],
@@ -175,7 +195,8 @@ export function validarTurno(raw: unknown, ev: Evidencia[], disponibles: string[
   const descubrimientos: Descubrimiento[] = [];
   for (const d of (Array.isArray(r.descubrimientos) ? r.descubrimientos : []).slice(0, 3) as Record<string, unknown>[]) {
     const titulo = clean(d.titulo, 160), por = clean(d.por_que_importa, 400), e = okEvid(d.evidencias, ids);
-    if (okText(titulo) && okText(por) && e) descubrimientos.push({ titulo, por_que_importa: por, evidencias: e });
+    const enJuego = clean(d.en_juego, 300), conEnqora = clean(d.con_enqora, 300);
+    if (okText(titulo) && okText(por) && e) descubrimientos.push({ titulo, por_que_importa: por, ...(okText(enJuego) ? { en_juego: enJuego } : {}), ...(okText(conEnqora) ? { con_enqora: conEnqora } : {}), evidencias: e });
   }
   const pid = typeof r.pregunta_id === "string" && disponibles.includes(r.pregunta_id) ? r.pregunta_id : null;
   const contexto = clean(r.contexto, 400);
@@ -233,13 +254,13 @@ const evidPara = (ev: Evidencia[], texto: string) => ev.filter((e) => e.texto.in
 export function turnoReglas(exp: Expediente, ev: Evidencia[], respuestas: Record<string, Answer>): Turno {
   const disp = preguntasDisponibles(exp, respuestas);
   const top = exp.hallazgos.slice(0, 3);
-  const descubrimientos = top.map((h) => ({ titulo: h.encontro, por_que_importa: h.importa, evidencias: evidPara(ev, h.encontro) }))
+  const descubrimientos = top.map((h) => ({ titulo: h.encontro, por_que_importa: h.importa, ...(h.consecuencias ? { en_juego: h.consecuencias } : {}), evidencias: evidPara(ev, h.encontro) }))
     .filter((d) => d.evidencias.length);
   const siguiente = disp[0];
   return {
     apertura: `Investigamos ${exp.empresa.razon} en las fuentes públicas disponibles y en la normativa vigente. ${top.length ? "Encontramos puntos que vale la pena revisar contigo antes de recomendarte un camino." : "No encontramos señales de alerta en los datos públicos; hay aspectos que solo tú puedes confirmar."}`,
     descubrimientos,
-    contexto: siguiente ? "Esto no aparece en ninguna fuente pública y cambia lo que te conviene hacer primero." : "",
+    contexto: siguiente ? "Esto no aparece en ninguna fuente pública. Con tu respuesta te digo qué te aplica y qué te conviene hacer primero." : "",
     pregunta_id: siguiente?.id ?? null,
   };
 }
@@ -279,7 +300,9 @@ export function promptTurno(ev: Evidencia[], disponibles: { id: string; q: strin
     "BANCO DE PREGUNTAS DISPONIBLE (elige UNA por id, o «ninguna» si ya no hace falta):",
     ...disponibles.map((q) => `${q.id}: ${q.q}`),
     "",
-    "Entrega la apertura (lo más relevante y por qué importa), hasta 3 descubrimientos con sus evidencias y la siguiente pregunta con su contexto (o «ninguna»).",
+    `CAPACIDADES REALES DE ENQORA (las únicas que puedes mencionar en «con_enqora»): ${Object.values(CAPACIDADES).join("; ")}.`,
+    "",
+    "Aplica el procedimiento 9 (primer contacto). Entrega la apertura, hasta 3 descubrimientos con el arco completo (hecho → qué significa → qué está en juego → cómo lo resuelve ENQORA) y sus evidencias, y la siguiente pregunta presentada como la llave del siguiente paso (o «ninguna»).",
   ].join("\n");
 }
 

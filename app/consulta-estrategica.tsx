@@ -103,10 +103,17 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
                   <li key={d.titulo} className="lookup-signal">
                     <b>{d.titulo}</b>
                     <span>{d.por_que_importa}</span>
+                    {d.en_juego ? <span className="cora-stake"><b>Lo que está en juego:</b> {d.en_juego}</span> : null}
+                    {d.con_enqora ? <span className="cora-enqora"><b>Con ENQORA:</b> {d.con_enqora}</span> : null}
                     <Evidencias ids={d.evidencias} />
                   </li>
                 ))}
               </ol>
+            ) : null}
+            {!informe ? (
+              <p className="report-note cora-contacto">
+                ¿Prefieres revisarlo con una persona? <Link href={`/comenzar?servicio=${exp.necesidades[0]?.servicio?.categoria ?? "contabilidad"}`} className="lookup-signal-cta">Hablar con un profesional ENQORA, sin costo →</Link>
+              </p>
             ) : null}
           </>
         ) : null}
@@ -130,7 +137,10 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
                   ))}
                 </div>
                 <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => void pedir("informe", respuestas)}>Ver mi informe ahora</button>
-                <span className="report-note">Pregunta {historial.length + 1} de un máximo de {MAX_PREGUNTAS}. Solo preguntamos lo que no aparece en fuentes públicas.</span>
+                <div className="cora-progress" aria-hidden="true"><span style={{ width: `${Math.round(((historial.length) / MAX_PREGUNTAS) * 100)}%` }} /></div>
+                <span className="report-note">
+                  Pregunta {historial.length + 1} de un máximo de {MAX_PREGUNTAS}. Cada respuesta afina tu plan; solo preguntamos lo que no aparece en fuentes públicas.
+                </span>
               </fieldset>
             ) : null}
           </div>
