@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { CasoForm } from "@/app/cora-caso";
+import { cartaCora } from "@/lib/cora/caso";
 import { respuestaDesdeVoz } from "@/lib/voz/interpretar";
 import { activarModoVoz, escuchar, hablar, modoVozActivo, useModoVoz } from "@/lib/voz/navegador";
 import { consultaCoraAction } from "@/app/actions/cora";
@@ -34,10 +36,13 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expediente, setExpediente] = useState(false);
+  const [verDiag, setVerDiag] = useState(false);
+  const [relato, setRelato] = useState("");
   const exp = useMemo(() => investigar(r, catalog, respuestas, new Date(), web), [r, catalog, respuestas, web]);
   // Las evidencias que cita el estratega son las que armó el servidor (misma numeración que su respuesta).
   const ev = useMemo(() => new Map((evServidor.length ? evServidor : evidenciasDe(exp, respuestas)).map((e) => [e.id, e])), [evServidor, exp, respuestas]);
   const [pasos] = useState(() => exp.bitacora);
+  const carta = useMemo(() => cartaCora(r, exp), [r, exp]);
   const iniciado = useRef(false);
 
   async function pedir(fase: "turno" | "informe", resp: Record<string, Answer>) {
@@ -76,8 +81,28 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
   // ── Modo voz (piloto): CORA lee lo esencial de cada turno, escucha la respuesta y avanza. Todo sigue en pantalla. ──
   const voz = useModoVoz();
   const hablado = useRef("");
+  const cartaHablada = useRef(false);
+  // Primer turno por voz: CORA lee la carta y pide el caso; lo que la persona cuenta queda escrito en el formulario.
   useEffect(() => {
-    if (!voz.activo || cargando) return;
+    if (!voz.activo || cartaHablada.current || informe) return;
+    cartaHablada.current = true;
+    void (async () => {
+      await hablar([`${carta.titulo}.`, ...carta.parrafos, "Cuéntanos tu caso: ¿qué necesitas resolver?"].join(" "));
+      if (!modoVozActivo()) return;
+      const txt = await escuchar(20_000);
+      if (txt) {
+        setRelato(txt);
+        await hablar("Gracias, ya lo anoté. Ahora escribe tu nombre y elige si quieres la respuesta por WhatsApp o por correo. Te enviamos la cotización en un plazo de 24 horas hábiles.");
+      } else if (txt === "") {
+        await hablar("Puedes escribir tu caso en pantalla, o tocar Dictar mi caso por voz.");
+      }
+      activarModoVoz(false);
+      setTimeout(() => { const el = document.getElementById("caso-nombre"); el?.scrollIntoView({ block: "center", behavior: "smooth" }); el?.focus(); }, 150);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voz.activo]);
+  useEffect(() => {
+    if (!voz.activo || cargando || !verDiag) return;
     const clave = informe ? "informe" : turno && preguntaVista ? `t:${preguntaVista.id}:${historial.length}` : "";
     if (!clave || hablado.current === clave) return;
     hablado.current = clave;
@@ -115,7 +140,7 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
       if (modoVozActivo()) { await hablar("Seguimos en pantalla: elige tu respuesta con los botones."); activarModoVoz(false); }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voz.activo, cargando, turno, informe, preguntaVista?.id, historial.length]);
+  }, [voz.activo, cargando, turno, informe, preguntaVista?.id, historial.length, verDiag]);
 
   const Evidencias = ({ ids }: { ids: string[] }) => (
     <details className="cora-evid">
@@ -137,13 +162,15 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
 
         {error ? <p className="lookup-error" role="alert">{error}</p> : null}
 
-        {turno ? (
+        {!informe ? (
           <>
-            <div className="report-verdict">
+            <section className="cora-carta" aria-label="Lo que CORA encontró">
               <span className="report-tag">Lo que CORA encontró</span>
-              <b>{turno.apertura}</b>
-            </div>
-            {!informe && exp.beneficios.length ? (
+              <h4>{carta.titulo}</h4>
+              {carta.parrafos.map((t) => <p key={t}>{t}</p>)}
+              <a href="#cora-caso" className="btn btn-gold btn-inline btn-sm">Cuéntanos tu caso</a>
+            </section>
+            {exp.beneficios.length ? (
               <section className="cora-benef" aria-label="Beneficios que podrías aprovechar">
                 <span className="eyebrow">Lo que la ley ya te da</span>
                 <b className="cora-benef-lead">
@@ -163,9 +190,24 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
                 <span className="report-note">
                   Confirmar si cumples los requisitos, calcular cuánto te significa y aplicarlo bien es trabajo de un profesional. Eso hace ENQORA por ti.
                 </span>
-                <Link href="/comenzar?servicio=contabilidad" className="btn btn-gold btn-inline btn-sm">Quiero aprovechar estos beneficios</Link>
+                <a href="#cora-caso" className="btn btn-gold btn-inline btn-sm">Quiero aprovechar estos beneficios</a>
               </section>
             ) : null}
+            <CasoForm rut={r.rut ?? ""} razon={r.razon_social ?? ""} relato={relato} setRelato={setRelato} />
+            {!verDiag ? (
+              <button type="button" className="btn btn-ghost btn-inline btn-sm cora-diag-btn" onClick={() => setVerDiag(true)}>
+                ¿Prefieres un diagnóstico guiado? Responde hasta 5 preguntas y CORA arma tu plan
+              </button>
+            ) : null}
+          </>
+        ) : null}
+
+        {(verDiag || informe) && turno ? (
+          <>
+            <div className="report-verdict">
+              <span className="report-tag">Lo que CORA encontró</span>
+              <b>{turno.apertura}</b>
+            </div>
             {turno.descubrimientos.length ? (
               <ol className="report-recs">
                 {turno.descubrimientos.map((d) => (
@@ -187,7 +229,7 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
           </>
         ) : null}
 
-        {!informe ? (
+        {!informe ? (verDiag ? (
           <div className="cora-chat">
             {historial.map((h) => (
               <div key={h.q} className="cora-turn">
@@ -213,7 +255,7 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
               </fieldset>
             ) : null}
           </div>
-        ) : (
+        ) : null) : (
           <InformeView informe={informe} exp={exp} Evidencias={Evidencias} />
         )}
 
