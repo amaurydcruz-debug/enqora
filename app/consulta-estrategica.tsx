@@ -110,6 +110,23 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
                 ))}
               </ol>
             ) : null}
+            {!informe && exp.beneficios.length ? (
+              <section className="cora-benef">
+                <span className="eyebrow">Beneficios que la ley te da y podrías aprovechar</span>
+                <b>Queremos que tu empresa esté en regla y que no deje pasar lo que ya le corresponde por ley.</b>
+                <ul>
+                  {exp.beneficios.map((b) => (
+                    <li key={b.nombre}>
+                      <b>{b.nombre}</b>
+                      {b.queEs ? <span>{b.queEs}</span> : null}
+                      <span className="report-note">Por qué podría aplicarte: {b.porque} Falta confirmar: {b.falta} <a href={b.url} target="_blank" rel="noopener noreferrer">Fuente oficial</a></span>
+                    </li>
+                  ))}
+                </ul>
+                <span className="report-note">Un profesional ENQORA confirma si cumples los requisitos, calcula cuánto te significa y te acompaña a aprovecharlo.</span>
+                <Link href="/comenzar?servicio=contabilidad" className="btn btn-gold btn-inline btn-sm">Quiero saber cuánto me significa</Link>
+              </section>
+            ) : null}
             {!informe ? (
               <p className="report-note cora-contacto">
                 ¿Prefieres revisarlo con una persona? <Link href={`/comenzar?servicio=${exp.necesidades[0]?.servicio?.categoria ?? "contabilidad"}`} className="lookup-signal-cta">Hablar con un profesional ENQORA, sin costo →</Link>

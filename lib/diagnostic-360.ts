@@ -204,7 +204,7 @@ export type Finding = {
   servicio: ServiceOffer;
 };
 
-export type BenefitMatch = { nombre: string; porque: string; falta: string; url: string; verificado: string };
+export type BenefitMatch = { nombre: string; porque: string; falta: string; url: string; verificado: string; queEs?: string };
 
 export type Report360 = {
   perfil: { etiqueta: string; valor: string }[];
@@ -340,6 +340,15 @@ export function build360(p: PublicProfileForReport, answers: Record<string, Answ
     if (sence && workers > 0) beneficios.push({ nombre: sence.nombre, url: sence.url, verificado: sence.verificado,
       porque: `La empresa informa ${workers} trabajador(es) al SII.`,
       falta: "Que la planilla supere 35 UTM mensuales y las cotizaciones estén pagadas." });
+    // Beneficios tributarios: el «gancho» más concreto para el dueño, con fundamento legal verificado.
+    const camioneta = find("iva_camionetas");
+    if (camioneta && tramo >= 2) beneficios.push({ nombre: camioneta.nombre, url: camioneta.url, verificado: camioneta.verificado, queEs: camioneta.entrega,
+      porque: "Tiene giro vigente con ventas: si compra o renueva una camioneta, jeep o furgón para el negocio, podría recuperar el IVA de esa compra.",
+      falta: "Que tenga ventas afectas a IVA y que el vehículo se use directamente en el giro." });
+    const posterga = find("postergacion_iva");
+    if (posterga && tramo >= 2 && tramo <= 9) beneficios.push({ nombre: posterga.nombre, url: posterga.url, verificado: posterga.verificado, queEs: posterga.entrega,
+      porque: `Según el SII su tamaño es ${salesTrancheLabel(p.perfil?.tramo_ventas)}: por ventas, calza con el límite de 100.000 UF.`,
+      falta: "Estar al día: F29 de los últimos 36 meses a tiempo, sin morosidad reiterada y notificaciones por correo." });
     const compra = find("chilecompra");
     if (compra && answers.fondos !== "si") beneficios.push({ nombre: compra.nombre, url: compra.url, verificado: compra.verificado,
       porque: "Tiene inicio de actividades: puede vender al Estado.",
