@@ -2906,3 +2906,21 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .elite-enqora > b { color: var(--text); line-height: 1.45; }
 .elite-caps { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .elite-caps li { font-size: 0.8rem; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(229, 199, 131, 0.35); color: var(--text); background: rgba(229, 199, 131, 0.06); }
+
+/* ── Piloto de voz CORA ── */
+.voz-inicio { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.voz-btn { display: flex; align-items: center; gap: 14px; width: 100%; max-width: 460px; padding: 14px 18px; border-radius: 999px; border: 1px solid rgba(229, 199, 131, 0.55);
+  background: linear-gradient(135deg, rgba(229, 199, 131, 0.16), rgba(229, 199, 131, 0.04)); color: var(--text); cursor: pointer; text-align: left; font: inherit; }
+.voz-btn:hover:not(:disabled) { border-color: var(--gold-bright); }
+.voz-btn:disabled { opacity: 0.6; cursor: default; }
+.voz-btn b { display: block; font-size: 1.05rem; }
+.voz-btn small { display: block; color: var(--text-3); font-size: 0.85rem; }
+.voz-btn-orbe, .voz-orbe { flex: none; width: 40px; height: 40px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, var(--gold-bright), var(--gold-deep)); box-shadow: 0 0 0 0 rgba(229, 199, 131, 0.5); animation: voz-pulso 2.4s ease-out infinite; }
+.voz-orbe { width: 28px; height: 28px; animation: none; }
+.voz-orbe-habla { animation: voz-pulso 1.2s ease-out infinite; }
+.voz-orbe-escucha { background: radial-gradient(circle at 35% 35%, #fff, var(--gold-bright)); animation: voz-pulso 0.8s ease-out infinite; }
+@keyframes voz-pulso { 0% { box-shadow: 0 0 0 0 rgba(229, 199, 131, 0.55); } 100% { box-shadow: 0 0 0 16px rgba(229, 199, 131, 0); } }
+.voz-barra { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); z-index: 60; width: min(680px, calc(100% - 32px)); display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px 10px 14px; border-radius: 18px; border: 1px solid rgba(229, 199, 131, 0.45); background: var(--surface); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45); }
+.voz-texto { flex: 1; min-width: 0; font-size: 0.95rem; line-height: 1.4; }
+@media (prefers-reduced-motion: reduce) { .voz-btn-orbe, .voz-orbe { animation: none; } }

@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { respuestaDesdeVoz } from "@/lib/voz/interpretar";
+import { activarModoVoz, escuchar, hablar, modoVozActivo, useModoVoz } from "@/lib/voz/navegador";
 import { consultaCoraAction } from "@/app/actions/cora";
 import type { PublicCompany } from "@/app/actions/public";
 import { InvestigacionEnVivo, PropuestaView } from "@/app/cora-solucion";
@@ -70,6 +72,50 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
   const pregunta = turno?.pregunta_id ? QUESTIONS.find((q) => q.id === turno.pregunta_id) : null;
   const preguntaVista = pregunta ? exp.preguntas.find((q) => q.id === pregunta.id) ?? pregunta : null;
   const historial = Object.entries(respuestas).map(([id, a]) => ({ q: QUESTIONS.find((x) => x.id === id)?.q ?? id, a }));
+
+  // ── Modo voz (piloto): CORA lee lo esencial de cada turno, escucha la respuesta y avanza. Todo sigue en pantalla. ──
+  const voz = useModoVoz();
+  const hablado = useRef("");
+  useEffect(() => {
+    if (!voz.activo || cargando) return;
+    const clave = informe ? "informe" : turno && preguntaVista ? `t:${preguntaVista.id}:${historial.length}` : "";
+    if (!clave || hablado.current === clave) return;
+    hablado.current = clave;
+    void (async () => {
+      if (informe) {
+        const oport = informe.oportunidades_perdidas[0]?.texto;
+        await hablar([informe.resumen_estrategico, oport ? `Lo más importante que podrías estar dejando pasar: ${oport}` : "", informe.propuesta_enqora,
+          "Te dejé el informe completo en pantalla. Si quieres aprovechar estos beneficios, toca Crear mi cuenta gratis."].filter(Boolean).join(" "));
+        activarModoVoz(false);
+        return;
+      }
+      if (!turno || !preguntaVista) return;
+      const primera = historial.length === 0;
+      const benef = primera ? exp.beneficios.slice(0, 2).map((b) => `${b.gancho ?? b.nombre}. ${b.ejemplo ? b.ejemplo.replace(/^Ejemplo ilustrativo:\s*/, "Por ejemplo, ") : ""}`) : [];
+      const opciones = `Puedes decir sí, no, no sé o necesito ayuda${preguntaVista.noAplica ? `, o ${preguntaVista.noAplica.toLowerCase()}` : ""}.`;
+      const guion = [
+        primera ? turno.apertura : "Gracias.",
+        benef.length ? `Encontré beneficios que la ley te da. ${benef.join(" ")} Un profesional ENQORA confirma si te aplican y cuánto te significan.` : "",
+        primera ? "Para afinar tu plan, una pregunta." : "",
+        preguntaVista.q, opciones,
+      ].filter(Boolean).join(" ");
+      let decir = guion;
+      for (let intento = 0; intento < 3 && modoVozActivo(); intento++) {
+        await hablar(decir);
+        if (!modoVozActivo()) return;
+        const txt = await escuchar(9000);
+        if (txt === null) { activarModoVoz(false); return; }
+        const cmd = respuestaDesdeVoz(txt, preguntaVista.noAplica);
+        if (cmd === "informe") { void pedir("informe", respuestas); return; }
+        if (cmd === "texto") { activarModoVoz(false); return; }
+        if (cmd === "repetir") { decir = `${preguntaVista.q} ${opciones}`; continue; }
+        if (cmd) { responder(preguntaVista.id, cmd); return; }
+        decir = txt ? `No te entendí bien. ${preguntaVista.q} ${opciones}` : `No te escuché. ${preguntaVista.q} ${opciones}`;
+      }
+      if (modoVozActivo()) { await hablar("Seguimos en pantalla: elige tu respuesta con los botones."); activarModoVoz(false); }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voz.activo, cargando, turno, informe, preguntaVista?.id, historial.length]);
 
   const Evidencias = ({ ids }: { ids: string[] }) => (
     <details className="cora-evid">

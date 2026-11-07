@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { lookupRutAction, type LookupState } from "@/app/actions/public";
 import { PropuestaView } from "@/app/cora-solucion";
 import { ConsultaEstrategica } from "@/app/consulta-estrategica";
@@ -11,6 +11,12 @@ import type { Catalog } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
 import type { PublicCompany } from "@/app/actions/public";
 import { formatRut, isValidRut } from "@/lib/rut";
+import { VozBarra } from "@/components/voz-barra";
+import { rutDesdeVoz } from "@/lib/voz/interpretar";
+import { activarModoVoz, escuchar, hablar, modoVozActivo, soporteVoz } from "@/lib/voz/navegador";
+
+// «7 7 0 5 8 3 1 1, guion, K»: el RUT leído dígito por dígito para confirmarlo en voz alta.
+const rutHablado = (rut: string) => { const [c, dv] = rut.split("-"); return `${c.split("").join(" ")}, guion, ${dv}`; };
 
 const fmtDate = (d?: string | null) =>
   d ? new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`)) : null;
@@ -32,10 +38,57 @@ export function RutLookup() {
   const [localError, setLocalError] = useState<string | null>(null);
   const valid = isValidRut(rut);
   const r = state?.result;
+  const formRef = useRef<HTMLFormElement>(null);
+  const [vozAviso, setVozAviso] = useState<string | null>(null);
+  const [vozOcupada, setVozOcupada] = useState(false);
+
+  // Piloto de voz: CORA saluda, escucha el RUT, lo confirma en voz alta y lanza la consulta.
+  async function iniciarVoz() {
+    const sop = soporteVoz();
+    if (!sop.escuchar) {
+      setVozAviso("Tu navegador aún no permite dictar por voz. Usa Chrome o Edge, o escribe el RUT.");
+      if (sop.hablar) { activarModoVoz(true); await hablar("Tu navegador aún no me deja escucharte. Escribe el RUT de tu empresa y te cuento lo que encontré."); }
+      return;
+    }
+    setVozAviso(null); setVozOcupada(true); activarModoVoz(true);
+    await hablar("Hola, soy CORA. Dime el RUT de tu empresa y te cuento lo que la ley ya te da.");
+    for (let intento = 0; intento < 3 && modoVozActivo(); intento++) {
+      const txt = await escuchar(10_000);
+      if (txt === null) { setVozAviso("No pude usar el micrófono. Revisa el permiso del navegador o escribe el RUT."); activarModoVoz(false); break; }
+      const leido = rutDesdeVoz(txt);
+      if (leido) {
+        setRut(formatRut(leido)); setLocalError(null);
+        await hablar(`Entendí ${rutHablado(leido)}. Estoy revisando la información pública de tu empresa.`);
+        setTimeout(() => formRef.current?.requestSubmit(), 50);
+        break;
+      }
+      if (intento < 2) await hablar(txt ? "No alcancé a entenderlo bien. Dímelo dígito por dígito, y al final el dígito verificador." : "No te escuché. Dime el RUT de tu empresa, dígito por dígito.");
+      else { await hablar("No logré entender el RUT. Puedes escribirlo en pantalla."); activarModoVoz(false); }
+    }
+    setVozOcupada(false);
+  }
+
+  // Resultados que no siguen en la conversación por voz: se avisa y se pasa a pantalla.
+  useEffect(() => {
+    if (!r || !modoVozActivo()) return;
+    if (r.estado === "persona_natural") { void hablar("Este RUT es de una persona. Te hago unas preguntas breves en pantalla.").then(() => activarModoVoz(false)); }
+    else if (r.estado === "no_encontrada") { void hablar("No encontré esa empresa en la información pública del S I I. Revisa el RUT en pantalla.").then(() => activarModoVoz(false)); }
+  }, [r]);
 
   return (
     <div className="lookup">
+      <div className="voz-inicio">
+        <button type="button" className="voz-btn" onClick={() => void iniciarVoz()} disabled={vozOcupada || pending} aria-describedby="voz-aviso">
+          <span className="voz-btn-orbe" aria-hidden="true" />
+          <span><b>Habla con CORA</b><small>Dile el RUT de tu empresa en voz alta</small></span>
+        </button>
+        <small id="voz-aviso" className="lookup-hint">
+          {vozAviso ?? "Piloto de voz con el micrófono y la voz de tu navegador (mejor en Chrome o Edge). ENQORA no recibe ni guarda tu audio. También puedes escribir."}
+        </small>
+      </div>
+      <VozBarra />
       <form
+        ref={formRef}
         action={action}
         className="lookup-form"
         onSubmit={(e) => {
