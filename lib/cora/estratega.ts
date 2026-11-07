@@ -61,7 +61,10 @@ MANUAL DEL ESTRATEGA CORA (procedimientos obligatorios)
       por descubrimiento; evita «quizás», «podrías no estar» y cadenas de condiciones.
    k) Nunca cuentes al cliente fallas técnicas de una consulta (CAPTCHA, verificaciones, portales caídos): si un dato no se
       pudo obtener, di simplemente que vale la pena revisarlo juntos.
-   l) Encuadre de pérdida solo con hechos: «lo que hoy no estás aprovechando» es válido si la evidencia lo muestra; inventar
+   l) No revendas lo que el Estado entrega gratis: si un organismo ofrece un trámite directamente (p. ej., la inscripción en
+      Mercado Público es gratuita en ChileCompra), dilo así. Lo que ofrece ENQORA es el valor agregado: inteligencia (dónde está
+      la oportunidad para esta empresa), preparación y acompañamiento profesional.
+   m) Encuadre de pérdida solo con hechos: «lo que hoy no estás aprovechando» es válido si la evidencia lo muestra; inventar
       urgencia, escasez, miedo o cifras está prohibido. La confianza es el activo: si la evidencia es débil, dilo con naturalidad.
 `.trim();
 
@@ -111,6 +114,7 @@ export const CAPACIDADES: Record<string, string> = {
   cotizaciones: "Cotizaciones con precio y plazos antes de decidir",
   documentos: "Documentos y mandatos firmados en un solo lugar",
   oportunidades: "Vigilancia de normas y beneficios públicos que aplican a tu empresa",
+  compras_publicas: "Inteligencia de oportunidades comerciales con el Estado: un profesional identifica qué organismos compran lo que ofreces y te ayuda a preparar ofertas (la inscripción en Mercado Público es gratuita y la haces en ChileCompra)",
   beneficios: "Asesoría profesional para confirmar y aprovechar beneficios tributarios y estatales (cálculo, requisitos y postulación)",
 };
 

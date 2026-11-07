@@ -95,7 +95,7 @@ export function cartaCora(r: PublicCompany, exp: Expediente): { titulo: string; 
       ? `El SII informa ${trabajadores} ${trabajadores === 1 ? "trabajador" : "trabajadores"} en tu empresa. Si hay contratos, cotizaciones o alguna situación laboral pendiente, nuestros asesores lo resuelven contigo.`
       : "Si tienes trabajadores, te ayudamos a tener contratos y cotizaciones en regla, y si hay alguna situación pendiente, nuestros asesores la resuelven contigo.");
     if (ganchos.length) p.push(`El Estado da beneficios tributarios que puedes usar a tu favor. Por ejemplo: ${ganchos.slice(0, 2).map((g) => g.charAt(0).toLowerCase() + g.slice(1)).join("; ")}.`);
-    if (estado) p.push(`Si tu empresa está al día, puedes ser proveedora del Estado y postular a licitaciones según tu rubro${r.perfil?.rubro ? ` (${r.perfil.rubro.toLowerCase()})` : ""}.`);
+    if (estado) p.push(`Si tu empresa está al día, puedes venderle al Estado${r.perfil?.rubro ? ` en tu rubro (${r.perfil.rubro.toLowerCase()})` : ""}. La inscripción en Mercado Público es gratuita; ENQORA te ayuda a descubrir qué organismos compran lo que ofreces y a preparar ofertas que compitan.`);
   }
   p.push("¿Declaración de renta pendiente o problemas contables? ENQORA es tu solución: nuestros expertos resuelven desde cero hasta dejar tu empresa funcionando. Llevamos tu contabilidad, registramos tu marca y formalizamos tu empresa.");
   return { titulo: razon, parrafos: p };

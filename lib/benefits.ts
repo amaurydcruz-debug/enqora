@@ -114,15 +114,15 @@ export const BENEFITS: Benefit[] = [
   },
   {
     id: "chilecompra",
-    nombre: "Vender al Estado (Registro de Proveedores)",
+    nombre: "Vender al Estado (Mercado Público)",
     institucion: "chilecompra",
     para: "Empresas con inicio de actividades que quieren participar en compras públicas.",
-    entrega: "Acreditación en el Registro de Proveedores para participar en licitaciones y convenios.",
-    requisitos: ["Inicio de actividades en el SII", "Cuenta en Mercado Público", "Servicio pagado por 6 o 12 meses"],
+    entrega: "ChileCompra entrega directamente la inscripción gratuita en Mercado Público, el buscador de licitaciones y Compra Ágil, y la acreditación pagada en el Registro de Proveedores. ENQORA aporta la inteligencia: qué organismos compran lo que vendes y cómo competir.",
+    requisitos: ["Inicio de actividades en el SII", "Inscripción gratuita en Mercado Público", "Acreditación en el Registro de Proveedores cuando la licitación la exige (servicio pagado de ChileCompra, por 6 o 12 meses)"],
     perfiles: ["pyme", "enterprise"],
     url: "https://www.chileatiende.gob.cl/fichas/538",
     verificado: "2026-10-27",
-    nota: "No es un subsidio: es una oportunidad comercial.",
+    nota: "No es un subsidio: es una oportunidad comercial. ENQORA no cobra por la inscripción, que es gratuita en ChileCompra.",
   },
 ];
 

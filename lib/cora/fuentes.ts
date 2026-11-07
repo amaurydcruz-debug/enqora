@@ -19,7 +19,8 @@ export type EstadoConexion =
   | "documental" // la empresa la aporta (hoy: hoja de vida M18)
   | "requiere_autorizacion" // privada: solo con autorización expresa del titular
   | "proxima_etapa" // verificada y planificada, aún no conectada
-  | "por_investigar"; // falta confirmar si existe API, datos abiertos o un mecanismo oficial
+  | "por_investigar" // falta confirmar si existe API, datos abiertos o un mecanismo oficial
+  | "descartada"; // revisada y excluida: sus términos o la ley no permiten usarla para investigar empresas
 
 export type Fuente = {
   id: string;
@@ -55,6 +56,7 @@ export const ESTADOS_CONEXION: Record<EstadoConexion, { label: string; tone: "ok
   requiere_autorizacion: { label: "Requiere autorización", tone: "warn" },
   proxima_etapa: { label: "Próxima etapa", tone: "muted" },
   por_investigar: { label: "Por investigar", tone: "muted" },
+  descartada: { label: "Descartada", tone: "warn" },
 };
 
 export const FUENTES: Fuente[] = [
@@ -93,7 +95,7 @@ export const FUENTES: Fuente[] = [
     metodo: "Descarga de bases anuales de datos abiertos con el mismo conector de las nóminas del SII",
     campos: ["RUT", "razón social", "tipo de sociedad", "capital", "fecha de constitución", "comuna"],
     restricciones: "Cubre solo empresas creadas en el Registro (desde 2013), no las constituidas por notaría.",
-    frecuencia: "Semanal (conector ENQORA)", estado: "proxima_etapa", verificada: "2026-11-03",
+    frecuencia: "Diaria (conector ENQORA, datos abiertos)", estado: "conectada", verificada: "2026-11-06",
     nota: "El buscador web del Registro exige CAPTCHA (verificado el 03-11-2026). Conector de datos abiertos listo (0028): se confirma con la primera carga completa.",
   },
   {
@@ -162,10 +164,25 @@ export const FUENTES: Fuente[] = [
     restricciones: "La búsqueda presenta CAPTCHA al bot (03-11-2026): ENQORA no lo evade. Vía: búsqueda asistida por el equipo y solicitud formal de acceso a INAPI.", frecuencia: "En línea", estado: "manual", verificada: "2026-11-03",
   },
   {
-    id: "sma_sea", pais: "CL", organismo: "SMA · SEA", nombre: "Fiscalización ambiental y evaluación ambiental",
-    url: "https://snifa.sma.gob.cl", secciones: ["permisos"], nivel: "E",
-    metodo: "Por investigar", campos: ["resoluciones de calificación ambiental", "procesos sancionatorios"],
-    restricciones: "Aplica a ciertos proyectos y rubros.", frecuencia: "—", estado: "por_investigar", verificada: null,
+    id: "inapi_datos", pais: "CL", organismo: "INAPI", nombre: "Datos abiertos de marcas (presentadas y registradas desde 2009)",
+    url: "https://tramites.inapi.cl/OpenData/TrademarkOpenData", secciones: ["marca"], nivel: "A",
+    metodo: "Descarga oficial de datos abiertos (reemplaza al buscador con CAPTCHA)", campos: ["solicitudes de marca", "marcas registradas", "titular (por confirmar)", "clases (por confirmar)"],
+    restricciones: "Falta confirmar formato, columnas (si trae nombre o RUT del titular) y condiciones de uso antes de conectarla.",
+    frecuencia: "Por confirmar", estado: "por_investigar", verificada: "2026-11-07", nota: "Prioridad 1: resuelve la consulta de marcas sin CAPTCHA.",
+  },
+  {
+    id: "sma_sea", pais: "CL", organismo: "Superintendencia del Medio Ambiente (SNIFA)", nombre: "Fiscalización y sanciones ambientales",
+    url: "https://snifa.sma.gob.cl", secciones: ["permisos"], nivel: "B",
+    metodo: "Consulta pública de unidades fiscalizables y expedientes sancionatorios (documentos descargables)", campos: ["unidades fiscalizables", "procedimientos sancionatorios", "resoluciones"],
+    restricciones: "Aplica solo a empresas con proyectos o fuentes fiscalizadas (industria, minería, energía, etc.). Falta confirmar si hay descarga estructurada por titular.",
+    frecuencia: "En línea", estado: "por_investigar", verificada: "2026-11-07",
+  },
+  {
+    id: "sea_seia", pais: "CL", organismo: "Servicio de Evaluación Ambiental", nombre: "Proyectos en el Sistema de Evaluación de Impacto Ambiental (e-SEIA)",
+    url: "https://www.sea.gob.cl/evaluacion-de-impacto-ambiental/buscador-de-proyectos-avanzados", secciones: ["permisos"], nivel: "B",
+    metodo: "Buscador público de proyectos (nombre, región, sector, tipo DIA/EIA)", campos: ["proyectos", "estado de evaluación", "resoluciones de calificación ambiental"],
+    restricciones: "Solo para empresas con proyectos que ingresan al SEIA. Falta confirmar búsqueda por titular y descarga.",
+    frecuencia: "En línea", estado: "por_investigar", verificada: "2026-11-07",
   },
   // ── Comercial ──
   {
@@ -179,14 +196,80 @@ export const FUENTES: Fuente[] = [
   {
     id: "chilecompra_datos", pais: "CL", organismo: "ChileCompra", nombre: "Datos abiertos de compras públicas",
     url: "https://datos-abiertos.chilecompra.cl", secciones: ["mercado_publico"], nivel: "A",
-    metodo: "Descargas masivas", campos: ["órdenes de compra", "licitaciones", "proveedores"],
-    restricciones: "Por confirmar formato y campos.", frecuencia: "Por confirmar", estado: "por_investigar", verificada: null,
+    metodo: "Descargas masivas (.7z): órdenes de compra por semestre y modalidad, licitaciones por mes; fichas de organismos con rubros y productos más transados",
+    campos: ["órdenes de compra", "licitaciones", "organismo comprador", "montos", "productos más transados", "RUT del proveedor (por confirmar)"],
+    restricciones: "Datos públicos y gratuitos. Falta confirmar columnas y tamaño de los archivos antes de conectarla. Es la base de la «inteligencia de oportunidades comerciales».",
+    frecuencia: "Licitaciones mensual · órdenes de compra semestral", estado: "por_investigar", verificada: "2026-11-07", nota: "Prioridad 2: qué organismos compran lo que vende cada empresa.",
+  },
+  {
+    id: "chilecompra_servicios", pais: "CL", organismo: "ChileCompra", nombre: "Servicios que ChileCompra entrega directamente",
+    url: "https://www.chileatiende.gob.cl/fichas/547-inscripcion-para-ser-proveedor-del-estado", secciones: ["mercado_publico"], nivel: "B",
+    metodo: "Regla de oferta: ENQORA no revende lo que el Estado entrega gratis", campos: ["inscripción gratuita en Mercado Público", "acreditación pagada en el Registro de Proveedores (6 o 12 meses)", "buscador de licitaciones y Compra Ágil", "cursos para proveedores"],
+    restricciones: "ENQORA vende inteligencia y acompañamiento (dónde está la oportunidad y cómo competir), no la inscripción.",
+    frecuencia: "Revisión periódica", estado: "normativa", verificada: "2026-11-07",
   },
   {
     id: "aduanas", pais: "CL", organismo: "Servicio Nacional de Aduanas", nombre: "Comercio exterior",
     url: "https://www.aduana.cl", secciones: ["comercio_exterior"], nivel: "E",
-    metodo: "Por investigar", campos: ["operaciones de importación y exportación"],
-    restricciones: "Los datos por empresa no son de libre consulta.", frecuencia: "—", estado: "por_investigar", verificada: null,
+    metodo: "Estadísticas mensuales de DIN y DUS (datos abiertos)", campos: ["importaciones y exportaciones agregadas por producto y país"],
+    restricciones: "Por Ley 20.285, la publicación excluye los datos que identifican a quienes participan en cada operación: no hay comercio exterior por empresa en fuente oficial. Solo sirve para contexto del rubro.",
+    frecuencia: "Mensual", estado: "descartada", verificada: "2026-11-07", nota: "Por empresa: solo con documentos que aporte el cliente (DIN/DUS propias).",
+  },
+  {
+    id: "dt_antisindicales", pais: "CL", organismo: "Dirección del Trabajo", nombre: "Nómina de empresas condenadas por prácticas antisindicales",
+    url: "https://www.dt.gob.cl", secciones: ["laboral", "legal"], nivel: "B",
+    metodo: "Publicación semestral de la DT (art. 294 bis del Código del Trabajo)", campos: ["razón social", "sentencia"],
+    restricciones: "Se publica por razón social, sin RUT: toda coincidencia se verifica con cuidado antes de mencionarla. Nunca se muestra al cliente como acusación.",
+    frecuencia: "Semestral", estado: "manual", verificada: "2026-11-07",
+  },
+  {
+    id: "registro_civil_pj", pais: "CL", organismo: "Registro Civil", nombre: "Personas jurídicas sin fines de lucro (corporaciones, fundaciones, asociaciones)",
+    url: "https://www.chileatiende.gob.cl/fichas/11333-registro-de-personas-juridicas-sin-fines-de-lucro", secciones: ["identidad", "legal"], nivel: "B",
+    metodo: "Certificados en línea de vigencia y de directorio", campos: ["vigencia", "directorio"],
+    restricciones: "Solo para organizaciones sin fines de lucro. Certificado por organización; sin descarga masiva.",
+    frecuencia: "En línea", estado: "manual", verificada: "2026-11-07",
+  },
+  {
+    id: "conservadores", pais: "CL", organismo: "Conservadores de Bienes Raíces y Comercio", nombre: "Registro de Comercio (sociedades del régimen tradicional)",
+    url: "https://www.conservadores.cl", secciones: ["legal"], nivel: "B",
+    metodo: "Copias y certificados que se piden a cada conservador según la comuna", campos: ["inscripción social", "modificaciones", "vigencia"],
+    restricciones: "Cada conservador tiene su sistema; los certificados suelen tener costo. Sin consulta masiva.",
+    frecuencia: "A pedido", estado: "manual", verificada: "2026-11-07",
+  },
+  {
+    id: "cmf", pais: "CL", organismo: "Comisión para el Mercado Financiero", nombre: "Entidades fiscalizadas y registros públicos",
+    url: "https://www.cmfchile.cl", secciones: ["finanzas", "legal"], nivel: "B",
+    metodo: "Consulta en el sitio de la CMF", campos: ["registro de valores", "entidades informantes", "hechos esenciales"],
+    restricciones: "Relevante sobre todo para empresas grandes o reguladas (emisores, aseguradoras, fintech).",
+    frecuencia: "En línea", estado: "por_investigar", verificada: "2026-11-07",
+  },
+  {
+    id: "sectoriales", pais: "CL", organismo: "SEC · SAG · SERNAC", nombre: "Registros y autorizaciones sectoriales",
+    url: "https://www.chileatiende.gob.cl", secciones: ["permisos"], nivel: "E",
+    metodo: "Según el rubro de cada empresa", campos: ["autorizaciones", "registros sectoriales"],
+    restricciones: "Solo aplican a ciertos rubros (energía, agro y alimentos, consumo). Se revisan caso a caso.",
+    frecuencia: "—", estado: "por_investigar", verificada: "2026-11-07",
+  },
+  {
+    id: "portal_chile", pais: "CL", organismo: "Portal Chile (agregador privado)", nombre: "Directorio de empresas con datos de SII, INAPI, CMF y Mercado Público",
+    url: "https://portalchile.org", secciones: ["identidad", "marca", "mercado_publico"], nivel: "E",
+    metodo: "Solo como pista para el equipo: CORA no lo consulta ni lo cita", campos: ["ficha de empresa", "marcas", "compras públicas", "rankings"],
+    restricciones: "No es un organismo público; no identifica a su operador, declara «todos los derechos reservados» y no ofrece API. Sus datos se toman directo de cada organismo de origen.",
+    frecuencia: "—", estado: "descartada", verificada: "2026-11-07", nota: "Integrable solo con una licencia escrita del operador.",
+  },
+  {
+    id: "nic_cl", pais: "CL", organismo: "NIC Chile", nombre: "Titulares de dominios .cl",
+    url: "https://www.nic.cl", secciones: ["tecnologia"], nivel: "E",
+    metodo: "Consulta de dominios", campos: ["dominio", "titular", "fechas"],
+    restricciones: "Su política limita las consultas a fines de gestión de dominios .cl, DNS y conflictos: no se usa para investigar empresas.",
+    frecuencia: "—", estado: "descartada", verificada: "2026-11-07",
+  },
+  {
+    id: "servel", pais: "CL", organismo: "Servel", nombre: "Datos electorales",
+    url: "https://www.servel.cl", secciones: ["legal"], nivel: "E",
+    metodo: "—", campos: ["financiamiento electoral"],
+    restricciones: "Información de carácter político: ENQORA no la usa para perfilar empresas ni personas.",
+    frecuencia: "—", estado: "descartada", verificada: "2026-11-07",
   },
   {
     id: "web_publica", pais: "CL", organismo: "Fuentes abiertas", nombre: "Presencia web y redes públicas de la empresa",
@@ -195,7 +278,7 @@ export const FUENTES: Fuente[] = [
     restricciones: "Solo información pública de la empresa; nunca de personas ni cuentas privadas.", frecuencia: "—", estado: "proxima_etapa", verificada: null,
   },
   {
-    id: "beneficios_m16", pais: "CL", organismo: "CORFO · Sercotec · SENCE · SII · ChileCompra", nombre: "Catálogo de beneficios ENQORA (M16)",
+    id: "beneficios_m16", pais: "CL", organismo: "CORFO · Sercotec · SENCE · SII · ChileCompra · Chile Emprende · ProChile", nombre: "Catálogo de beneficios ENQORA (M16)",
     url: "https://www.chileatiende.gob.cl", secciones: ["crecimiento"], nivel: "B",
     metodo: "Catálogo curado y vigilado por el agente de vigilancia normativa", campos: ["programas", "requisitos", "a quién aplican"],
     restricciones: "Las convocatorias, montos y plazos cambian: se verifican antes de postular.", frecuencia: "Revisión periódica", estado: "curada", verificada: "2026-10-27",

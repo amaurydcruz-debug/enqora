@@ -379,9 +379,9 @@ export function build360(p: PublicProfileForReport, answers: Record<string, Answ
     if (compra && answers.fondos !== "si") beneficios.push({ nombre: compra.nombre, url: compra.url, verificado: compra.verificado, queEs: compra.entrega,
       porque: "Tiene inicio de actividades: puede vender al Estado.",
       falta: "Que sus productos o servicios calcen con lo que compran los organismos públicos.",
-      gancho: "Un cliente que publica lo que compra: el Estado",
-      porqueTu: "Tu empresa tiene inicio de actividades vigente, así que puede inscribirse como proveedora del Estado.",
-      faltaTu: "que lo que ofreces calce con lo que compran los organismos públicos." });
+      gancho: "Vender al Estado: saber quién compra lo que vendes",
+      porqueTu: "Con inicio de actividades vigente puedes vender al Estado. La inscripción en Mercado Público es gratuita y la haces directo en ChileCompra; lo valioso es saber qué organismos compran lo que ofreces, cuánto y cada cuánto, y prepararte para competir.",
+      faltaTu: "que lo que ofreces calce con lo que compran los organismos públicos; eso se revisa con sus órdenes de compra reales." });
   }
 
   // 6) Perfil, resumen y fuentes
