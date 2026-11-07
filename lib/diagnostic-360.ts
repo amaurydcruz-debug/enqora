@@ -1,6 +1,7 @@
 import { BENEFITS } from "@/lib/benefits";
 import { buildInitialReport, companyType, offer, type Catalog, type InitialReport, type PublicProfileForReport, type ServiceOffer } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
+import { runCalculator } from "@/lib/tax-calc";
 
 // Diagnóstico empresarial 360° (Fase 1). Combina:
 //  • datos públicos del SII (confirmados, con fuente y fecha), y
@@ -204,7 +205,8 @@ export type Finding = {
   servicio: ServiceOffer;
 };
 
-export type BenefitMatch = { nombre: string; porque: string; falta: string; url: string; verificado: string; queEs?: string };
+// gancho/porqueTu/faltaTu: texto en segunda persona para la consulta pública. ejemplo: cálculo ilustrativo del motor contable.
+export type BenefitMatch = { nombre: string; porque: string; falta: string; url: string; verificado: string; queEs?: string; gancho?: string; porqueTu?: string; faltaTu?: string; ejemplo?: string };
 
 export type Report360 = {
   perfil: { etiqueta: string; valor: string }[];
@@ -324,35 +326,62 @@ export function build360(p: PublicProfileForReport, answers: Record<string, Answ
     if (!ruta.some((r) => r.id === s.id || (r.codigo && r.codigo === s.codigo))) ruta.push(s);
   }
 
-  // 5) Beneficios M16 con criterios verificables en datos públicos (el resto se indica como «por confirmar»)
+  // 5) Beneficios M16 con criterios verificables en datos públicos (el resto se indica como «por confirmar»).
+  // Si el SII no informa el tamaño, los beneficios tributarios se muestran igual, con el tamaño como dato por confirmar.
   const beneficios: BenefitMatch[] = [];
   const find = (id: string) => BENEFITS.find((b) => b.id === id);
+  const sinTramo = !Number.isFinite(tramo) || tramo <= 0;
+  const tam = salesTrancheLabel(p.perfil?.tramo_ventas);
+  const pesos = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
   if (!cerrada) {
-    const crece = find("sercotec_crece");
-    if (crece && tramo >= 2 && tramo <= 7) beneficios.push({ nombre: crece.nombre, url: crece.url, verificado: crece.verificado,
-      porque: `Según el SII su tamaño es ${salesTrancheLabel(p.perfil?.tramo_ventas)} y tiene inicio de actividades.`,
-      falta: "Que las ventas calcen con la convocatoria regional vigente y sus bases." });
-    const propyme = find("pro_pyme_tasa");
-    if (propyme && tramo >= 2 && tramo <= 9) beneficios.push({ nombre: propyme.nombre, url: propyme.url, verificado: propyme.verificado,
-      porque: "Por su tamaño podría estar en el régimen Pro Pyme general.",
-      falta: "Confirmar el régimen tributario actual (no es público)." });
-    const sence = find("sence_franquicia");
-    if (sence && workers > 0) beneficios.push({ nombre: sence.nombre, url: sence.url, verificado: sence.verificado,
-      porque: `La empresa informa ${workers} trabajador(es) al SII.`,
-      falta: "Que la planilla supere 35 UTM mensuales y las cotizaciones estén pagadas." });
-    // Beneficios tributarios: el «gancho» más concreto para el dueño, con fundamento legal verificado.
+    // Beneficios tributarios: el gancho más concreto para el dueño, con fundamento legal verificado.
     const camioneta = find("iva_camionetas");
-    if (camioneta && tramo >= 2) beneficios.push({ nombre: camioneta.nombre, url: camioneta.url, verificado: camioneta.verificado, queEs: camioneta.entrega,
-      porque: "Tiene giro vigente con ventas: si compra o renueva una camioneta, jeep o furgón para el negocio, podría recuperar el IVA de esa compra.",
-      falta: "Que tenga ventas afectas a IVA y que el vehículo se use directamente en el giro." });
+    if (camioneta && (sinTramo || tramo >= 2)) {
+      const c = runCalculator("calcular_iva", { neto: 20_000_000 });
+      const iva = c.ok ? Number(c.resultado.iva) : null;
+      beneficios.push({ nombre: camioneta.nombre, url: camioneta.url, verificado: camioneta.verificado, queEs: camioneta.entrega,
+        porque: "Tiene giro vigente: si compra o renueva una camioneta, jeep o furgón para el negocio, podría recuperar el IVA de esa compra.",
+        falta: "Que tenga ventas afectas a IVA y que el vehículo se use directamente en el giro.",
+        gancho: "Si compras una camioneta para tu negocio, puedes recuperar su IVA",
+        porqueTu: "Tu empresa tiene giro vigente. Si compras o renuevas una camioneta, jeep o furgón que usas en el negocio, el IVA de esa compra puede descontarse del IVA de tus ventas.",
+        faltaTu: "que tengas ventas afectas a IVA y que el vehículo se use directamente en tu giro.",
+        ...(iva ? { ejemplo: `Ejemplo ilustrativo: en una camioneta de ${pesos(20_000_000)} más IVA, el IVA es ${pesos(iva)}. Ese monto puede usarse como crédito fiscal en tu F29.` } : {}) });
+    }
     const posterga = find("postergacion_iva");
-    if (posterga && tramo >= 2 && tramo <= 9) beneficios.push({ nombre: posterga.nombre, url: posterga.url, verificado: posterga.verificado, queEs: posterga.entrega,
-      porque: `Según el SII su tamaño es ${salesTrancheLabel(p.perfil?.tramo_ventas)}: por ventas, calza con el límite de 100.000 UF.`,
-      falta: "Estar al día: F29 de los últimos 36 meses a tiempo, sin morosidad reiterada y notificaciones por correo." });
+    if (posterga && (sinTramo || (tramo >= 2 && tramo <= 9))) beneficios.push({ nombre: posterga.nombre, url: posterga.url, verificado: posterga.verificado, queEs: posterga.entrega,
+      porque: sinTramo ? "Aplica a empresas con ingresos promedio de hasta 100.000 UF." : `Según el SII su tamaño es ${tam}: por ventas, calza con el límite de 100.000 UF.`,
+      falta: "Estar al día: F29 de los últimos 36 meses a tiempo, sin morosidad reiterada y notificaciones por correo.",
+      gancho: "Más aire para tu caja: pagar el IVA hasta dos meses después",
+      porqueTu: sinTramo ? "Es para empresas con ingresos promedio de hasta 100.000 UF al año, que es la gran mayoría de las pymes." : `Según el SII tu empresa está en el tramo ${tam}: por ventas, estás dentro del límite de 100.000 UF.`,
+      faltaTu: `${sinTramo ? "tu nivel de ingresos y " : ""}que estés al día: F29 de los últimos 36 meses presentados a tiempo, sin morosidad reiterada y notificaciones del SII por correo.` });
+    const propyme = find("pro_pyme_tasa");
+    if (propyme && tramo >= 2 && tramo <= 9) beneficios.push({ nombre: propyme.nombre, url: propyme.url, verificado: propyme.verificado, queEs: propyme.entrega,
+      porque: "Por su tamaño podría estar en el régimen Pro Pyme general.",
+      falta: "Confirmar el régimen tributario actual (no es público).",
+      gancho: "Pagar la mitad del impuesto a la renta: tasa de 12,5%",
+      porqueTu: "Por tu tamaño podrías estar en el régimen Pro Pyme general, que hoy tiene una tasa reducida.",
+      faltaTu: "tu régimen tributario actual, que no es público." });
+    const crece = find("sercotec_crece");
+    if (crece && tramo >= 2 && tramo <= 7) beneficios.push({ nombre: crece.nombre, url: crece.url, verificado: crece.verificado, queEs: crece.entrega,
+      porque: `Según el SII su tamaño es ${tam} y tiene inicio de actividades.`,
+      falta: "Que las ventas calcen con la convocatoria regional vigente y sus bases.",
+      gancho: "Fondos que no se devuelven para hacer crecer tu negocio",
+      porqueTu: `Tu empresa está en el tramo ${tam} y tiene inicio de actividades, el perfil al que apuntan estos fondos.`,
+      faltaTu: "que tus ventas calcen con la convocatoria regional vigente y sus bases." });
+    const sence = find("sence_franquicia");
+    if (sence && workers > 0) beneficios.push({ nombre: sence.nombre, url: sence.url, verificado: sence.verificado, queEs: sence.entrega,
+      porque: `La empresa informa ${workers} trabajador(es) al SII.`,
+      falta: "Que la planilla supere 35 UTM mensuales y las cotizaciones estén pagadas.",
+      gancho: "Capacitar a tu equipo descontándolo de tus impuestos",
+      porqueTu: `Tu empresa informa ${workers} trabajador(es) al SII.`,
+      faltaTu: "que tu planilla supere 35 UTM mensuales y las cotizaciones estén pagadas." });
     const compra = find("chilecompra");
-    if (compra && answers.fondos !== "si") beneficios.push({ nombre: compra.nombre, url: compra.url, verificado: compra.verificado,
+    if (compra && answers.fondos !== "si") beneficios.push({ nombre: compra.nombre, url: compra.url, verificado: compra.verificado, queEs: compra.entrega,
       porque: "Tiene inicio de actividades: puede vender al Estado.",
-      falta: "Que sus productos o servicios calcen con lo que compran los organismos públicos." });
+      falta: "Que sus productos o servicios calcen con lo que compran los organismos públicos.",
+      gancho: "Un cliente que publica lo que compra: el Estado",
+      porqueTu: "Tu empresa tiene inicio de actividades vigente, así que puede inscribirse como proveedora del Estado.",
+      faltaTu: "que lo que ofreces calce con lo que compran los organismos públicos." });
   }
 
   // 6) Perfil, resumen y fuentes
