@@ -97,6 +97,29 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
               <span className="report-tag">Lo que CORA encontró</span>
               <b>{turno.apertura}</b>
             </div>
+            {!informe && exp.beneficios.length ? (
+              <section className="cora-benef" aria-label="Beneficios que podrías aprovechar">
+                <span className="eyebrow">Lo que la ley ya te da</span>
+                <b className="cora-benef-lead">
+                  Nos importa que {exp.empresa.razon !== "—" ? exp.empresa.razon : "tu empresa"} esté en regla y no deje pasar lo que le corresponde.
+                  Encontré {exp.beneficios.length === 1 ? "un beneficio" : `${exp.beneficios.length} beneficios`} que vale la pena revisar contigo:
+                </b>
+                <ul>
+                  {exp.beneficios.slice(0, 3).map((b) => (
+                    <li key={b.nombre}>
+                      <b>{b.gancho ?? b.nombre}</b>
+                      <span>{b.porqueTu ?? b.porque}</span>
+                      {b.ejemplo ? <span className="cora-ejemplo">{b.ejemplo}</span> : null}
+                      <span className="report-note">Por confirmar contigo: {b.faltaTu ?? b.falta} <a href={b.url} target="_blank" rel="noopener noreferrer">Ver fuente oficial</a></span>
+                    </li>
+                  ))}
+                </ul>
+                <span className="report-note">
+                  Confirmar si cumples los requisitos, calcular cuánto te significa y aplicarlo bien es trabajo de un profesional. Eso hace ENQORA por ti.
+                </span>
+                <Link href="/comenzar?servicio=contabilidad" className="btn btn-gold btn-inline btn-sm">Quiero aprovechar estos beneficios</Link>
+              </section>
+            ) : null}
             {turno.descubrimientos.length ? (
               <ol className="report-recs">
                 {turno.descubrimientos.map((d) => (
@@ -109,23 +132,6 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
                   </li>
                 ))}
               </ol>
-            ) : null}
-            {!informe && exp.beneficios.length ? (
-              <section className="cora-benef">
-                <span className="eyebrow">Beneficios que la ley te da y podrías aprovechar</span>
-                <b>Queremos que tu empresa esté en regla y que no deje pasar lo que ya le corresponde por ley.</b>
-                <ul>
-                  {exp.beneficios.map((b) => (
-                    <li key={b.nombre}>
-                      <b>{b.nombre}</b>
-                      {b.queEs ? <span>{b.queEs}</span> : null}
-                      <span className="report-note">Por qué podría aplicarte: {b.porque} Falta confirmar: {b.falta} <a href={b.url} target="_blank" rel="noopener noreferrer">Fuente oficial</a></span>
-                    </li>
-                  ))}
-                </ul>
-                <span className="report-note">Un profesional ENQORA confirma si cumples los requisitos, calcula cuánto te significa y te acompaña a aprovecharlo.</span>
-                <Link href="/comenzar?servicio=contabilidad" className="btn btn-gold btn-inline btn-sm">Quiero saber cuánto me significa</Link>
-              </section>
             ) : null}
             {!informe ? (
               <p className="report-note cora-contacto">

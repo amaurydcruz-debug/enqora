@@ -2887,6 +2887,8 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .cora-benef ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
 .cora-benef li { display: flex; flex-direction: column; gap: 4px; }
 .cora-benef > .btn { align-self: flex-start; }
+.cora-benef-lead { font-weight: 600; line-height: 1.45; }
+.cora-ejemplo { border-left: 3px solid var(--gold-bright); padding: 4px 0 4px 10px; font-size: 0.92rem; color: var(--gold-bright); }
 .cora-progress { height: 4px; border-radius: 999px; background: rgba(229, 199, 131, 0.15); overflow: hidden; }
 .cora-progress > span { display: block; height: 100%; min-width: 6%; background: var(--gold-bright); border-radius: inherit; transition: width 0.4s ease; }
 .cora-evid { display: inline-block; margin-left: 4px; }

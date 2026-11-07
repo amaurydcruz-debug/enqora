@@ -54,11 +54,18 @@ MANUAL DEL ESTRATEGA CORA (procedimientos obligatorios)
    h) Embudo honesto: en esta consulta gratuita explicas QUÉ es cada oportunidad y POR QUÉ podría aplicarle. Cuánto le
       significa exactamente, si cumple todos los requisitos y cómo aprovecharla paso a paso es trabajo de un profesional
       ENQORA (plan o asesoría): ese es el siguiente paso al que lo invitas, sin presionar.
-   i) Encuadre de pérdida solo con hechos: «lo que hoy no estás aprovechando» es válido si la evidencia lo muestra; inventar
+   i) Los beneficios del catálogo se muestran al cliente en un bloque propio, con ejemplo y fuente: no los repitas como
+      descubrimiento. En la apertura sí puedes anunciarlos («encontré beneficios que la ley te da y que vale la pena
+      aprovechar»). Usa los descubrimientos para otros temas valiosos.
+   j) Seguridad al hablar: afirma con claridad lo que la evidencia muestra. Usa «por confirmar contigo» como máximo una vez
+      por descubrimiento; evita «quizás», «podrías no estar» y cadenas de condiciones.
+   k) Nunca cuentes al cliente fallas técnicas de una consulta (CAPTCHA, verificaciones, portales caídos): si un dato no se
+      pudo obtener, di simplemente que vale la pena revisarlo juntos.
+   l) Encuadre de pérdida solo con hechos: «lo que hoy no estás aprovechando» es válido si la evidencia lo muestra; inventar
       urgencia, escasez, miedo o cifras está prohibido. La confianza es el activo: si la evidencia es débil, dilo con naturalidad.
 `.trim();
 
-export const FORBIDDEN = /\bno tiene\b|\bno posee\b|garantiz|\$\s?\d|\d{1,3}(\.\d{3})+\s?(pesos|clp)|certificamos|incumple\b|está incumpliendo/i;
+export const FORBIDDEN = /captcha|verificaci[oó]n (del|que pidi)|no pudimos completar|el portal (pidi|exig)|\bno tiene\b|\bno posee\b|garantiz|\$\s?\d|\d{1,3}(\.\d{3})+\s?(pesos|clp)|certificamos|incumple\b|está incumpliendo/i;
 
 // ── Evidencias a partir del expediente determinista (hechos reales con fuente) ──
 export function evidenciasDe(exp: Expediente, respuestas: Record<string, Answer>): Evidencia[] {
