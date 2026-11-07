@@ -2,6 +2,7 @@
 // ordenamiento del relato (servicios y documentos necesarios). Funciones puras, sin red.
 import type { Expediente } from "@/lib/cora/director";
 import { CATEGORIES } from "@/lib/discovery";
+import { evaluarObligaciones } from "@/lib/cora/normativa-laboral";
 import type { PublicCompany } from "@/app/actions/public";
 
 // Documentos que un profesional suele pedir para cotizar y resolver, por área. Lista cerrada: CORA solo
@@ -91,9 +92,19 @@ export function cartaCora(r: PublicCompany, exp: Expediente): { titulo: string; 
   } else {
     const desde = constitucion ? constitucion.replace(/\. Fuente:.*$/, "").replace(/^Constituida el /, "constituida el ") : inicio ? `con inicio de actividades en ${inicio}${anios && anios > 0 ? ` (${anios} ${anios === 1 ? "año" : "años"} en marcha)` : ""}` : "con inicio de actividades informado";
     p.push(`Empresa ${desde}, sin término de giro${alertas ? ` y con ${alertas} ${alertas === 1 ? "punto" : "puntos"} a revisar en la información pública del SII` : " y sin alertas en la información pública del SII"}.`);
-    p.push(trabajadores && trabajadores > 0
-      ? `El SII informa ${trabajadores} ${trabajadores === 1 ? "trabajador" : "trabajadores"} en tu empresa. Si hay contratos, cotizaciones o alguna situación laboral pendiente, nuestros asesores lo resuelven contigo.`
-      : "Si tienes trabajadores, te ayudamos a tener contratos y cotizaciones en regla, y si hay alguna situación pendiente, nuestros asesores la resuelven contigo.");
+    // Trabajadores según el SII (indicador anual): qué le pide la ley con ese tamaño, de la normativa laboral verificada.
+    const anio = r.perfil?.anio_comercial ?? null;
+    if (trabajadores && trabajadores > 0) {
+      // Primero lo que depende del tamaño (lo que más se pasa por alto), luego lo que aplica a todo empleador.
+      const ORDEN = ["depto_prevencion", "cphs", "delegado", "reglamento_interno", "lre", "karin", "ds44_base", "contrato", "cotizaciones", "seguro_16744"];
+      const pide = evaluarObligaciones(trabajadores, anio).filter((o) => o.aplicacion === "potencial" && ORDEN.includes(o.id))
+        .sort((a, b) => ORDEN.indexOf(a.id) - ORDEN.indexOf(b.id)).map((o) => o.nombre);
+      p.push(`El SII informa ${trabajadores} ${trabajadores === 1 ? "trabajador" : "trabajadores"}${anio ? ` en ${anio}` : ""}. Con ese tamaño, la ley te pide, entre otras cosas: ${pide.slice(0, 5).join("; ")}. ¿Lo tienes todo al día? Nuestros asesores lo revisan contigo y resuelven lo que esté pendiente.`);
+    } else if (trabajadores === 0) {
+      p.push(`El SII no informa trabajadores dependientes${anio ? ` en ${anio}` : ""}. Si ya contrataste o vas a hacerlo, te dejamos contratos, cotizaciones y el protocolo de la Ley Karin en regla desde el primer día.`);
+    } else {
+      p.push("Si tienes trabajadores, te ayudamos a tener contratos y cotizaciones en regla, y si hay alguna situación pendiente, nuestros asesores la resuelven contigo.");
+    }
     if (ganchos.length) p.push(`El Estado da beneficios tributarios que puedes usar a tu favor. Por ejemplo: ${ganchos.slice(0, 2).map((g) => g.charAt(0).toLowerCase() + g.slice(1)).join("; ")}.`);
     if (estado) p.push(`Si tu empresa está al día, puedes venderle al Estado${r.perfil?.rubro ? ` en tu rubro (${r.perfil.rubro.toLowerCase()})` : ""}. La inscripción en Mercado Público es gratuita; ENQORA te ayuda a descubrir qué organismos compran lo que ofreces y a preparar ofertas que compitan.`);
   }
