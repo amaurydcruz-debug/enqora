@@ -46,7 +46,15 @@ MANUAL DEL ESTRATEGA CORA (procedimientos obligatorios)
    d) Lo que falta saber se presenta como la llave del siguiente paso: «con tu respuesta te digo exactamente qué te aplica y qué
       te conviene primero». Nunca como una deficiencia del cliente.
    e) Frases cortas, en segunda persona («tú»), concretas. Una idea por frase. Sin exclamaciones ni superlativos vacíos.
-   f) Encuadre de pérdida solo con hechos: «lo que hoy no estás aprovechando» es válido si la evidencia lo muestra; inventar
+   f) Cercanía: habla como quien está del lado del dueño. A ENQORA le importa que su empresa esté en regla y que aproveche
+      lo que la ley le da. Ej.: «Queremos que tu empresa esté en regla y que no deje pasar beneficios que ya son tuyos».
+   g) El gancho son los beneficios concretos: si hay evidencia de un beneficio (p. ej., recuperar el IVA de una camioneta
+      para el negocio, postergar el pago del IVA, una tasa reducida, un fondo público), ponlo primero y explícalo en simple:
+      qué es y por qué podría aplicarle, citando su evidencia. Nunca afirmes que ya le corresponde: falta confirmarlo.
+   h) Embudo honesto: en esta consulta gratuita explicas QUÉ es cada oportunidad y POR QUÉ podría aplicarle. Cuánto le
+      significa exactamente, si cumple todos los requisitos y cómo aprovecharla paso a paso es trabajo de un profesional
+      ENQORA (plan o asesoría): ese es el siguiente paso al que lo invitas, sin presionar.
+   i) Encuadre de pérdida solo con hechos: «lo que hoy no estás aprovechando» es válido si la evidencia lo muestra; inventar
       urgencia, escasez, miedo o cifras está prohibido. La confianza es el activo: si la evidencia es débil, dilo con naturalidad.
 `.trim();
 
@@ -68,7 +76,7 @@ export function evidenciasDe(exp: Expediente, respuestas: Record<string, Answer>
     }
   }
   for (const h of exp.hallazgos) add(`Hallazgo (${h.estado}): ${h.encontro}`, h.fuente, h.fecha, h.estado === "declarado" ? "declarada" : h.estado === "confirmado" ? "publica" : "normativa");
-  for (const b of exp.beneficios) add(`Programa que podría aplicar: ${b.nombre}. ${b.porque} Falta confirmar: ${b.falta}`, "Catálogo de beneficios ENQORA (M16)", `verificado el ${b.verificado}`, "catalogo");
+  for (const b of exp.beneficios) add(`Beneficio que podría aplicar: ${b.nombre}.${b.queEs ? ` Qué es: ${b.queEs}` : ""} Por qué podría aplicarle: ${b.porque} Falta confirmar: ${b.falta}`, "Catálogo de beneficios ENQORA (M16)", `verificado el ${b.verificado}`, "catalogo");
   for (const q of QUESTIONS) {
     const a = respuestas[q.id];
     if (a) add(`Respuesta del cliente: ${q.q} → ${a === "si" ? "Sí" : a === "no" ? "No" : a === "no_se" ? "No sé" : a === "ayuda" ? "Necesito ayuda" : "No aplica"}`, "Conversación con el cliente", "hoy", "declarada");
@@ -96,6 +104,7 @@ export const CAPACIDADES: Record<string, string> = {
   cotizaciones: "Cotizaciones con precio y plazos antes de decidir",
   documentos: "Documentos y mandatos firmados en un solo lugar",
   oportunidades: "Vigilancia de normas y beneficios públicos que aplican a tu empresa",
+  beneficios: "Asesoría profesional para confirmar y aprovechar beneficios tributarios y estatales (cálculo, requisitos y postulación)",
 };
 
 export type Informe = {
@@ -270,7 +279,7 @@ export function informeReglas(exp: Expediente, ev: Evidencia[]): Informe {
   const conf = exp.hallazgos.filter((h) => h.estado === "confirmado" || h.estado === "declarado");
   const planes = new Set(exp.necesidades.map((n) => n.plan));
   const caps = ["cumplimiento", "hoja_de_vida", ...(planes.has("regularizacion") || planes.has("gestion") ? ["contabilidad"] : []),
-    ...(planes.has("formalizacion") ? ["expedientes"] : []), ...(planes.has("crecimiento") ? ["oportunidades"] : []), "cotizaciones"];
+    ...(planes.has("formalizacion") ? ["expedientes"] : []), ...(planes.has("crecimiento") ? ["oportunidades"] : []), ...(exp.beneficios.length ? ["beneficios"] : []), "cotizaciones"];
   return {
     oportunidades_perdidas: [
       ...exp.beneficios.map((b) => ({ texto: `${b.nombre}: ${b.porque}`, evidencias: e(b.nombre) })),
