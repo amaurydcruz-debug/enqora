@@ -44,6 +44,17 @@ for (const [nombre, p] of pj) {
   out.push({ nombre, top: inf.prioridades.map((x) => x.necesidad_id), texto: JSON.stringify({ inf, turno, h: exp.hallazgos }), detalle: `pregunta 1: ${turno.pregunta_id ?? "—"} · completitud ${exp.completitud.pct}%` });
 }
 
+// Registro de Empresas (datos abiertos): la constitución se informa con fecha, antigüedad y capital, y deja de figurar como pendiente.
+{
+  const webRes: HallazgoWeb[] = [{ portal: "res", estado: "encontrado", consultado: "2026-11-03T12:00:00Z", url: "https://datos.gob.cl/dataset/registro-de-empresas-y-sociedades", version: "datos-abiertos",
+    detalle: "1 actuación(es) en el Registro de Empresas y Sociedades (datos abiertos).", coincidencias: 1,
+    tabla: { headers: ["Fecha", "Actuación", "Tipo de sociedad", "Capital", "Comuna"], rows: [["2019-03-15", "CONSTITUCIÓN", "SpA", "$1.000.000", "SANTIAGO, Región Metropolitana"]] } }];
+  const legal = investigar(empresa({}), catalog, {}, HOY, webRes).secciones.find((x) => x.key === "legal");
+  const txt = JSON.stringify(legal);
+  if (!txt.includes("Constituida el 15 de marzo de 2019 (hace 7 años) como SpA, con capital inicial de $1.000.000")) fallos.push("Registro: no informa la constitución desde los datos abiertos");
+  if (txt.includes("Constitución y capital (Registro de Empresas")) fallos.push("Registro: la constitución sigue como pendiente aunque se obtuvo de la fuente");
+}
+
 // Personas
 const base: PersonaAnswers = { venta: "facturas", trabajadores: "no", contador: "contador", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" };
 const pn: [string, PersonaAnswers][] = [

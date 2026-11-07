@@ -77,6 +77,15 @@ const PESO: Record<SectionKey, number> = Object.fromEntries(SECCIONES.map((s, i)
 
 const fmt = (d?: string | null) =>
   d ? new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${d.slice(0, 10)}T12:00:00Z`)) : "";
+// Constitución según el Registro de Empresas (filas: fecha, actuación, tipo, capital, comuna): fecha, antigüedad y
+// capital inicial, tal como figuran en la fuente. Nada se deduce más allá de lo publicado.
+function constitucion(w: HallazgoWeb, today: Date): string | null {
+  const fila = (w.tabla?.rows ?? []).find((r) => /CONSTITU/i.test(r[1] ?? "") && /^\d{4}-\d{2}-\d{2}/.test(r[0] ?? ""));
+  if (!fila) return null;
+  const meses = (today.getUTCFullYear() - Number(fila[0].slice(0, 4))) * 12 + (today.getUTCMonth() + 1 - Number(fila[0].slice(5, 7)));
+  const antig = meses < 1 ? "este mes" : meses < 12 ? `hace ${meses} ${meses === 1 ? "mes" : "meses"}` : `hace ${Math.floor(meses / 12)} ${Math.floor(meses / 12) === 1 ? "año" : "años"}`;
+  return `Constituida el ${fmt(fila[0])} (${antig})${fila[2] ? ` como ${fila[2]}` : ""}${fila[3] ? `, con capital inicial de ${fila[3]}` : ""}${fila[4] ? `, en ${fila[4]}` : ""}. Fuente: Registro de Empresas y Sociedades.`;
+}
 const label = (a?: Answer) => (a === "si" ? "Sí" : a === "no" ? "No" : a === "ayuda" ? "Necesito ayuda" : a === "no_se" ? "No sé" : a === "na" ? "No aplica" : "Sin responder");
 
 export function preguntasCora(p: PublicProfileForReport): Question[] {
@@ -311,9 +320,10 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
     });
   }
 
-  // ── Agentes 01 y 03 · Registro de Empresas y Diario Oficial (bot) ──
+  // ── Agentes 01 y 03 · Registro de Empresas (datos abiertos o bot) y Diario Oficial ──
   for (const w of web.filter((x) => x.portal === "res" || x.portal === "diario_oficial")) {
-    if (w.estado !== "encontrado" && w.estado !== "sin_resultados") { bitacora.push({ agente: `01 · ${PORTAL_NOMBRE[w.portal] ?? w.portal} (bot)`, resultado: w.detalle ?? w.estado }); continue; }
+    const via = w.version === "datos-abiertos" ? "datos abiertos" : "bot";
+    if (w.estado !== "encontrado" && w.estado !== "sin_resultados") { bitacora.push({ agente: `01 · ${PORTAL_NOMBRE[w.portal] ?? w.portal} (${via})`, resultado: w.detalle ?? w.estado }); continue; }
     const l = sec.legal;
     l.investigado.unshift(`${w.version === "datos-abiertos" ? "Datos abiertos de" : "Búsqueda en"} ${PORTAL_NOMBRE[w.portal] ?? w.portal}`);
     l.fuentes.unshift({ nombre: PORTAL_NOMBRE[w.portal] ?? w.portal, url: w.url, fecha: fechaWeb(w) });
@@ -321,10 +331,16 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
     if (w.estado === "encontrado") {
       l.estado = "confirmado";
       l.encontrado.push(`${PORTAL_NOMBRE[w.portal]}: ${w.detalle ?? "resultados localizados"}`, ...(w.tabla?.rows ?? []).slice(0, 5).map((r) => filaLegible(w.tabla?.headers ?? [], r)));
+      const c = w.portal === "res" ? constitucion(w, today) : null;
+      if (c) {
+        l.encontrado.unshift(c);
+        // El dato ya se obtuvo de la fuente oficial: deja de figurar como pendiente.
+        l.falta = l.falta.filter((f) => !f.startsWith("Constitución y capital"));
+      }
     } else {
       l.encontrado.push(`${PORTAL_NOMBRE[w.portal]}: sin resultados localizados (${w.portal === "res" ? "puede haberse constituido por notaría" : "sin publicaciones localizadas"}).`);
     }
-    bitacora.push({ agente: `01 · ${PORTAL_NOMBRE[w.portal] ?? w.portal} (bot)`, resultado: w.detalle ?? w.estado });
+    bitacora.push({ agente: `01 · ${PORTAL_NOMBRE[w.portal] ?? w.portal} (${via})`, resultado: w.detalle ?? w.estado });
   }
 
   // ── Agente 09 · Mercado público / 13 · Comercio exterior (próxima etapa) ──

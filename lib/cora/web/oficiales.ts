@@ -23,8 +23,10 @@ export function regionNombre(r: string | null): string | null {
 export async function registroEmpresas(supabase: SupabaseClient, rut: string): Promise<HallazgoWeb | null> {
   const { data, error } = await supabase.rpc("res_registro", { p_rut: rut });
   if (error || !data) return null;
-  const d = data as { cargado: boolean; actualizado: string | null; actuaciones: { fecha: string | null; actuacion: string | null; tipo_social: string | null; capital: number | null; comuna: string | null; region: string | null }[] };
+  const d = data as { cargado: boolean; completo?: boolean; actualizado: string | null; actuaciones: { fecha: string | null; actuacion: string | null; tipo_social: string | null; capital: number | null; comuna: string | null; region: string | null }[] };
   if (!d.cargado) return null; // sin archivos completos, la ausencia de resultados no significa nada
+  // Mientras falten años por cargar, «sin actuaciones» no es concluyente: solo se informa lo encontrado.
+  if (!d.actuaciones.length && d.completo !== true) return null;
   const rows = d.actuaciones.map((a) => [a.fecha ?? "", a.actuacion ?? "", a.tipo_social ?? "", a.capital != null ? `$${Math.round(a.capital).toLocaleString("es-CL")}` : "", [a.comuna, regionNombre(a.region)].filter(Boolean).join(", ")]);
   return {
     portal: "res", estado: rows.length ? "encontrado" : "sin_resultados", consultado: d.actualizado ?? new Date().toISOString(),
