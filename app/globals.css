@@ -2879,6 +2879,12 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .cora-ask { border: 1px solid rgba(229, 199, 131, 0.4); border-radius: 18px; padding: 16px 18px; margin: 0; display: flex; flex-direction: column; gap: 10px; background: rgba(229, 199, 131, 0.05); }
 .cora-ask legend { float: left; width: 100%; padding: 0; color: var(--text); font-weight: 600; font-size: 1rem; }
 .cora-ask > .btn { align-self: flex-start; }
+.cora-stake, .cora-enqora { font-size: 0.92rem; line-height: 1.45; }
+.cora-stake b, .cora-enqora b { font-weight: 600; }
+.cora-enqora { color: var(--gold-bright); }
+.cora-contacto { margin: 4px 0 0; }
+.cora-progress { height: 4px; border-radius: 999px; background: rgba(229, 199, 131, 0.15); overflow: hidden; }
+.cora-progress > span { display: block; height: 100%; min-width: 6%; background: var(--gold-bright); border-radius: inherit; transition: width 0.4s ease; }
 .cora-evid { display: inline-block; margin-left: 4px; }
 .cora-evid > summary { cursor: pointer; font-size: 0.74rem; color: var(--text-3); display: inline; }
 .cora-evid ul { margin: 6px 0 0; padding-left: 16px; font-size: 0.8rem; color: var(--text-2); display: flex; flex-direction: column; gap: 4px; }
