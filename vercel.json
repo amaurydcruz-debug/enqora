@@ -22,7 +22,7 @@
     },
     {
       "path": "/api/cron/registro",
-      "schedule": "0 10 * * 2"
+      "schedule": "0 10 * * *"
     }
   ]
 }

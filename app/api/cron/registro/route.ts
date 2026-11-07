@@ -2,9 +2,10 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { runResSync, type ResReport } from "@/lib/res-sync";
 import { createClient } from "@/lib/supabase/server";
 
-// Conector con los datos abiertos del Registro de Empresas y Sociedades (vercel.json → crons, semanal).
+// Conector con los datos abiertos del Registro de Empresas y Sociedades (vercel.json → crons, diario).
 // Vercel envía «Authorization: Bearer CRON_SECRET». Si un archivo no termina en esta ejecución, el propio
-// servidor encadena la siguiente, que sigue desde su cursor.
+// servidor encadena la siguiente, que sigue desde su cursor. Si la cadena se corta (p. ej., un arranque en frío
+// lento), el cron diario la retoma desde el mismo cursor; cuando todo está al día, la ejecución termina al instante.
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -29,7 +30,8 @@ export async function GET(request: NextRequest) {
     const next = new URL("/api/cron/registro", request.nextUrl.origin);
     next.searchParams.set("paso", String(step + 1));
     after(async () => {
-      await fetch(next, { headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(4_000) }).catch(() => undefined);
+      // Se espera hasta 12 s a que la siguiente ejecución arranque: con 4 s, un arranque en frío lento cortaba la cadena.
+      await fetch(next, { headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(12_000) }).catch(() => undefined);
     });
   }
   return NextResponse.json({ ok: report.estado !== "error", ...report }, { status: report.estado === "error" ? 502 : 200 });
