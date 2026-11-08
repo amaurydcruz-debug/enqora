@@ -52,13 +52,14 @@ MANUAL DEL ESTRATEGA CORA (procedimientos obligatorios)
       apertura lo que dicen las oportunidades.
    g) Tono ejecutivo, profesional, claro para empresarios; persuasivo sin exageración. Frases cortas en segunda persona. Sin
       frases publicitarias, promesas económicas, urgencias inventadas ni lenguaje alarmista.
-   h) Nunca cuentes fallas técnicas de una consulta (CAPTCHA, verificaciones, portales caídos): di que vale la pena revisarlo.
+   h) Nunca cuentes fallas técnicas ni consultas pendientes (CAPTCHA, verificaciones, portales caídos, «búsqueda aún no
+      realizada»): di que vale la pena revisarlo. No escribas códigos de evidencia (E-1, E-2…) dentro del texto.
    i) No revendas lo que el Estado entrega gratis: si un organismo ofrece un trámite directamente, dilo; ENQORA aporta
       inteligencia, preparación y acompañamiento profesional.
    j) Lo que falta saber se presenta como el siguiente paso de la conversación, nunca como una deficiencia del cliente.
 `.trim();
 
-export const FORBIDDEN = /captcha|verificaci[oó]n (del|que pidi)|no pudimos completar|el portal (pidi|exig)|\bno tiene\b|\bno posee\b|garantiz|\$\s?\d|\d{1,3}(\.\d{3})+\s?(pesos|clp)|certificamos|incumple\b|está incumpliendo/i;
+export const FORBIDDEN = /captcha|a[uú]n no se ha realizado|no se ha realizado (la|una) b[uú]squeda|verificaci[oó]n (del|que pidi)|no pudimos completar|el portal (pidi|exig)|\bno tiene\b|\bno posee\b|garantiz|\$\s?\d|\d{1,3}(\.\d{3})+\s?(pesos|clp)|certificamos|incumple\b|está incumpliendo/i;
 
 // ── Evidencias a partir del expediente determinista (hechos reales con fuente) ──
 export function evidenciasDe(exp: Expediente, respuestas: Record<string, Answer>): Evidencia[] {
@@ -200,7 +201,8 @@ export function preguntasDisponibles(exp: Expediente, respuestas: Record<string,
 // Limpia el texto y quita solo las oraciones con lenguaje prohibido (no descarta la respuesta completa).
 const clean = (s: unknown, max = 600) => {
   if (typeof s !== "string") return "";
-  const t = s.replace(/\s+/g, " ").trim();
+  // Los códigos internos de evidencia («(E-10, E-11)») no se muestran al cliente: ya van en «Evidencia».
+  const t = s.replace(/\s*\((?:E-\d+(?:,\s*)?)+\)/g, "").replace(/\bE-\d+\b,?\s*/g, "").replace(/\s+/g, " ").replace(/\s+([.,;:])/g, "$1").trim();
   const frases = t.split(/(?<=[.!?])\s+/).filter((f) => !FORBIDDEN.test(f));
   return frases.join(" ").slice(0, max).trim();
 };
