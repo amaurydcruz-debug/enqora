@@ -106,7 +106,7 @@ function wakeConnector(h: Headers) {
       const { data: claimed } = await supabase.rpc("svc_claim_sync_trigger", { p_token: service, p_minutes: 10 });
       if (claimed !== true) return;
       await fetch(`${proto}://${host}/api/cron/nomina?origen=portada`, {
-        headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(4_000),
+        headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(12_000),
       }).catch(() => undefined);
     } catch {
       // Silencioso: la consulta del visitante no depende del arranque del conector.

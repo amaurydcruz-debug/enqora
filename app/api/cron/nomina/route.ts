@@ -40,8 +40,9 @@ export async function GET(request: NextRequest) {
     const next = new URL("/api/cron/nomina", request.nextUrl.origin);
     next.searchParams.set("paso", String(step + 1));
     after(async () => {
-      // Solo se dispara la siguiente ejecución; no se espera su resultado.
-      await fetch(next, { headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(4_000) }).catch(() => undefined);
+      // Se espera hasta 12 s a que arranque la siguiente ejecución: con 4 s, un arranque en frío lento cortaba la cadena
+      // y la carga quedaba detenida hasta la tarea del día siguiente.
+      await fetch(next, { headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(12_000) }).catch(() => undefined);
     });
   }
   return NextResponse.json({ ok: report.estado !== "error", ...report }, { status: report.estado === "error" ? 502 : 200 });
