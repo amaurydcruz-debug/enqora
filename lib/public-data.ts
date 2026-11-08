@@ -41,7 +41,7 @@ const SPECS: Record<Dataset, Spec[]> = {
   ],
   empresas: [
     RUT, DV,
-    { key: "year", re: /^ANO|^ANIO|^YEAR|ANO_COMERCIAL|ANO_TRIBUTARIO/, required: true },
+    { key: "year", re: /^ANO|^ANIO|^YEAR|^A_?O_COMERCIAL|ANO_COMERCIAL|ANO_TRIBUTARIO|^PERIODO/, required: true },
     { key: "sales_tranche", re: /TRAMO.*VENTA/ },
     { key: "workers", re: /TRABAJADOR/ },
     { key: "region", re: /REGION/ },
@@ -54,6 +54,14 @@ const SPECS: Record<Dataset, Spec[]> = {
     { key: "main_activity", re: /ACTIVIDAD/, not: /FECHA|INICIO|TERMINO/ },
   ],
 };
+
+// Los archivos se leen como latin1. Si el SII publica uno en UTF-8, los acentos llegan como «Ã‘», «Ã³»…
+// («AÑO» → «AÃ\u0091O»): se reconvierten a UTF-8 cuando el texto lo muestra y la conversión es válida.
+export function reparar(s: string): string {
+  if (!/[\u00C2\u00C3][\u0080-\u00BF]/.test(s)) return s;
+  const u = Buffer.from(s, "latin1").toString("utf8");
+  return u.includes("\uFFFD") ? s : u;
+}
 
 export const normHeader = (h: string) =>
   h
@@ -72,7 +80,7 @@ export type Mapping = { delimiter: string; columns: Record<string, number>; miss
 
 export function mapHeader(dataset: Dataset, headerLine: string): Mapping {
   const delimiter = detectDelimiter(headerLine);
-  const header = headerLine.split(delimiter).map((h) => normHeader(h.replace(/^﻿/, "")));
+  const header = reparar(headerLine).split(delimiter).map((h) => normHeader(h.replace(/^\uFEFF|^ï»¿/, "")));
   const used = new Set<number>();
   const columns: Record<string, number> = {};
   for (const s of SPECS[dataset]) {
@@ -137,7 +145,7 @@ const txt = (v?: string) => {
 };
 
 export function toRow(dataset: Dataset, map: Mapping, line: string): Record<string, unknown> | null {
-  const cells = line.split(map.delimiter);
+  const cells = reparar(line).split(map.delimiter);
   const get = (k: string) => (map.columns[k] !== undefined ? cells[map.columns[k]] : undefined);
   const id = parseRut(get("rut"), map.columns.dv !== undefined ? get("dv") ?? "" : undefined);
   if (!id) return null;
