@@ -9,7 +9,7 @@ import { escuchar, soporteVoz, useModoVoz } from "@/lib/voz/navegador";
 
 // «Cuéntanos tu caso»: el cliente relata (escribiendo o dictando), elige cómo quiere la respuesta y recibe
 // qué documentos tener a mano. El equipo responde con una cotización por el canal elegido.
-export function CasoForm({ rut, razon, relato, setRelato, objetivos = [] }: { rut: string; razon: string; relato: string; setRelato: (v: string) => void; objetivos?: typeof OBJETIVOS }) {
+export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo = "Conozcamos qué quieres conseguir con tu empresa." }: { rut: string; razon: string; relato: string; setRelato: (v: string) => void; objetivos?: typeof OBJETIVOS; titulo?: string }) {
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [state, action] = useActionState<CasoState, FormData>(enviarCasoAction, null);
   const [canal, setCanal] = useState<"whatsapp" | "correo">("whatsapp");
@@ -48,7 +48,7 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [] }: { ru
   return (
     <form id="cora-caso" action={action} className="cora-caso">
       <span className="eyebrow">Siguiente paso</span>
-      <b>Conozcamos qué quieres conseguir con tu empresa.</b>
+      <b>{titulo}</b>
       {objetivos.length ? (
         <div className="natural-opts" role="group" aria-label="Tus objetivos">
           {objetivos.map((o) => {
