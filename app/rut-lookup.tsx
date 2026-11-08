@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { lookupRutAction, type LookupState } from "@/app/actions/public";
-import { PropuestaView } from "@/app/cora-solucion";
+import { CasoForm } from "@/app/cora-caso";
+import { PriceLine } from "@/app/diagnostico-360";
+import { objetivosOrdenados } from "@/lib/cora/caso";
 import { ConsultaEstrategica } from "@/app/consulta-estrategica";
-import { investigarPersona, PREGUNTAS_PERSONA, type ExpedientePersona, type PersonaAnswers } from "@/lib/cora/personas";
+import { ESTADO_SITUACION, investigarPersona, PREGUNTAS_PERSONA, type ExpedientePersona, type PersonaAnswers } from "@/lib/cora/personas";
 import { EnqoraClockLoader } from "@/components/clock-loader";
 import type { Catalog } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
@@ -235,11 +237,20 @@ function NaturalFlow({ r }: { r: PublicCompany }) {
   return (
     <>
       <h3>CORA Personas · RUT {formatRut(r.rut ?? "")}</h3>
-      <p className="lookup-note">
-        Para proteger a las personas, CORA no investiga a nadie solo por su RUT: cualquiera podría escribir uno ajeno. Si este es tu RUT
-        y emprendes o quieres emprender, conversa con CORA: unas pocas preguntas, una a la vez, y recibes tu perfil, tus necesidades y tu plan.
-        Tus respuestas no se envían ni se guardan.
-      </p>
+      <section className="cora-carta" aria-label="Orientación inicial">
+        <span className="report-tag">CORA · Orientación inicial</span>
+        <h4>Tu actividad económica es el punto de partida.</h4>
+        <p>
+          Para proteger a las personas, CORA no consulta fuentes con el RUT de alguien: cualquiera podría escribir uno ajeno. Por eso partimos
+          de lo que tú nos cuentes, con la normativa vigente, y nada se envía ni se guarda.
+        </p>
+        <dl className="cora-identidad">
+          <div><dt>Si vendes con boletas o facturas</dt><dd>Primera categoría: declaración mensual de IVA (F29) y renta anual en abril.</dd></div>
+          <div><dt>Si emites boletas de honorarios</dt><dd>Segunda categoría: retención en cada boleta y renta anual en abril.</dd></div>
+          <div><dt>Si aún no inicias actividades</dt><dd>Te orientamos para formalizarte con el giro y el régimen correctos.</dd></div>
+        </dl>
+        <p className="report-note">Esta orientación es inicial: las obligaciones exactas dependen de tu régimen tributario, que se confirma con tus documentos.</p>
+      </section>
       <div className="cora-chat">
         {visibles.filter((q) => a[q.key]).map((q) => (
           <div key={q.key} className="cora-turn">
@@ -251,6 +262,7 @@ function NaturalFlow({ r }: { r: PublicCompany }) {
         {siguiente ? (
           <fieldset className="cora-ask">
             <legend>{siguiente.q}</legend>
+            <span className="report-note">Por qué te lo pregunto: {siguiente.porque}</span>
             <div className="natural-opts">
               {siguiente.options.map(([v, label]) => (
                 <button key={v} type="button" className="natural-opt" onClick={() => setA((x) => ({ ...x, [siguiente.key]: v }))}>{label}</button>
@@ -260,35 +272,67 @@ function NaturalFlow({ r }: { r: PublicCompany }) {
           </fieldset>
         ) : null}
       </div>
-      {completo ? <PersonaReport e={investigarPersona(respuestas, catalog)} when={consultedAt(r.consultado)} /> : null}
+      {completo ? <PersonaReport e={investigarPersona(respuestas, catalog)} when={consultedAt(r.consultado)} rut={r.rut ?? ""} /> : null}
     </>
   );
 }
 
-function PersonaReport({ e, when }: { e: ExpedientePersona; when: string | null }) {
+function PersonaReport({ e, when, rut }: { e: ExpedientePersona; when: string | null; rut: string }) {
+  const [relato, setRelato] = useState("");
+  const servicios = e.prioridades.filter((n) => n.servicio?.disponible);
   return (
     <div className="report cora">
       <div className="report-head">
-        <span className="eyebrow">CORA Personas · tu perfil emprendedor</span>
+        <span className="eyebrow">CORA Personas · tu orientación</span>
         <small>{when ? `Generado el ${when}` : null} · según tus respuestas y la normativa vigente · no se guarda</small>
       </div>
-      <dl className="lookup-facts">{e.perfil.map((x) => <div key={x.etiqueta}><dt>{x.etiqueta}</dt><dd>{x.valor}</dd></div>)}</dl>
-      {e.fortalezas.length ? (
-        <>
-          <h4 className="lookup-acts-title">Tus fortalezas</h4>
-          <ul className="report-insights">{e.fortalezas.map((f) => <li key={f}>{f}</li>)}</ul>
-        </>
+
+      <section className="cora-carta" aria-label="Tu perfil tributario">
+        <span className="report-tag">Tu perfil tributario (según lo que nos dijiste)</span>
+        <h4>{e.categoria}</h4>
+        <dl className="cora-identidad">{e.perfil.map((x) => <div key={x.etiqueta}><dt>{x.etiqueta}</dt><dd>{x.valor}</dd></div>)}</dl>
+      </section>
+
+      <section className="cora-eval" aria-label="Evaluación de situación">
+        <span className="report-tag">Evaluación de situación</span>
+        <ul>{e.situacion.map((x) => <li key={x.tema}><b>{x.tema}</b> <span className="report-note">· {ESTADO_SITUACION[x.estado]}</span><span>{x.detalle}</span></li>)}</ul>
+      </section>
+
+      {e.prioridades.length ? (
+        <section aria-label="Plan de acción">
+          <span className="report-tag">Tu plan de acción: {e.prioridades.length === 1 ? "lo primero" : `las ${e.prioridades.length} prioridades`}</span>
+          <ol className="report-recs cora-oport">
+            {e.prioridades.map((n) => (
+              <li key={n.id} className="lookup-signal">
+                <b>{n.necesidad}</b>
+                <dl className="cora-oport-dl">
+                  <dt>Por qué</dt><dd>{n.evidencia}</dd>
+                  {n.consecuencia ? <><dt>Qué está en juego</dt><dd>{n.consecuencia}</dd></> : null}
+                  <dt>Próximo paso</dt><dd>{n.proximo}</dd>
+                  {n.servicio?.disponible ? <><dt>Con ENQORA</dt><dd>{n.servicio.nombre} · <PriceLine s={n.servicio} /></dd></> : null}
+                </dl>
+              </li>
+            ))}
+          </ol>
+          {!servicios.length ? <p className="report-note">Aún no hay un servicio publicado para estas prioridades: un profesional ENQORA puede evaluarlas contigo y cotizarlas.</p> : null}
+        </section>
       ) : null}
-      {e.conclusiones.length ? (
-        <>
-          <h4 className="lookup-acts-title">Lo que CORA entiende de tu situación</h4>
-          <ul className="report-insights">{e.conclusiones.map((c) => <li key={c}>{c}</li>)}</ul>
-        </>
+
+      {e.impacto.length ? (
+        <section className="cora-eval" aria-label="Ejemplos de impacto">
+          <span className="report-tag">Ejemplos calculados (no son ahorros garantizados)</span>
+          <ul>
+            {e.impacto.map((i) => (
+              <li key={i.titulo}><b>{i.titulo}</b><span>{i.resultado}</span>
+                <span className="report-note">Datos: {i.datos} Supuestos: {i.supuestos} Fórmula: {i.formula} Por confirmar: {i.confirmar}</span></li>
+            ))}
+          </ul>
+        </section>
       ) : null}
-      <PropuestaView propuesta={e.propuesta} />
+
       {e.obligaciones.length ? (
         <>
-          <h4 className="lookup-acts-title">Lo que debes cumplir y cuándo</h4>
+          <h4 className="lookup-acts-title">Lo que podrías tener que cumplir y cuándo (según tu perfil)</h4>
           <table className="report-cal">
             <tbody>{e.obligaciones.map((o) => <tr key={o.que}><th scope="row">{o.que}{o.nota ? <small>{o.nota}</small> : null}</th><td>{o.cuando}</td></tr>)}</tbody>
           </table>
@@ -296,17 +340,19 @@ function PersonaReport({ e, when }: { e: ExpedientePersona; when: string | null 
       ) : null}
       {e.beneficios.length ? (
         <>
-          <h4 className="lookup-acts-title">Oportunidades que podrían aplicar</h4>
+          <h4 className="lookup-acts-title">Programas que podrían aplicar</h4>
           <ul className="report-insights">
             {e.beneficios.map((b) => <li key={b.nombre}><a href={b.url} target="_blank" rel="noopener noreferrer"><b>{b.nombre}</b></a>. {b.porque} <span className="report-note">Falta confirmar: {b.falta}</span></li>)}
           </ul>
         </>
       ) : null}
+
+      <CasoForm rut={rut} razon="" relato={relato} setRelato={setRelato} objetivos={objetivosOrdenados(e.prioridades.map((n) => n.necesidad))} titulo="Descubramos qué necesita tu negocio: ¿qué quieres conseguir?" />
       <div className="lookup-deep">
-        <b>Tu expediente personal completo</b>
-        <span>Con tu cuenta ENQORA podrás, con tu autorización, sumar tu Carpeta Tributaria y otros documentos para que un profesional confirme este análisis. ENQORA nunca te pedirá tu clave del SII.</span>
+        <b>Tu expediente personal</b>
+        <span>Con tu cuenta ENQORA, y con tu autorización, un profesional confirma esta orientación con tu Carpeta Tributaria y tus fechas quedan en un calendario con alertas. ENQORA nunca te pedirá tu clave del SII.</span>
         <div className="inline-form">
-          <Link href={`/comenzar?servicio=${e.propuesta.planes[0]?.etapas[0]?.necesidad.servicio?.categoria ?? "formalizacion"}`} className="btn btn-gold btn-inline btn-sm">Crear mi cuenta gratis</Link>
+          <Link href={`/comenzar?servicio=${e.prioridades[0]?.servicio?.categoria ?? "formalizacion"}`} className="btn btn-gold btn-inline btn-sm">Crear mi cuenta gratis</Link>
           <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => window.print()}>Guardar en PDF</button>
         </div>
       </div>

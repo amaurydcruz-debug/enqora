@@ -5,6 +5,7 @@ import type { PublicCompany } from "@/app/actions/public";
 import { identidadEmpresa, objetivosOrdenados } from "@/lib/cora/caso";
 import { investigar } from "@/lib/cora/director";
 import { evidenciasDe, parecidos, turnoReglas, validarTurno } from "@/lib/cora/estratega";
+import { investigarPersona, type PersonaAnswers } from "@/lib/cora/personas";
 import type { HallazgoWeb } from "@/lib/cora/web/hallazgos";
 import type { Catalog, PublicProfileForReport } from "@/lib/initial-report";
 
@@ -76,6 +77,26 @@ void c6; void c7;
     { titulo: "Poner al día las declaraciones de IVA atrasadas", hallazgo: "El SII no muestra ventas recientes.", por_que_importa: "Es lo mismo dicho de otra forma.", falta_confirmar: "Tus F29.", proximo_paso: "Revisar F29.", tipo: "hipotesis", evidencias: [e1] },
   ] }, ev, []);
   if (!v || v.descubrimientos.length !== 1) fallos.push("Validador: no elimina la oportunidad repetida");
+}
+// CORA Personas: perfiles distintos reciben orientaciones distintas, con máximo 3 prioridades sin repetir.
+{
+  const perfiles: [string, PersonaAnswers][] = [
+    ["Profesional con honorarios", { venta: "honorarios", trabajadores: "no", contador: "nadie", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" } as PersonaAnswers],
+    ["Negocio con facturas y trabajadores", { venta: "facturas", trabajadores: "si", contador: "nadie", lugar: "local", cuentas: "no", crecer: "si", marca: "si" } as PersonaAnswers],
+    ["Actividades mixtas", { venta: "ambas", trabajadores: "no", contador: "contador", lugar: "online", cuentas: "si", crecer: "no_se", marca: "no" } as PersonaAnswers],
+    ["Sin inicio de actividades", { venta: "sin_inicio", trabajadores: "no", contador: "nadie", lugar: "casa", cuentas: "no", crecer: "si", marca: "no" } as PersonaAnswers],
+  ];
+  const firmas = new Set<string>();
+  for (const [nombre, a] of perfiles) {
+    const e = investigarPersona(a, catalog, HOY);
+    if (e.prioridades.length > 3) fallos.push(`Personas · ${nombre}: más de 3 prioridades`);
+    const svcs = e.prioridades.map((n) => n.servicio?.id ?? n.id);
+    if (new Set(svcs).size !== svcs.length) fallos.push(`Personas · ${nombre}: prioridades repetidas`);
+    if (e.situacion.some((x) => /incumpl|moros|infractor/i.test(x.detalle))) fallos.push(`Personas · ${nombre}: etiqueta de incumplimiento sin evidencia`);
+    firmas.add(`${e.categoria}|${e.prioridades.map((n) => n.id).join(",")}`);
+    console.log(`\nPersonas · ${nombre}\n  Perfil: ${e.categoria}\n  Situación: ${e.situacion.map((x) => `${x.tema}=${x.estado}`).join(" · ")}\n  Prioridades: ${e.prioridades.map((n) => n.necesidad).join(" | ")}\n  Impacto: ${e.impacto.map((i) => i.resultado).join(" | ") || "(sin ejemplo)"}`);
+  }
+  if (firmas.size !== perfiles.length) fallos.push("Personas: perfiles distintos reciben la misma orientación");
 }
 console.log(fallos.length ? `\n${fallos.length} FALLOS:\n- ${fallos.join("\n- ")}` : "\nTodas las comprobaciones del informe pasaron ✓");
 if (fallos.length) process.exit(1);
