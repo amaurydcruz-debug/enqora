@@ -59,7 +59,7 @@ MANUAL DEL ESTRATEGA CORA (procedimientos obligatorios)
    j) Lo que falta saber se presenta como el siguiente paso de la conversación, nunca como una deficiencia del cliente.
 `.trim();
 
-export const FORBIDDEN = /captcha|a[uú]n no se ha realizado|no se ha realizado (la|una) b[uú]squeda|verificaci[oó]n (del|que pidi)|no pudimos completar|el portal (pidi|exig)|\bno tiene\b|\bno posee\b|garantiz|\$\s?\d|\d{1,3}(\.\d{3})+\s?(pesos|clp)|certificamos|incumple\b|está incumpliendo/i;
+export const FORBIDDEN = /captcha|a[uú]n no se ha realizado|pendiente de completar|revisi[oó]n est[aá] pendiente|b[uú]squeda (est[aá] )?pendiente|no se ha realizado (la|una) b[uú]squeda|verificaci[oó]n (del|que pidi)|no pudimos completar|el portal (pidi|exig)|\bno tiene\b|\bno posee\b|garantiz|\$\s?\d|\d{1,3}(\.\d{3})+\s?(pesos|clp)|certificamos|incumple\b|está incumpliendo/i;
 
 // ── Evidencias a partir del expediente determinista (hechos reales con fuente) ──
 export function evidenciasDe(exp: Expediente, respuestas: Record<string, Answer>): Evidencia[] {
