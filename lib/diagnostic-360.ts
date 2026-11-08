@@ -1,7 +1,6 @@
 import { BENEFITS } from "@/lib/benefits";
 import { buildInitialReport, companyType, offer, type Catalog, type InitialReport, type PublicProfileForReport, type ServiceOffer } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
-import { runCalculator } from "@/lib/tax-calc";
 
 // Diagnóstico empresarial 360° (Fase 1). Combina:
 //  • datos públicos del SII (confirmados, con fuente y fecha), y
@@ -327,38 +326,18 @@ export function build360(p: PublicProfileForReport, answers: Record<string, Answ
   }
 
   // 5) Beneficios M16 con criterios verificables en datos públicos (el resto se indica como «por confirmar»).
-  // Si el SII no informa el tamaño, los beneficios tributarios se muestran igual, con el tamaño como dato por confirmar.
   const beneficios: BenefitMatch[] = [];
   const find = (id: string) => BENEFITS.find((b) => b.id === id);
-  const sinTramo = !Number.isFinite(tramo) || tramo <= 0;
   const tam = salesTrancheLabel(p.perfil?.tramo_ventas);
-  const pesos = (n: number) => `$${Math.round(n).toLocaleString("es-CL")}`;
   if (!cerrada) {
-    // Beneficios tributarios: el gancho más concreto para el dueño, con fundamento legal verificado.
-    const camioneta = find("iva_camionetas");
-    if (camioneta && (sinTramo || tramo >= 2)) {
-      const c = runCalculator("calcular_iva", { neto: 20_000_000 });
-      const iva = c.ok ? Number(c.resultado.iva) : null;
-      beneficios.push({ nombre: camioneta.nombre, url: camioneta.url, verificado: camioneta.verificado, queEs: camioneta.entrega,
-        porque: "Tiene giro vigente: si compra o renueva una camioneta, jeep o furgón para el negocio, podría recuperar el IVA de esa compra.",
-        falta: "Que tenga ventas afectas a IVA y que el vehículo se use directamente en el giro.",
-        gancho: "Si compras una camioneta para tu negocio, puedes recuperar su IVA",
-        porqueTu: "Tu empresa tiene giro vigente. Si compras o renuevas una camioneta, jeep o furgón que usas en el negocio, el IVA de esa compra puede descontarse del IVA de tus ventas.",
-        faltaTu: "que tengas ventas afectas a IVA y que el vehículo se use directamente en tu giro.",
-        ...(iva ? { ejemplo: `Ejemplo ilustrativo: en una camioneta de ${pesos(20_000_000)} más IVA, el IVA es ${pesos(iva)}. Ese monto puede usarse como crédito fiscal en tu F29.` } : {}) });
-    }
-    const posterga = find("postergacion_iva");
-    if (posterga && (sinTramo || (tramo >= 2 && tramo <= 9))) beneficios.push({ nombre: posterga.nombre, url: posterga.url, verificado: posterga.verificado, queEs: posterga.entrega,
-      porque: sinTramo ? "Aplica a empresas con ingresos promedio de hasta 100.000 UF." : `Según el SII su tamaño es ${tam}: por ventas, calza con el límite de 100.000 UF.`,
-      falta: "Estar al día: F29 de los últimos 36 meses a tiempo, sin morosidad reiterada y notificaciones por correo.",
-      gancho: "Más aire para tu caja: pagar el IVA hasta dos meses después",
-      porqueTu: sinTramo ? "Es para empresas con ingresos promedio de hasta 100.000 UF al año, que es la gran mayoría de las pymes." : `Según el SII tu empresa está en el tramo ${tam}: por ventas, estás dentro del límite de 100.000 UF.`,
-      faltaTu: `${sinTramo ? "tu nivel de ingresos y " : ""}que estés al día: F29 de los últimos 36 meses presentados a tiempo, sin morosidad reiterada y notificaciones del SII por correo.` });
+    // Los beneficios con requisitos que no constan en datos públicos (crédito fiscal por vehículos, postergación del IVA)
+    // NO se ofrecen de forma automática: quedan en el catálogo para la evaluación individual de un profesional.
+    // Solo se muestran los que tienen evidencia en el SII (tamaño o trabajadores), siempre como «por confirmar».
     const propyme = find("pro_pyme_tasa");
     if (propyme && tramo >= 2 && tramo <= 9) beneficios.push({ nombre: propyme.nombre, url: propyme.url, verificado: propyme.verificado, queEs: propyme.entrega,
       porque: "Por su tamaño podría estar en el régimen Pro Pyme general.",
       falta: "Confirmar el régimen tributario actual (no es público).",
-      gancho: "Pagar la mitad del impuesto a la renta: tasa de 12,5%",
+      gancho: "Tasa reducida del régimen Pro Pyme",
       porqueTu: "Por tu tamaño podrías estar en el régimen Pro Pyme general, que hoy tiene una tasa reducida.",
       faltaTu: "tu régimen tributario actual, que no es público." });
     const crece = find("sercotec_crece");
@@ -375,13 +354,8 @@ export function build360(p: PublicProfileForReport, answers: Record<string, Answ
       gancho: "Capacitar a tu equipo descontándolo de tus impuestos",
       porqueTu: `Tu empresa informa ${workers} trabajador(es) al SII.`,
       faltaTu: "que tu planilla supere 35 UTM mensuales y las cotizaciones estén pagadas." });
-    const compra = find("chilecompra");
-    if (compra && answers.fondos !== "si") beneficios.push({ nombre: compra.nombre, url: compra.url, verificado: compra.verificado, queEs: compra.entrega,
-      porque: "Tiene inicio de actividades: puede vender al Estado.",
-      falta: "Que sus productos o servicios calcen con lo que compran los organismos públicos.",
-      gancho: "Vender al Estado: saber quién compra lo que vendes",
-      porqueTu: "Con inicio de actividades vigente puedes vender al Estado. La inscripción en Mercado Público es gratuita y la haces directo en ChileCompra; lo valioso es saber qué organismos compran lo que ofreces, cuánto y cada cuánto, y prepararte para competir.",
-      faltaTu: "que lo que ofreces calce con lo que compran los organismos públicos; eso se revisa con sus órdenes de compra reales." });
+    // Compras públicas: tener inicio de actividades no basta. La oportunidad la detecta CORA solo con evidencia de
+    // Mercado Público (proveedor u órdenes de compra del rubro), en el director.
   }
 
   // 6) Perfil, resumen y fuentes

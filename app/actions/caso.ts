@@ -29,7 +29,9 @@ const TOOL = {
 };
 
 export async function enviarCasoAction(_prev: CasoState, form: FormData): Promise<CasoState> {
-  const relato = String(form.get("relato") ?? "").trim();
+  const objetivos = form.getAll("objetivos").map((o) => String(o).slice(0, 80)).filter(Boolean).slice(0, 6);
+  const detalle = String(form.get("relato") ?? "").trim();
+  const relato = [objetivos.length ? `Objetivos: ${objetivos.join("; ")}.` : "", detalle].filter(Boolean).join("\n");
   const nombre = String(form.get("nombre") ?? "").trim();
   const canal = String(form.get("canal") ?? "") === "correo" ? "correo" : "whatsapp";
   const contacto = String(form.get("contacto") ?? "").trim();
@@ -37,7 +39,7 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
   const rut = rutRaw && isValidRut(rutRaw) ? rutRaw : null;
   const razon = String(form.get("razon_social") ?? "").slice(0, 200);
   if (form.get("consentimiento") !== "on") return { ok: false, error: "Para responderte necesitamos tu autorización para usar estos datos." };
-  if (relato.length < 10) return { ok: false, error: "Cuéntanos tu caso con un poco más de detalle." };
+  if (relato.length < 10) return { ok: false, error: "Elige un objetivo o cuéntanos con un poco más de detalle qué quieres conseguir." };
   if (relato.length > 4000) return { ok: false, error: "El relato es muy largo: resúmelo en menos de 4.000 caracteres." };
   if (nombre.length < 2) return { ok: false, error: "Indica tu nombre." };
   if (canal === "correo" ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contacto) : !/^\+?[\d\s()-]{8,20}$/.test(contacto))

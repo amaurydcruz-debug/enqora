@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { enviarCasoAction, type CasoState } from "@/app/actions/caso";
 import { SubmitButton } from "@/components/submit-button";
-import { DOCUMENTOS, nombreCategoria } from "@/lib/cora/caso";
+import { DOCUMENTOS, nombreCategoria, type OBJETIVOS } from "@/lib/cora/caso";
 import { escuchar, soporteVoz, useModoVoz } from "@/lib/voz/navegador";
 
 // «Cuéntanos tu caso»: el cliente relata (escribiendo o dictando), elige cómo quiere la respuesta y recibe
 // qué documentos tener a mano. El equipo responde con una cotización por el canal elegido.
-export function CasoForm({ rut, razon, relato, setRelato }: { rut: string; razon: string; relato: string; setRelato: (v: string) => void }) {
+export function CasoForm({ rut, razon, relato, setRelato, objetivos = [] }: { rut: string; razon: string; relato: string; setRelato: (v: string) => void; objetivos?: typeof OBJETIVOS }) {
+  const [elegidos, setElegidos] = useState<string[]>([]);
   const [state, action] = useActionState<CasoState, FormData>(enviarCasoAction, null);
   const [canal, setCanal] = useState<"whatsapp" | "correo">("whatsapp");
   const [dictando, setDictando] = useState(false);
@@ -19,7 +20,7 @@ export function CasoForm({ rut, razon, relato, setRelato }: { rut: string; razon
     const a = state.analisis;
     return (
       <section id="cora-caso" className="cora-caso cora-caso-ok" aria-live="polite">
-        <span className="eyebrow">Recibimos tu caso</span>
+        <span className="eyebrow">Recibimos tu solicitud</span>
         {a.resumen ? <b>{a.resumen}</b> : <b>Gracias por contarnos tu caso. Ya está en manos del equipo ENQORA.</b>}
         <span>Área: {a.categorias.map(nombreCategoria).join(" y ")}.</span>
         {a.documentos.length ? (
@@ -46,16 +47,29 @@ export function CasoForm({ rut, razon, relato, setRelato }: { rut: string; razon
 
   return (
     <form id="cora-caso" action={action} className="cora-caso">
-      <span className="eyebrow">Cuéntanos tu caso</span>
-      <b>¿Qué necesitas resolver? Cuéntalo con tus palabras: te respondemos con una cotización.</b>
+      <span className="eyebrow">Siguiente paso</span>
+      <b>Conozcamos qué quieres conseguir con tu empresa.</b>
+      {objetivos.length ? (
+        <div className="natural-opts" role="group" aria-label="Tus objetivos">
+          {objetivos.map((o) => {
+            const on = elegidos.includes(o.texto);
+            return (
+              <label key={o.id} className={`natural-opt${on ? " is-on" : ""}`}>
+                <input type="checkbox" name="objetivos" value={o.texto} checked={on} onChange={() => setElegidos(on ? elegidos.filter((x) => x !== o.texto) : [...elegidos, o.texto])} /> {o.texto}
+              </label>
+            );
+          })}
+        </div>
+      ) : null}
+      <span className="report-note">Elige uno o más y, si quieres, cuéntanos el detalle. Un profesional te responde con una propuesta.</span>
       <input type="hidden" name="rut" value={rut} />
       <input type="hidden" name="razon_social" value={razon} />
       <label className="sr-only" htmlFor="caso-relato">Tu caso</label>
-      <textarea id="caso-relato" name="relato" className="input" rows={4} maxLength={4000} required value={relato} onChange={(e) => setRelato(e.target.value)}
-        placeholder="Ej.: tengo la renta del año pasado sin declarar y dos trabajadores sin contrato escrito. Quiero ponerme al día." />
+      <textarea id="caso-relato" name="relato" className="input" rows={3} maxLength={4000} required={!elegidos.length} value={relato} onChange={(e) => setRelato(e.target.value)}
+        placeholder="Ej.: quiero ordenar la renta del año pasado y contratar a dos personas este semestre." />
       {soporteVoz().escuchar ? (
         <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => void dictar()} disabled={dictando || voz.escuchando}>
-          {dictando ? "Te escucho…" : "Dictar mi caso por voz"}
+          {dictando ? "Te escucho…" : "Dictar por voz"}
         </button>
       ) : null}
       <div className="cora-caso-fila">
@@ -78,8 +92,8 @@ export function CasoForm({ rut, razon, relato, setRelato }: { rut: string; razon
         <input type="checkbox" name="consentimiento" required /> <span>Autorizo a ENQORA a usar estos datos solo para responder mi solicitud (<Link href="/privacidad">privacidad</Link>).</span>
       </label>
       {state && !state.ok ? <p className="lookup-error" role="alert">{state.error}</p> : null}
-      <SubmitButton className="btn-inline" pendingText="Enviando tu caso…">Enviar mi caso</SubmitButton>
-      <span className="report-note">Te respondemos con una cotización en un plazo de 24 horas hábiles. Sin costo ni compromiso.</span>
+      <SubmitButton className="btn-inline" pendingText="Enviando…">Enviar</SubmitButton>
+      <span className="report-note">Te respondemos con una propuesta y su cotización en un plazo de 24 horas hábiles. Sin costo ni compromiso.</span>
     </form>
   );
 }

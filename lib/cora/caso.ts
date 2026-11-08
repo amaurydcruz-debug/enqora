@@ -2,7 +2,6 @@
 // ordenamiento del relato (servicios y documentos necesarios). Funciones puras, sin red.
 import type { Expediente } from "@/lib/cora/director";
 import { CATEGORIES } from "@/lib/discovery";
-import { evaluarObligaciones } from "@/lib/cora/normativa-laboral";
 import type { PublicCompany } from "@/app/actions/public";
 
 // Documentos que un profesional suele pedir para cotizar y resolver, por área. Lista cerrada: CORA solo
@@ -74,40 +73,39 @@ export function validarAnalisis(raw: unknown): AnalisisCaso | null {
 
 export const nombreCategoria = (k: string) => CATEGORIES.find((c) => c.key === k)?.title ?? k;
 
-// ── Carta de CORA: directa, en segunda persona, solo con hechos de la consulta ──
-export function cartaCora(r: PublicCompany, exp: Expediente): { titulo: string; parrafos: string[] } {
-  const razon = r.razon_social ?? "Tu empresa";
-  const inicio = r.inicio_actividades ? Number(r.inicio_actividades.slice(0, 4)) : null;
-  const anios = inicio ? new Date().getUTCFullYear() - inicio : null;
-  const cerrada = !!r.termino_giro;
-  const alertas = (r.senales ?? []).filter((s) => s.gravedad === "alta" || s.gravedad === "media").length;
-  const trabajadores = r.perfil?.trabajadores ?? null;
-  const constitucion = exp.secciones.flatMap((s) => s.encontrado).find((x) => x.startsWith("Constituida el "));
-  const ganchos = exp.beneficios.filter((b) => b.gancho && !/Estado/.test(b.gancho)).map((b) => b.gancho!.replace(/\.$/, ""));
-  const estado = exp.beneficios.some((b) => /Estado/.test(b.nombre));
-
-  const p: string[] = [];
-  if (cerrada) {
-    p.push(`${razon} registra término de giro${r.termino_giro ? ` el ${new Date(`${r.termino_giro}T12:00:00Z`).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}` : ""}. Si quedó algo pendiente del cierre, o quieres volver a emprender, te acompañamos de principio a fin.`);
-  } else {
-    const desde = constitucion ? constitucion.replace(/\. Fuente:.*$/, "").replace(/^Constituida el /, "constituida el ") : inicio ? `con inicio de actividades en ${inicio}${anios && anios > 0 ? ` (${anios} ${anios === 1 ? "año" : "años"} en marcha)` : ""}` : "con inicio de actividades informado";
-    p.push(`Empresa ${desde}, sin término de giro${alertas ? ` y con ${alertas} ${alertas === 1 ? "punto" : "puntos"} a revisar en la información pública del SII` : " y sin alertas en la información pública del SII"}.`);
-    // Trabajadores según el SII (indicador anual): qué le pide la ley con ese tamaño, de la normativa laboral verificada.
-    const anio = r.perfil?.anio_comercial ?? null;
-    if (trabajadores && trabajadores > 0) {
-      // Primero lo que depende del tamaño (lo que más se pasa por alto), luego lo que aplica a todo empleador.
-      const ORDEN = ["depto_prevencion", "cphs", "delegado", "reglamento_interno", "lre", "karin", "ds44_base", "contrato", "cotizaciones", "seguro_16744"];
-      const pide = evaluarObligaciones(trabajadores, anio).filter((o) => o.aplicacion === "potencial" && ORDEN.includes(o.id))
-        .sort((a, b) => ORDEN.indexOf(a.id) - ORDEN.indexOf(b.id)).map((o) => o.nombre);
-      p.push(`El SII informa ${trabajadores} ${trabajadores === 1 ? "trabajador" : "trabajadores"}${anio ? ` en ${anio}` : ""}. Con ese tamaño, la ley te pide, entre otras cosas: ${pide.slice(0, 5).join("; ")}. ¿Lo tienes todo al día? Nuestros asesores lo revisan contigo y resuelven lo que esté pendiente.`);
-    } else if (trabajadores === 0) {
-      p.push(`El SII no informa trabajadores dependientes${anio ? ` en ${anio}` : ""}. Si ya contrataste o vas a hacerlo, te dejamos contratos, cotizaciones y el protocolo de la Ley Karin en regla desde el primer día.`);
-    } else {
-      p.push("Si tienes trabajadores, te ayudamos a tener contratos y cotizaciones en regla, y si hay alguna situación pendiente, nuestros asesores la resuelven contigo.");
-    }
-    if (ganchos.length) p.push(`El Estado da beneficios tributarios que puedes usar a tu favor. Por ejemplo: ${ganchos.slice(0, 2).map((g) => g.charAt(0).toLowerCase() + g.slice(1)).join("; ")}.`);
-    if (estado) p.push(`Si tu empresa está al día, puedes venderle al Estado${r.perfil?.rubro ? ` en tu rubro (${r.perfil.rubro.toLowerCase()})` : ""}. La inscripción en Mercado Público es gratuita; ENQORA te ayuda a descubrir qué organismos compran lo que ofreces y a preparar ofertas que compitan.`);
+// ── Identidad empresarial: solo antecedentes encontrados en fuentes, sin recomendaciones ──
+// Distingue la constitución (Registro de Empresas) del inicio de actividades (SII).
+export type DatoIdentidad = { etiqueta: string; valor: string; fuente: string };
+export function identidadEmpresa(r: PublicCompany, exp: Expediente): DatoIdentidad[] {
+  const fecha = (d: string) => new Date(`${d.slice(0, 10)}T12:00:00Z`).toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
+  const datos: DatoIdentidad[] = [];
+  const res = exp.secciones.flatMap((s) => s.encontrado).find((x) => x.startsWith("Constituida el "));
+  const m = res?.match(/^Constituida el (.+?) \((.+?)\)(?: como ([^,]+))?(?:, con capital inicial de ([^,]+))?(?:, en (.+?))?\. Fuente/);
+  if (m) {
+    datos.push({ etiqueta: "Constitución", valor: `${m[1]}${m[3] ? ` · ${m[3]}` : ""}`, fuente: "Registro de Empresas y Sociedades" });
+    if (m[4]) datos.push({ etiqueta: "Capital inicial", valor: m[4], fuente: "Registro de Empresas y Sociedades" });
+    if (m[5]) datos.push({ etiqueta: "Domicilio", valor: m[5].replace(/\b([A-ZÁÉÍÓÚÑ])([A-ZÁÉÍÓÚÑ]+)\b/g, (_, a: string, b: string) => a + b.toLowerCase()), fuente: "Registro de Empresas y Sociedades" });
   }
-  p.push("¿Declaración de renta pendiente o problemas contables? ENQORA es tu solución: nuestros expertos resuelven desde cero hasta dejar tu empresa funcionando. Llevamos tu contabilidad, registramos tu marca y formalizamos tu empresa.");
-  return { titulo: razon, parrafos: p };
+  if (r.inicio_actividades) datos.push({ etiqueta: "Inicio de actividades", valor: fecha(r.inicio_actividades), fuente: "SII" });
+  datos.push({ etiqueta: "Situación", valor: r.termino_giro ? `Término de giro el ${fecha(r.termino_giro)}` : "Sin término de giro informado", fuente: "SII" });
+  const acts = r.actividades ?? [];
+  if (acts.length) datos.push({ etiqueta: `Actividades vigentes (${r.total_actividades ?? acts.length})`, valor: acts.slice(0, 2).map((a) => a.descripcion ?? a.codigo).filter(Boolean).join(" · "), fuente: "SII" });
+  if (r.perfil?.tramo_ventas) datos.push({ etiqueta: "Tamaño por ventas", valor: `${r.perfil.tramo_ventas}${r.perfil.anio_comercial ? ` (${r.perfil.anio_comercial})` : ""}`, fuente: "SII" });
+  if (r.perfil?.trabajadores != null) datos.push({ etiqueta: "Trabajadores informados", valor: `${r.perfil.trabajadores}${r.perfil.anio_comercial ? ` (${r.perfil.anio_comercial})` : ""}`, fuente: "SII" });
+  if (r.perfil?.rubro) datos.push({ etiqueta: "Rubro", valor: r.perfil.rubro, fuente: "SII" });
+  return datos;
+}
+
+// Objetivos del cierre «Conozcamos qué quieres conseguir»: se ordenan según lo que CORA encontró.
+export const OBJETIVOS: { id: string; texto: string; categoria: string; pista: RegExp }[] = [
+  { id: "impuestos", texto: "Ordenar mis impuestos y mi contabilidad", categoria: "contabilidad", pista: /tribut|iva|f29|renta|contab|sii/i },
+  { id: "personas", texto: "Contratar o tener en regla a mis trabajadores", categoria: "profesionales", pista: /trabajador|laboral|contrato|cotizaci|karin|prevenci/i },
+  { id: "vender", texto: "Vender más (también al Estado)", categoria: "crecimiento", pista: /mercado público|estado|licitaci|proveedor|ventas/i },
+  { id: "marca", texto: "Proteger mi marca", categoria: "marcas", pista: /marca|inapi/i },
+  { id: "financiar", texto: "Conseguir financiamiento o fondos", categoria: "crecimiento", pista: /fondo|sercotec|corfo|financ|crece/i },
+  { id: "formalizar", texto: "Formalizar o modificar mi empresa", categoria: "formalizacion", pista: /patente|permiso|socie|estatut|accionista|formaliz/i },
+];
+export function objetivosOrdenados(textos: string[]): typeof OBJETIVOS {
+  const t = textos.join(" ");
+  return [...OBJETIVOS].sort((a, b) => Number(b.pista.test(t)) - Number(a.pista.test(t)));
 }

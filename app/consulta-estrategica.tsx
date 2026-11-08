@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CasoForm } from "@/app/cora-caso";
-import { cartaCora } from "@/lib/cora/caso";
+import { identidadEmpresa, objetivosOrdenados } from "@/lib/cora/caso";
 import { respuestaDesdeVoz } from "@/lib/voz/interpretar";
 import { activarModoVoz, escuchar, hablar, modoVozActivo, useModoVoz } from "@/lib/voz/navegador";
 import { consultaCoraAction } from "@/app/actions/cora";
@@ -12,7 +12,7 @@ import { InvestigacionEnVivo, PropuestaView } from "@/app/cora-solucion";
 import { PriceLine } from "@/app/diagnostico-360";
 import { ExpedienteCora } from "@/app/expediente-cora";
 import { investigar } from "@/lib/cora/director";
-import { CAPACIDADES, evidenciasDe, MAX_PREGUNTAS, type Evidencia, type Informe, type Turno } from "@/lib/cora/estratega";
+import { CAPACIDADES, evidenciasDe, MAX_PREGUNTAS, TIPOS_HALLAZGO, type Evidencia, type Informe, type Turno } from "@/lib/cora/estratega";
 import type { HallazgoWeb } from "@/lib/cora/web/hallazgos";
 import { QUESTIONS, type Answer } from "@/lib/diagnostic-360";
 import type { Catalog } from "@/lib/initial-report";
@@ -42,7 +42,31 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
   // Las evidencias que cita el estratega son las que armó el servidor (misma numeración que su respuesta).
   const ev = useMemo(() => new Map((evServidor.length ? evServidor : evidenciasDe(exp, respuestas)).map((e) => [e.id, e])), [evServidor, exp, respuestas]);
   const [pasos] = useState(() => exp.bitacora);
-  const carta = useMemo(() => cartaCora(r, exp), [r, exp]);
+  const identidad = useMemo(() => identidadEmpresa(r, exp), [r, exp]);
+  // Evaluación de situación por área: una línea por área, sin repetir las oportunidades.
+  const evaluacion = useMemo(() => {
+    const NIVEL: Record<string, string> = { solido: "Hecho confirmado", atencion: "Hipótesis pendiente", prioritario: "Riesgo potencial" };
+    const base = exp.secciones.filter((x) => x.nivel !== "sin_info" && x.key !== "identidad").map((x) => ({
+      area: x.nombre,
+      clase: x.key === "laboral" && x.obligaciones?.some((o) => o.aplicacion === "potencial") ? "Obligación verificada"
+        : x.key === "crecimiento" && x.nivel !== "sin_info" ? "Oportunidad detectada" : NIVEL[x.nivel] ?? "Información insuficiente",
+      texto: (x.nivel === "solido" ? x.encontrado[0] : x.falta[0] ?? x.encontrado[0] ?? "").replace(/\. Fuente:.*$/, "."),
+    })).filter((f) => f.texto);
+    // Áreas con el mismo texto se agrupan en una sola línea (sin repetir).
+    const filas: typeof base = [];
+    for (const f of base) {
+      const g = filas.find((x) => x.texto === f.texto);
+      if (g) g.area = `${g.area.replace(/ y ([^,]+)$/, ", $1")} y ${f.area}`; else filas.push({ ...f });
+    }
+    const sinInfo = exp.secciones.filter((x) => x.nivel === "sin_info").map((x) => x.nombre);
+    return { filas: filas.slice(0, 6), sinInfo };
+  }, [exp]);
+  // Servicios: solo los activos en el catálogo y ligados a una necesidad identificada (uno por servicio).
+  const servicios = useMemo(() => {
+    const vistos = new Set<string>();
+    return exp.necesidades.filter((n) => n.servicio?.disponible && !vistos.has(n.servicio.id) && vistos.add(n.servicio.id)).slice(0, 3);
+  }, [exp]);
+  const objetivos = useMemo(() => objetivosOrdenados([...(turno?.descubrimientos ?? []).map((d) => `${d.titulo} ${d.hallazgo ?? ""}`), ...exp.necesidades.map((n) => n.necesidad)]), [turno, exp]);
   const iniciado = useRef(false);
 
   async function pedir(fase: "turno" | "informe", resp: Record<string, Answer>) {
@@ -82,25 +106,28 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
   const voz = useModoVoz();
   const hablado = useRef("");
   const cartaHablada = useRef(false);
-  // Primer turno por voz: CORA lee la carta y pide el caso; lo que la persona cuenta queda escrito en el formulario.
+  // Primer turno por voz: CORA lee la identidad, el resumen y las oportunidades, y pregunta qué quiere conseguir.
   useEffect(() => {
-    if (!voz.activo || cartaHablada.current || informe) return;
+    if (!voz.activo || cartaHablada.current || informe || !turno) return;
     cartaHablada.current = true;
     void (async () => {
-      await hablar([`${carta.titulo}.`, ...carta.parrafos, "Cuéntanos tu caso: ¿qué necesitas resolver?"].join(" "));
+      const id = identidad.filter((d) => ["Constitución", "Inicio de actividades", "Situación"].includes(d.etiqueta)).map((d) => `${d.etiqueta}: ${d.valor}.`);
+      const op = turno.descubrimientos.map((d, i) => `${i + 1}. ${d.titulo}.`);
+      await hablar([`${exp.empresa.razon}.`, ...id, turno.apertura, op.length ? `Oportunidades identificadas: ${op.join(" ")}` : "",
+        "Conozcamos qué quieres conseguir con tu empresa. Cuéntamelo con tus palabras."].filter(Boolean).join(" "));
       if (!modoVozActivo()) return;
       const txt = await escuchar(20_000);
       if (txt) {
         setRelato(txt);
-        await hablar("Gracias, ya lo anoté. Ahora escribe tu nombre y elige si quieres la respuesta por WhatsApp o por correo. Te enviamos la cotización en un plazo de 24 horas hábiles.");
+        await hablar("Gracias, ya lo anoté. Ahora escribe tu nombre y elige si quieres la respuesta por WhatsApp o por correo.");
       } else if (txt === "") {
-        await hablar("Puedes escribir tu caso en pantalla, o tocar Dictar mi caso por voz.");
+        await hablar("Puedes escribirlo en pantalla, o tocar Dictar por voz.");
       }
       activarModoVoz(false);
       setTimeout(() => { const el = document.getElementById("caso-nombre"); el?.scrollIntoView({ block: "center", behavior: "smooth" }); el?.focus(); }, 150);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voz.activo]);
+  }, [voz.activo, turno]);
   useEffect(() => {
     if (!voz.activo || cargando || !verDiag) return;
     const clave = informe ? "informe" : turno && preguntaVista ? `t:${preguntaVista.id}:${historial.length}` : "";
@@ -116,11 +143,9 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
       }
       if (!turno || !preguntaVista) return;
       const primera = historial.length === 0;
-      const benef = primera ? exp.beneficios.slice(0, 2).map((b) => `${b.gancho ?? b.nombre}. ${b.ejemplo ? b.ejemplo.replace(/^Ejemplo ilustrativo:\s*/, "Por ejemplo, ") : ""}`) : [];
       const opciones = `Puedes decir sí, no, no sé o necesito ayuda${preguntaVista.noAplica ? `, o ${preguntaVista.noAplica.toLowerCase()}` : ""}.`;
       const guion = [
         primera ? turno.apertura : "Gracias.",
-        benef.length ? `Encontré beneficios que la ley te da. ${benef.join(" ")} Un profesional ENQORA confirma si te aplican y cuánto te significan.` : "",
         primera ? "Para afinar tu plan, una pregunta." : "",
         preguntaVista.q, opciones,
       ].filter(Boolean).join(" ");
@@ -164,67 +189,77 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
 
         {!informe ? (
           <>
-            <section className="cora-carta" aria-label="Lo que CORA encontró">
-              <span className="report-tag">Lo que CORA encontró</span>
-              <h4>{carta.titulo}</h4>
-              {carta.parrafos.map((t) => <p key={t}>{t}</p>)}
-              <a href="#cora-caso" className="btn btn-gold btn-inline btn-sm">Cuéntanos tu caso</a>
+            {/* A · Identidad empresarial: solo antecedentes encontrados */}
+            <section className="cora-carta" aria-label="Identidad empresarial">
+              <span className="report-tag">Identidad empresarial</span>
+              <h4>{exp.empresa.razon}</h4>
+              <dl className="cora-identidad">
+                {identidad.map((d) => (
+                  <div key={d.etiqueta}><dt>{d.etiqueta}</dt><dd>{d.valor} <span className="report-note">· {d.fuente}</span></dd></div>
+                ))}
+              </dl>
             </section>
-            {exp.beneficios.length ? (
-              <section className="cora-benef" aria-label="Beneficios que podrías aprovechar">
-                <span className="eyebrow">Lo que la ley ya te da</span>
-                <b className="cora-benef-lead">
-                  Nos importa que {exp.empresa.razon !== "—" ? exp.empresa.razon : "tu empresa"} esté en regla y no deje pasar lo que le corresponde.
-                  Encontré {exp.beneficios.length === 1 ? "un beneficio" : `${exp.beneficios.length} beneficios`} que vale la pena revisar contigo:
-                </b>
-                <ul>
-                  {exp.beneficios.slice(0, 3).map((b) => (
-                    <li key={b.nombre}>
-                      <b>{b.gancho ?? b.nombre}</b>
-                      <span>{b.porqueTu ?? b.porque}</span>
-                      {b.ejemplo ? <span className="cora-ejemplo">{b.ejemplo}</span> : null}
-                      <span className="report-note">Por confirmar contigo: {b.faltaTu ?? b.falta} <a href={b.url} target="_blank" rel="noopener noreferrer">Ver fuente oficial</a></span>
+
+            {/* B · Resumen estratégico */}
+            <div className="report-verdict">
+              <span className="report-tag">Resumen estratégico</span>
+              <b>{turno ? turno.apertura : cargando ? "CORA está cruzando la información encontrada…" : "Preparando el análisis…"}</b>
+            </div>
+
+            {/* C · Oportunidades identificadas (solo con evidencia; hasta 3) */}
+            {turno?.descubrimientos.length ? (
+              <section aria-label="Oportunidades identificadas">
+                <span className="report-tag">Oportunidades identificadas en tu empresa</span>
+                <ol className="report-recs cora-oport">
+                  {turno.descubrimientos.map((d) => (
+                    <li key={d.titulo} className="lookup-signal">
+                      <span className="cora-oport-head"><b>{d.titulo}</b>{d.tipo ? <span className={`status status-${d.tipo === "riesgo" ? "risk" : d.tipo === "hecho" || d.tipo === "obligacion" ? "ok" : d.tipo === "oportunidad" ? "gold" : "muted"}`}>{TIPOS_HALLAZGO[d.tipo]}</span> : null}</span>
+                      <dl className="cora-oport-dl">
+                        {d.hallazgo ? <><dt>Evidencia y fuente</dt><dd>{d.hallazgo}</dd></> : null}
+                        <dt>Por qué es relevante</dt><dd>{d.por_que_importa}</dd>
+                        {d.en_juego ? <><dt>Beneficio potencial</dt><dd>{d.en_juego}</dd></> : null}
+                        {d.falta ? <><dt>Qué falta confirmar</dt><dd>{d.falta}</dd></> : null}
+                        {d.con_enqora ? <><dt>Cómo ayuda ENQORA</dt><dd>{d.con_enqora}</dd></> : null}
+                        {d.proximo ? <><dt>Próximo paso</dt><dd>{d.proximo}</dd></> : null}
+                      </dl>
+                      <Evidencias ids={d.evidencias} />
                     </li>
                   ))}
-                </ul>
-                <span className="report-note">
-                  Confirmar si cumples los requisitos, calcular cuánto te significa y aplicarlo bien es trabajo de un profesional. Eso hace ENQORA por ti.
-                </span>
-                <a href="#cora-caso" className="btn btn-gold btn-inline btn-sm">Quiero aprovechar estos beneficios</a>
+                </ol>
               </section>
             ) : null}
-            <CasoForm rut={r.rut ?? ""} razon={r.razon_social ?? ""} relato={relato} setRelato={setRelato} />
+
+            {/* D · Evaluación de situación por área */}
+            {turno && (evaluacion.filas.length || evaluacion.sinInfo.length) ? (
+              <section aria-label="Evaluación de situación" className="cora-eval">
+                <span className="report-tag">Evaluación de situación</span>
+                <ul>
+                  {evaluacion.filas.map((f) => <li key={f.area}><b>{f.area}</b> <span className="report-note">· {f.clase}</span><span>{f.texto}</span></li>)}
+                  {evaluacion.sinInfo.length ? <li><b>Información insuficiente</b><span>{evaluacion.sinInfo.join(", ")}: no hay datos públicos suficientes para evaluarlo.</span></li> : null}
+                </ul>
+              </section>
+            ) : null}
+
+            {/* E · Servicios ENQORA ligados a una necesidad (solo activos en el catálogo) */}
+            {turno ? (
+              <section aria-label="Servicios ENQORA" className="cora-eval">
+                <span className="report-tag">Servicios ENQORA para lo que encontramos</span>
+                {servicios.length ? (
+                  <ul>
+                    {servicios.map((n) => (
+                      <li key={n.servicio!.id}><b>{n.servicio!.nombre}</b><span>Para: {n.necesidad}</span><PriceLine s={n.servicio!} /></li>
+                    ))}
+                  </ul>
+                ) : <p className="report-note">Aún no hay un servicio publicado que calce exactamente con lo encontrado. Un profesional ENQORA puede evaluarlo contigo y cotizarlo.</p>}
+              </section>
+            ) : null}
+
+            {/* F · Cierre estratégico */}
+            <CasoForm rut={r.rut ?? ""} razon={r.razon_social ?? ""} relato={relato} setRelato={setRelato} objetivos={objetivos} />
             {!verDiag ? (
               <button type="button" className="btn btn-ghost btn-inline btn-sm cora-diag-btn" onClick={() => setVerDiag(true)}>
                 ¿Prefieres un diagnóstico guiado? Responde hasta 5 preguntas y CORA arma tu plan
               </button>
-            ) : null}
-          </>
-        ) : null}
-
-        {(verDiag || informe) && turno ? (
-          <>
-            <div className="report-verdict">
-              <span className="report-tag">Lo que CORA encontró</span>
-              <b>{turno.apertura}</b>
-            </div>
-            {turno.descubrimientos.length ? (
-              <ol className="report-recs">
-                {turno.descubrimientos.map((d) => (
-                  <li key={d.titulo} className="lookup-signal">
-                    <b>{d.titulo}</b>
-                    <span>{d.por_que_importa}</span>
-                    {d.en_juego ? <span className="cora-stake"><b>Lo que está en juego:</b> {d.en_juego}</span> : null}
-                    {d.con_enqora ? <span className="cora-enqora"><b>Con ENQORA:</b> {d.con_enqora}</span> : null}
-                    <Evidencias ids={d.evidencias} />
-                  </li>
-                ))}
-              </ol>
-            ) : null}
-            {!informe ? (
-              <p className="report-note cora-contacto">
-                ¿Prefieres revisarlo con una persona? <Link href={`/comenzar?servicio=${exp.necesidades[0]?.servicio?.categoria ?? "contabilidad"}`} className="lookup-signal-cta">Hablar con un profesional ENQORA, sin costo →</Link>
-              </p>
             ) : null}
           </>
         ) : null}
