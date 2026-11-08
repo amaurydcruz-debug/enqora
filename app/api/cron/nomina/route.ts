@@ -7,9 +7,12 @@ import { createClient } from "@/lib/supabase/server";
 // el propio servidor encadena la siguiente hasta completarla (cada una sigue desde su cursor).
 // Cada ejecución queda registrada (Centro de Mando → Datos públicos), también cuando falla.
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+// Cada tramo debe volver a descomprimir el ZIP desde el inicio hasta su cursor (el formato no permite saltar):
+// con 45 s, pasado ~3 millones de líneas casi todo el tiempo se iba en llegar al cursor y la carga se estancaba.
+// Con 270 s por tramo, el avance real por ejecución sigue siendo amplio en archivos de varios millones de líneas.
+export const maxDuration = 300;
 
-const BUDGET_MS = 45_000;
+const BUDGET_MS = 270_000;
 
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;

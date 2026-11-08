@@ -21,8 +21,8 @@ export type SyncReport = {
 };
 
 const BATCH = 1000;
-// Cada ejecución dura como máximo 60 s: sin avance en 75 s, la anterior ya terminó o se detuvo.
-const STALE_MS = 75 * 1000;
+// Mayor que la duración máxima de un tramo (300 s): mientras uno trabaja, otro no lo interrumpe.
+const STALE_MS = 330 * 1000;
 const REFRESH_WITHOUT_DATE_DAYS = 30;
 
 const errText = (e: unknown) => {
