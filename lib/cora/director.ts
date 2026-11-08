@@ -364,8 +364,8 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
     } : {
       id: "sin_proveedor", seccion: "mercado_publico", agente: "09 · Mercado público", estado: "no_encontrado", prioridad: "baja",
       encontro: "No localizamos a la empresa como proveedora en Mercado Público.",
-      importa: "El Estado compra todos los días bienes y servicios a pymes; registrarse abre un canal de ventas adicional.",
-      hacer: "Evaluar si lo que vende calza con lo que compran los organismos públicos y, si es así, registrarse.",
+      importa: "Vender al Estado solo conviene si lo que ofrece calza con lo que compran los organismos públicos; la inscripción en Mercado Público es gratuita en ChileCompra.",
+      hacer: "Revisar con órdenes de compra reales si su rubro calza con lo que compra el Estado antes de inscribirse.",
       servicio: svc("crecimiento", "GEN-01", "Consulta profesional", "crecimiento", "Evaluar y preparar el ingreso a Mercado Público."),
       fuente: "ChileCompra · API de Mercado Público", fecha: `consultada el ${fmt(mp.consultado)}`,
     });

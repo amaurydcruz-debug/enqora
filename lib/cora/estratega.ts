@@ -34,38 +34,28 @@ MANUAL DEL ESTRATEGA CORA (procedimientos obligatorios)
    Prohibido: urgencia o escasez inventadas, miedo sin fundamento, cifras no verificadas, presentar hipótesis como hechos.
 8. Tono: consultor senior, claro y cercano, en español de Chile. Recomendar no contratar nada también es válido cuando corresponde.
    No garantices resultados legales, tributarios ni financieros.
-9. Primer contacto (psicología del dueño de empresa). El dueño decide en segundos si esto es para él. Escribe para que sienta que
-   alguien estudió SU empresa y entendió lo que se juega:
-   a) Reconocimiento específico primero: su nombre, años de trayectoria, lo que ya hace bien según la evidencia. Genera confianza.
-   b) Luego la brecha más valiosa, en lenguaje de dueño (vender más, tiempo, tranquilidad, control), nunca de auditor. Evita jerga:
-      no escribas «hipótesis», «expediente», «no se puede determinar», «brecha de información». Para lo no confirmado usa
-      «por confirmar contigo» o «vale la pena revisarlo».
-   c) Cada descubrimiento sigue el arco: hecho (con evidencia) → qué significa para ti → qué está en juego (lo que gana o lo que
-      protege, solo con fundamento) → cómo lo resuelve ENQORA (solo capacidades reales). Título en forma de beneficio concreto,
-      p. ej. «Un canal de ventas que hoy no estás usando: el Estado», no «Posible camino para vender al Estado».
-   d) Lo que falta saber se presenta como la llave del siguiente paso: «con tu respuesta te digo exactamente qué te aplica y qué
-      te conviene primero». Nunca como una deficiencia del cliente.
-   e) Frases cortas, en segunda persona («tú»), concretas. Una idea por frase. Sin exclamaciones ni superlativos vacíos.
-   f) Cercanía: habla como quien está del lado del dueño. A ENQORA le importa que su empresa esté en regla y que aproveche
-      lo que la ley le da. Ej.: «Queremos que tu empresa esté en regla y que no deje pasar beneficios que ya son tuyos».
-   g) El gancho son los beneficios concretos: si hay evidencia de un beneficio (p. ej., recuperar el IVA de una camioneta
-      para el negocio, postergar el pago del IVA, una tasa reducida, un fondo público), ponlo primero y explícalo en simple:
-      qué es y por qué podría aplicarle, citando su evidencia. Nunca afirmes que ya le corresponde: falta confirmarlo.
-   h) Embudo honesto: en esta consulta gratuita explicas QUÉ es cada oportunidad y POR QUÉ podría aplicarle. Cuánto le
-      significa exactamente, si cumple todos los requisitos y cómo aprovecharla paso a paso es trabajo de un profesional
-      ENQORA (plan o asesoría): ese es el siguiente paso al que lo invitas, sin presionar.
-   i) Los beneficios del catálogo se muestran al cliente en un bloque propio, con ejemplo y fuente: no los repitas como
-      descubrimiento. En la apertura sí puedes anunciarlos («encontré beneficios que la ley te da y que vale la pena
-      aprovechar»). Usa los descubrimientos para otros temas valiosos.
-   j) Seguridad al hablar: afirma con claridad lo que la evidencia muestra. Usa «por confirmar contigo» como máximo una vez
-      por descubrimiento; evita «quizás», «podrías no estar» y cadenas de condiciones.
-   k) Nunca cuentes al cliente fallas técnicas de una consulta (CAPTCHA, verificaciones, portales caídos): si un dato no se
-      pudo obtener, di simplemente que vale la pena revisarlo juntos.
-   l) No revendas lo que el Estado entrega gratis: si un organismo ofrece un trámite directamente (p. ej., la inscripción en
-      Mercado Público es gratuita en ChileCompra), dilo así. Lo que ofrece ENQORA es el valor agregado: inteligencia (dónde está
-      la oportunidad para esta empresa), preparación y acompañamiento profesional.
-   m) Encuadre de pérdida solo con hechos: «lo que hoy no estás aprovechando» es válido si la evidencia lo muestra; inventar
-      urgencia, escasez, miedo o cifras está prohibido. La confianza es el activo: si la evidencia es débil, dilo con naturalidad.
+9. Informe ejecutivo del primer contacto. El dueño debe sentir que ENQORA investigó SU empresa y que cada recomendación
+   tiene una razón concreta. Reglas:
+   a) Resumen estratégico (apertura): 2 a 3 frases ejecutivas y personalizadas: qué se descubrió y qué merece atención.
+      Sin saludo publicitario, sin repetir datos de identidad que ya están en pantalla.
+   b) Oportunidades: hasta 3, solo cuando la evidencia lo sostiene. Si hay 2, entrega 2; si no hay ninguna sólida, entrega
+      la que exista con tipo «insuficiente» y dilo con naturalidad. Nunca inventes una para completar.
+   c) Cada oportunidad trae: qué encontramos (hecho con evidencia) · por qué es relevante · beneficio potencial (solo con
+      fundamento) · qué falta confirmar · cómo ayuda ENQORA (solo si hay relación demostrada con el hallazgo) · próximo paso
+      concreto · tipo: hecho | oportunidad | hipotesis | obligacion | riesgo | insuficiente.
+   d) Beneficios y obligaciones: nunca presentes un beneficio tributario como aplicable sin comprobar sus requisitos. Si un
+      requisito no está en la evidencia (ventas afectas a IVA, régimen, morosidad, ingresos), el tipo es «hipotesis» y el
+      requisito va en «qué falta confirmar». No recomiendes comprar bienes (p. ej., vehículos) para obtener un beneficio.
+   e) Compras públicas: tener inicio de actividades no basta. Solo es oportunidad si la evidencia muestra rubro, productos o
+      historial compatible; la inscripción en Mercado Público es gratuita en ChileCompra y no es un servicio de ENQORA.
+   f) Sin repeticiones: cada oportunidad trata un tema distinto; no repitas la misma idea con otras palabras ni repitas en la
+      apertura lo que dicen las oportunidades.
+   g) Tono ejecutivo, profesional, claro para empresarios; persuasivo sin exageración. Frases cortas en segunda persona. Sin
+      frases publicitarias, promesas económicas, urgencias inventadas ni lenguaje alarmista.
+   h) Nunca cuentes fallas técnicas de una consulta (CAPTCHA, verificaciones, portales caídos): di que vale la pena revisarlo.
+   i) No revendas lo que el Estado entrega gratis: si un organismo ofrece un trámite directamente, dilo; ENQORA aporta
+      inteligencia, preparación y acompañamiento profesional.
+   j) Lo que falta saber se presenta como el siguiente paso de la conversación, nunca como una deficiencia del cliente.
 `.trim();
 
 export const FORBIDDEN = /captcha|verificaci[oó]n (del|que pidi)|no pudimos completar|el portal (pidi|exig)|\bno tiene\b|\bno posee\b|garantiz|\$\s?\d|\d{1,3}(\.\d{3})+\s?(pesos|clp)|certificamos|incumple\b|está incumpliendo/i;
@@ -98,7 +88,17 @@ export function evidenciasDe(exp: Expediente, respuestas: Record<string, Answer>
 }
 
 // ── Tipos de salida ──
-export type Descubrimiento = { titulo: string; por_que_importa: string; en_juego?: string; con_enqora?: string; evidencias: string[] };
+// tipo: cómo debe leerse el hallazgo (hecho confirmado, oportunidad detectada, hipótesis pendiente, obligación verificada,
+// riesgo potencial o información insuficiente).
+export type TipoHallazgo = "hecho" | "oportunidad" | "hipotesis" | "obligacion" | "riesgo" | "insuficiente";
+export const TIPOS_HALLAZGO: Record<TipoHallazgo, string> = {
+  hecho: "Hecho confirmado", oportunidad: "Oportunidad detectada", hipotesis: "Hipótesis pendiente",
+  obligacion: "Obligación verificada", riesgo: "Riesgo potencial", insuficiente: "Información insuficiente",
+};
+export type Descubrimiento = {
+  titulo: string; hallazgo?: string; por_que_importa: string; en_juego?: string; falta?: string; con_enqora?: string; proximo?: string;
+  tipo?: TipoHallazgo; evidencias: string[];
+};
 export type Turno = {
   apertura: string;
   descubrimientos: Descubrimiento[];
@@ -141,14 +141,18 @@ export const TOOL_TURNO = {
   input_schema: {
     type: "object",
     properties: {
-      apertura: { type: "string", description: "2 a 3 frases cortas: reconocimiento específico de la empresa (nombre, trayectoria, lo que hace bien) y la oportunidad o tema más valioso que encontró CORA. Sin cifras inventadas." },
+      apertura: { type: "string", description: "Resumen estratégico: 2 a 3 frases ejecutivas y personalizadas sobre qué se descubrió y qué merece atención. Sin cifras inventadas ni datos de identidad repetidos." },
       descubrimientos: { type: "array", maxItems: 3, items: { type: "object", properties: {
-        titulo: { type: "string", description: "Beneficio concreto para el dueño, en pocas palabras." },
-        por_que_importa: { type: "string", description: "El hecho y qué significa para su negocio (1 a 2 frases)." },
-        en_juego: { type: "string", description: "Qué gana o qué protege si lo atiende, solo con fundamento en la evidencia (1 frase)." },
-        con_enqora: { type: "string", description: "Cómo lo resuelve ENQORA con una capacidad real (1 frase)." },
+        titulo: { type: "string", description: "La oportunidad o el tema, en pocas palabras y en términos de negocio." },
+        hallazgo: { type: "string", description: "Evidencia y fuente: el hecho concreto y de dónde sale (1 frase)." },
+        por_que_importa: { type: "string", description: "Por qué es relevante para esta empresa (1 a 2 frases)." },
+        en_juego: { type: "string", description: "Beneficio potencial, solo con fundamento en la evidencia (1 frase). Vacío si no hay fundamento." },
+        falta_confirmar: { type: "string", description: "Qué falta confirmar antes de actuar (requisitos no comprobados)." },
+        con_enqora: { type: "string", description: "Cómo ayuda ENQORA con una capacidad real relacionada con este hallazgo (1 frase). Vacío si no hay relación." },
+        proximo_paso: { type: "string", description: "Próximo paso concreto (1 frase)." },
+        tipo: { type: "string", enum: ["hecho", "oportunidad", "hipotesis", "obligacion", "riesgo", "insuficiente"] },
         evidencias: evid,
-      }, required: ["titulo", "por_que_importa", "en_juego", "con_enqora", "evidencias"] } },
+      }, required: ["titulo", "hallazgo", "por_que_importa", "falta_confirmar", "proximo_paso", "tipo", "evidencias"] } },
       contexto: { type: "string", description: "Por qué la siguiente pregunta es la llave: qué podrás decirle con su respuesta (1 a 2 frases)." },
       pregunta_id: { type: "string", description: "Id de UNA pregunta del banco disponible, o la palabra «ninguna» si ya no hace falta preguntar." },
     },
@@ -207,6 +211,17 @@ function okEvid(raw: unknown, ids: Set<string>): string[] | null {
   return list.length ? list : null;
 }
 
+// Dos textos tratan lo mismo si comparten la mayoría de sus palabras significativas.
+const VACIAS = new Set(["para", "como", "con", "que", "del", "las", "los", "una", "uno", "por", "sus", "tus", "este", "esta", "esto", "sin", "más", "mas", "hay", "puede", "tu", "tú", "de", "la", "el", "en", "y", "a", "o", "al", "se", "su", "es", "lo", "le"]);
+const palabras = (t: string) => new Set(t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split(/[^a-z0-9ñ]+/).filter((w) => w.length > 3 && !VACIAS.has(w)));
+export function parecidos(a: string, b: string): boolean {
+  const A = palabras(a), B = palabras(b);
+  if (!A.size || !B.size) return false;
+  let comunes = 0;
+  for (const w of A) if (B.has(w)) comunes++;
+  return comunes / Math.min(A.size, B.size) >= 0.6;
+}
+
 export function validarTurno(raw: unknown, ev: Evidencia[], disponibles: string[]): Turno | null {
   const r = (raw ?? {}) as Record<string, unknown>;
   const ids = new Set(ev.map((e) => e.id));
@@ -215,8 +230,17 @@ export function validarTurno(raw: unknown, ev: Evidencia[], disponibles: string[
   const descubrimientos: Descubrimiento[] = [];
   for (const d of (Array.isArray(r.descubrimientos) ? r.descubrimientos : []).slice(0, 3) as Record<string, unknown>[]) {
     const titulo = clean(d.titulo, 160), por = clean(d.por_que_importa, 400), e = okEvid(d.evidencias, ids);
-    const enJuego = clean(d.en_juego, 300), conEnqora = clean(d.con_enqora, 300);
-    if (okText(titulo) && okText(por) && e) descubrimientos.push({ titulo, por_que_importa: por, ...(okText(enJuego) ? { en_juego: enJuego } : {}), ...(okText(conEnqora) ? { con_enqora: conEnqora } : {}), evidencias: e });
+    const hallazgo = clean(d.hallazgo, 300), enJuego = clean(d.en_juego, 300), conEnqora = clean(d.con_enqora, 300);
+    const falta = clean(d.falta_confirmar, 300), proximo = clean(d.proximo_paso, 240);
+    const tipo = typeof d.tipo === "string" && d.tipo in TIPOS_HALLAZGO ? (d.tipo as TipoHallazgo) : undefined;
+    if (!okText(titulo) || !okText(por) || !e) continue;
+    // Sin repeticiones: se descarta un descubrimiento que dice lo mismo que otro con otras palabras.
+    if (descubrimientos.some((x) => parecidos(`${x.titulo} ${x.hallazgo ?? ""}`, `${titulo} ${hallazgo}`))) continue;
+    descubrimientos.push({
+      titulo, por_que_importa: por, evidencias: e,
+      ...(okText(hallazgo) ? { hallazgo } : {}), ...(okText(enJuego) ? { en_juego: enJuego } : {}), ...(okText(falta) ? { falta } : {}),
+      ...(okText(conEnqora) ? { con_enqora: conEnqora } : {}), ...(okText(proximo) ? { proximo } : {}), ...(tipo ? { tipo } : {}),
+    });
   }
   const pid = typeof r.pregunta_id === "string" && disponibles.includes(r.pregunta_id) ? r.pregunta_id : null;
   const contexto = clean(r.contexto, 400);
@@ -273,12 +297,31 @@ const evidPara = (ev: Evidencia[], texto: string) => ev.filter((e) => e.texto.in
 
 export function turnoReglas(exp: Expediente, ev: Evidencia[], respuestas: Record<string, Answer>): Turno {
   const disp = preguntasDisponibles(exp, respuestas);
-  const top = exp.hallazgos.slice(0, 3);
-  const descubrimientos = top.map((h) => ({ titulo: h.encontro, por_que_importa: h.importa, ...(h.consecuencias ? { en_juego: h.consecuencias } : {}), evidencias: evidPara(ev, h.encontro) }))
-    .filter((d) => d.evidencias.length);
+  // Oportunidades por reglas: sin consultas pendientes (no son hallazgos) y un solo tema por área de personas.
+  const NO_OPORTUNIDAD = new Set(["marca_pendiente"]);
+  const candidatos = exp.hallazgos.filter((h) => !NO_OPORTUNIDAD.has(h.id))
+    .filter((h, _, all) => !(h.id === "seguridad_potencial" && all.some((x) => x.id === "laboral_potencial")));
+  const top = candidatos.slice(0, 3);
+  const POR_ID: Record<string, TipoHallazgo> = {
+    deber_societario: "obligacion", laboral_potencial: "obligacion", seguridad_potencial: "obligacion", oportunidades: "oportunidad",
+    marca_sin_registro: "hipotesis", proveedor_estado: "hecho", marca_registrada: "hecho",
+  };
+  const tipoDe = (h: Expediente["hallazgos"][number]): TipoHallazgo =>
+    h.estado === "declarado" ? "riesgo" : POR_ID[h.id] ? POR_ID[h.id]
+      : h.estado === "confirmado" ? (h.prioridad === "alta" ? "riesgo" : "hecho")
+      : h.estado === "no_encontrado" || h.estado === "fuente_no_disponible" ? "insuficiente" : "hipotesis";
+  const descubrimientos: Descubrimiento[] = top.map((h) => ({
+    titulo: h.encontro, hallazgo: `${h.fuente}${h.fecha ? ` (${h.fecha})` : ""}.`, por_que_importa: h.importa, tipo: tipoDe(h),
+    ...(h.servicio ? { con_enqora: `${h.servicio.nombre}: ${h.servicio.porque}` } : {}), proximo: h.hacer,
+    evidencias: evidPara(ev, h.encontro),
+  })).filter((d) => d.evidencias.length);
   const siguiente = disp[0];
   return {
-    apertura: `Investigamos ${exp.empresa.razon} en las fuentes públicas disponibles y en la normativa vigente. ${top.length ? "Encontramos puntos que vale la pena revisar contigo antes de recomendarte un camino." : "No encontramos señales de alerta en los datos públicos; hay aspectos que solo tú puedes confirmar."}`,
+    apertura: exp.completitud.pct < 25
+      ? `La información pública disponible sobre ${exp.empresa.razon} es limitada, así que no proponemos oportunidades sin evidencia${top.length ? `; solo ${top.length === 1 ? "un tema se puede" : "algunos temas se pueden"} señalar con fundamento` : ""}. Lo que sigue depende de lo que quieras conseguir con tu empresa.`
+      : top.length
+      ? `Revisamos ${exp.empresa.razon} en las fuentes públicas disponibles y en la normativa vigente. ${top.length === 1 ? "Hay un tema" : `Hay ${top.length} temas`} que merece${top.length === 1 ? "" : "n"} atención antes de recomendarte un camino.`
+      : `Revisamos ${exp.empresa.razon} en las fuentes públicas disponibles: no encontramos señales de alerta ni oportunidades con evidencia suficiente. Lo que sigue depende de lo que quieras conseguir con tu empresa.`,
     descubrimientos,
     contexto: siguiente ? "Esto no aparece en ninguna fuente pública. Con tu respuesta te digo qué te aplica y qué te conviene hacer primero." : "",
     pregunta_id: siguiente?.id ?? null,
@@ -322,7 +365,7 @@ export function promptTurno(ev: Evidencia[], disponibles: { id: string; q: strin
     "",
     `CAPACIDADES REALES DE ENQORA (las únicas que puedes mencionar en «con_enqora»): ${Object.values(CAPACIDADES).join("; ")}.`,
     "",
-    "Aplica el procedimiento 9 (primer contacto). Entrega la apertura, hasta 3 descubrimientos con el arco completo (hecho → qué significa → qué está en juego → cómo lo resuelve ENQORA) y sus evidencias, y la siguiente pregunta presentada como la llave del siguiente paso (o «ninguna»).",
+    "Aplica el procedimiento 9 (informe ejecutivo). Entrega el resumen estratégico, hasta 3 oportunidades SOLO con evidencia (cada una con hallazgo, relevancia, beneficio potencial si tiene fundamento, qué falta confirmar, cómo ayuda ENQORA si hay relación, próximo paso, tipo y evidencias), sin repetir temas, y la siguiente pregunta (o «ninguna»).",
   ].join("\n");
 }
 
