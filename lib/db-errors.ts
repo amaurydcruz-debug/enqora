@@ -23,6 +23,7 @@ const MESSAGES: Record<string, string> = {
   ENQ_ARCHIVO_NO_SUBIDO: "El archivo no terminó de subirse. Intenta nuevamente.",
   ENQ_SIN_RESPONSABLE: "El caso aún no tiene responsable. Asígnalo o envía la aprobación a la supervisión.",
   ENQ_YA_DECIDIDA: "Esta solicitud ya fue decidida o anulada.",
+  ENQ_NO_ENCONTRADO: "No se encontró el registro. Puede que ya no exista.",
   ENQ_CUATRO_OJOS: "No puedes decidir una solicitud que tú mismo enviaste. Debe decidirla otra persona.",
   ENQ_FALTA_OBSERVACION: "Para rechazar o devolver, explica el motivo (mínimo 10 caracteres).",
   ENQ_AUTORIZACION_VENCIDA: "El plazo de esta autorización ya venció. ENQORA deberá enviarte una nueva solicitud.",
