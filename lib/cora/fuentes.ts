@@ -173,9 +173,10 @@ export const FUENTES: Fuente[] = [
   {
     id: "sma_sea", pais: "CL", organismo: "Superintendencia del Medio Ambiente (SNIFA)", nombre: "Fiscalización y sanciones ambientales",
     url: "https://snifa.sma.gob.cl", secciones: ["permisos"], nivel: "B",
-    metodo: "Consulta pública de unidades fiscalizables y expedientes sancionatorios (documentos descargables)", campos: ["unidades fiscalizables", "procedimientos sancionatorios", "resoluciones"],
-    restricciones: "Aplica solo a empresas con proyectos o fuentes fiscalizadas (industria, minería, energía, etc.). Falta confirmar si hay descarga estructurada por titular.",
-    frecuencia: "En línea", estado: "por_investigar", verificada: "2026-11-07",
+    metodo: "Datos abiertos publicados en carpetas de Google Drive: unidades fiscalizables e instrumentos, sancionatorios, sanciones firmes y fiscalizaciones; ficha pública por unidad fiscalizable",
+    campos: ["unidades fiscalizables", "procedimientos sancionatorios", "sanciones firmes", "fiscalizaciones"],
+    restricciones: "Los archivos están en Google Drive (integración automática solo con la API de Google y una clave propia). La SMA advierte que parte de los datos son reportados por los regulados sin verificación. Aplica a industria, minería, energía y similares.",
+    frecuencia: "Según publicación de la SMA", estado: "manual", verificada: "2026-11-09", nota: "Consulta asistida; conector automático solo si llegan clientes de sectores regulados.",
   },
   {
     id: "sea_seia", pais: "CL", organismo: "Servicio de Evaluación Ambiental", nombre: "Proyectos en el Sistema de Evaluación de Impacto Ambiental (e-SEIA)",
@@ -196,10 +197,10 @@ export const FUENTES: Fuente[] = [
   {
     id: "chilecompra_datos", pais: "CL", organismo: "ChileCompra", nombre: "Datos abiertos de compras públicas",
     url: "https://datos-abiertos.chilecompra.cl", secciones: ["mercado_publico"], nivel: "A",
-    metodo: "Descargas masivas (.7z): órdenes de compra por semestre y modalidad, licitaciones por mes; fichas de organismos con rubros y productos más transados",
-    campos: ["órdenes de compra", "licitaciones", "organismo comprador", "montos", "productos más transados", "RUT del proveedor (por confirmar)"],
-    restricciones: "Datos públicos y gratuitos. Falta confirmar columnas y tamaño de los archivos antes de conectarla. Es la base de la «inteligencia de oportunidades comerciales».",
-    frecuencia: "Licitaciones mensual · órdenes de compra semestral", estado: "por_investigar", verificada: "2026-11-07", nota: "Prioridad 2: qué organismos compran lo que vende cada empresa.",
+    metodo: "Descargas masivas en .7z (30 a 150 MB por mes, desde 2007) y procesos OCDS (CC0; 500 a 850 MB por año)",
+    campos: ["órdenes de compra", "licitaciones", "ofertas", "organismo comprador", "montos", "proveedores"],
+    restricciones: "Volumen demasiado grande para cargarlo completo en la base de ENQORA, y el formato .7z exige un descompresor adicional. Por empresa se usa la API de Mercado Público (consulta por RUT).",
+    frecuencia: "Diaria (masiva) · mensual (reportes)", estado: "descartada", verificada: "2026-11-09", nota: "Reemplazada por la API por RUT; los agregados del mercado se evaluarán en una etapa posterior.",
   },
   {
     id: "chilecompra_servicios", pais: "CL", organismo: "ChileCompra", nombre: "Servicios que ChileCompra entrega directamente",

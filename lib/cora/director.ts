@@ -370,7 +370,7 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
       fuente: "ChileCompra · API de Mercado Público", fecha: `consultada el ${fmt(mp.consultado)}`,
     });
   } else {
-    fuenteCat("mercado_publico", "mercado_publico_api"); fuenteCat("mercado_publico", "chilecompra_datos");
+    fuenteCat("mercado_publico", "mercado_publico_api");
     sec.mercado_publico.investigado.push("API de Mercado Público (verificada; requiere ticket)");
     sec.mercado_publico.falta.push("Registro como proveedor, licitaciones y órdenes de compra");
     sec.mercado_publico.proxima = "Se activa al configurar el ticket de la API oficial de ChileCompra.";
