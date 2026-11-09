@@ -6,7 +6,7 @@ import { entryBuffer, entryLines, openZip } from "@/lib/zip-lines";
 // Solo consulta organismos públicos de la lista y solo archivos publicados como datos abiertos.
 
 const HOSTS = [
-  "dabiertos.inapi.cl", "tramites.inapi.cl", "snifa.sma.gob.cl", "portal.sma.gob.cl", "datos-abiertos.chilecompra.cl",
+  "dabiertos.inapi.cl", "tramites.inapi.cl", "www.inapi.cl", "ion.inapi.cl", "www.chileatiende.gob.cl", "snifa.sma.gob.cl", "portal.sma.gob.cl", "datos-abiertos.chilecompra.cl",
   "datosabiertos.chilecompra.cl", "www.sii.cl", "datos.gob.cl", "www.registrodeempresasysociedades.cl", "www.cmfchile.cl",
 ];
 const UA = { "user-agent": "ENQORA/1.0 (+inspector de datos abiertos)" };
@@ -14,8 +14,9 @@ const TIMEOUT = 20_000;
 // Tope de cada muestra: la acción debe responder dentro del límite de la página (120 s), con margen.
 const MUESTRA_MS = 45_000;
 
-export type Preset = { id: string; nombre: string; tipo: "ckan" | "pagina"; url: string; q?: string };
+export type Preset = { id: string; nombre: string; tipo: "ckan" | "pagina" | "conexion"; url: string; q?: string };
 export const PRESETS: Preset[] = [
+  { id: "conexion_inapi", nombre: "Prueba de conexión · sitios de INAPI", tipo: "conexion", url: "https://www.inapi.cl" },
   { id: "inapi_marcas", nombre: "INAPI · marcas (registros y solicitudes)", tipo: "ckan", url: "https://dabiertos.inapi.cl", q: "marcas" },
   { id: "snifa", nombre: "SMA · SNIFA datos abiertos", tipo: "pagina", url: "https://snifa.sma.gob.cl/DatosAbiertos" },
   { id: "chilecompra", nombre: "ChileCompra · descargas de datos abiertos", tipo: "pagina", url: "https://datos-abiertos.chilecompra.cl/descargas" },
@@ -191,12 +192,33 @@ async function muestra(url: string): Promise<Muestra[]> {
   return [await muestraTexto(url)];
 }
 
+// ---------- Prueba de conexión ----------
+// Revisa si el servidor de ENQORA (Vercel, São Paulo) llega a cada sitio. Distingue un bloqueo de red
+// (la conexión no se establece) de una respuesta del sitio (cualquier código HTTP).
+const SITIOS_INAPI = ["https://www.inapi.cl/", "https://tramites.inapi.cl/", "https://dabiertos.inapi.cl/", "https://ion.inapi.cl/", "https://www.chileatiende.gob.cl/"];
+async function probar(u: string): Promise<string> {
+  const t0 = Date.now();
+  try {
+    const res = await fetch(u, { headers: UA, cache: "no-store", redirect: "manual", signal: AbortSignal.timeout(10_000) });
+    try { await res.body?.cancel(); } catch { /* sin cuerpo */ }
+    return `${new URL(u).hostname}: responde (HTTP ${res.status}) en ${((Date.now() - t0) / 1000).toFixed(1)} s`;
+  } catch (e) {
+    const c = (e as { cause?: { code?: string } }).cause;
+    const tipo = e instanceof Error && (e.name === "TimeoutError" || e.name === "AbortError") ? "sin respuesta en 10 s" : c?.code ?? (e instanceof Error ? e.message : "error");
+    return `${new URL(u).hostname}: NO conecta (${tipo})`;
+  }
+}
+
 // ---------- Inspección ----------
 export async function inspeccionar(presetId: string): Promise<Inspeccion> {
   const p = PRESETS.find((x) => x.id === presetId);
   if (!p) throw new Error("Fuente no reconocida.");
   const out: Inspeccion = { fuente: p.nombre, url: p.url, paquetes: [], enlaces: [], muestras: [], avisos: [] };
   let candidatos: string[] = [];
+  if (p.tipo === "conexion") {
+    out.avisos = await Promise.all(SITIOS_INAPI.map(probar));
+    return out;
+  }
   if (p.tipo === "ckan") {
     out.paquetes = await ckan(p.url, p.q ?? "");
     // Muestra del archivo más reciente de cada conjunto (normalmente el año en curso, el más liviano).
