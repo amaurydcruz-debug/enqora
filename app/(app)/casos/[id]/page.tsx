@@ -31,6 +31,7 @@ import {
 import { messageForCode } from "@/lib/db-errors";
 import { formatRut } from "@/lib/rut";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
+import { ResultadosCaso, type Rating, type Saving } from "./resultados";
 import { createClient, currentUser } from "@/lib/supabase/server";
 import { Accordion, type AccordionItem } from "@/components/accordion";
 import { Callout, FactTag } from "@/components/disclosure";
@@ -117,6 +118,10 @@ const AVISOS: Record<string, string> = {
   aprendizaje_guardado: "Aprendizaje guardado. La supervisión lo revisará para que los agentes lo usen en los próximos casos.",
   propuesta_descartada: "Propuesta del agente descartada.",
   ruta_aplicada: "Ruta del módulo aplicada: se crearon las tareas que faltaban.",
+  calificacion_guardada: "Gracias por tu calificación: nos ayuda a mejorar el servicio.",
+  ahorro_registrado: "Ahorro registrado. El cliente lo verá cuando la supervisión lo verifique.",
+  ahorro_verificado: "Ahorro verificado: ya aparece para el cliente.",
+  ahorro_rechazado: "Ahorro rechazado.",
 };
 
 const ACTUACION_ACTIONS: Record<string, string> = {
@@ -239,6 +244,13 @@ export default async function CasePage({
   const memberRole = (memberRes.data as { role: string } | null)?.role ?? null;
 
   const supervisor = isSupervisorRole(staffRole);
+  // Resultados para el cliente (0033): calificación y ahorro (el cliente solo ve el verificado, por RLS).
+  const [ratingRes, savingsRes] = await Promise.all([
+    supabase.from("case_ratings").select("resuelto, satisfaccion, comentario, created_at").eq("case_id", id).maybeSingle(),
+    supabase.from("case_savings").select("id, monto, concepto, fundamento, evidencia_document_id, estado, registrado_por, nota").eq("case_id", id).order("created_at"),
+  ]);
+  const caseRating = (ratingRes.data as Rating | null) ?? null;
+  const caseSavings = (savingsRes.data ?? []) as Saving[];
   const messages = events.filter((e) => e.kind === "comentario" || e.kind === "nota_interna").length;
   const openTasks = tasks.filter((t) => t.status !== "hecha").length;
   const assigned = assignments.some((a) => a.user_id === user.id);
@@ -448,6 +460,7 @@ export default async function CasePage({
     actuacion_planificada: "actuaciones", actuacion_habilitada: "actuaciones", actuacion_ejecutada: "actuaciones",
     actuacion_fallida: "actuaciones", actuacion_cancelada: "actuaciones",
     propuesta_aceptada: "agentes", propuesta_descartada: "agentes", ruta_aplicada: "tareas", aprendizaje_guardado: "expediente",
+    calificacion_guardada: "diagnostico", ahorro_registrado: "diagnostico", ahorro_verificado: "diagnostico", ahorro_rechazado: "diagnostico",
   };
 
   const timeline = (
@@ -828,6 +841,8 @@ export default async function CasePage({
               <p className="pre">{c.result_summary}</p>
             </div>
           ) : null}
+          <ResultadosCaso caseId={c.id} status={c.status} rating={caseRating} savings={caseSavings} docs={docs.map((d) => ({ id: d.id, file_name: d.file_name }))}
+            canRate={!!memberRole && memberRole !== "viewer"} worker={worker && staffRole !== "ai_agent"} supervisor={supervisor} userId={user.id} />
           {!worker && !published && reviewSteps.length ? (
             <div className="sub-block">
               <FactTag kind="revision" />

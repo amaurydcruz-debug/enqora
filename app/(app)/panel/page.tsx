@@ -132,6 +132,16 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const { data: ppData } = active ? await supabase.rpc("company_public_profile", { p_company: active.id }) : { data: null };
   const hoy = active ? empresaHoy(ppData as PerfilPublico | null, typeof answers.trabajadores === "string" ? answers.trabajadores : undefined) : null;
 
+  // Resultados (0033): ahorro verificado de la empresa y casos cerrados sin calificar (últimos 60 días).
+  const [savRes, ratedRes] = active
+    ? await Promise.all([
+        supabase.from("case_savings").select("monto").eq("company_id", active.id).eq("estado", "verificado"),
+        supabase.from("case_ratings").select("case_id").eq("company_id", active.id),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const ahorroVerificado = ((savRes.data ?? []) as { monto: number }[]).reduce((s, x) => s + Number(x.monto), 0);
+  const calificados = new Set(((ratedRes.data ?? []) as { case_id: string }[]).map((r) => r.case_id));
+
   // Próximos vencimientos del calendario de obligaciones (M17).
   const { data: obRows } = active
     ? await supabase.from("obligations").select("id, title, due_date, status").eq("company_id", active.id)
@@ -280,11 +290,23 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
       </header>
 
       {active ? (
-        <div className="kpis kpis-3" role="list" aria-label="Indicadores">
+        <div className={`kpis ${ahorroVerificado > 0 ? "kpis-4" : "kpis-3"}`} role="list" aria-label="Indicadores">
           <div className="kpi" role="listitem"><span>Casos en curso</span><b>{open.length}</b></div>
           <div className={`kpi${attention ? " kpi-gold" : ""}`} role="listitem"><span>Requieren tu atención</span><b>{attention}</b></div>
           <div className="kpi" role="listitem"><span>Resueltos</span><b>{finished.length}</b></div>
+          {ahorroVerificado > 0 ? (
+            <div className="kpi kpi-gold" role="listitem"><span>Ahorro verificado</span><b>${ahorroVerificado.toLocaleString("es-CL")}</b></div>
+          ) : null}
         </div>
+      ) : null}
+
+      {/* Casos cerrados que la empresa aún no califica (no cuentan como pendientes urgentes) */}
+      {active && canCreate && finished.some((c) => !calificados.has(c.id)) ? (
+        <p className="hoy-note" style={{ marginTop: 4 }}>
+          ¿Cómo te fue? Califica {finished.filter((c) => !calificados.has(c.id)).slice(0, 3).map((c, i) => (
+            <span key={c.id}>{i ? " · " : ""}<Link href={`/casos/${c.id}#calificacion`}>{c.folio}</Link></span>
+          ))}: nos ayuda a mejorar el servicio.
+        </p>
       ) : null}
 
       {/* Tu empresa hoy (Dashboard Engine v1): solo módulos con datos reales */}
