@@ -215,7 +215,8 @@ export async function inspeccionar(presetId: string): Promise<Inspeccion> {
     if (r.status === "fulfilled") out.muestras.push(...r.value);
     else {
       const e = r.reason;
-      const msg = e instanceof Error ? (e.name === "AbortError" || e.name === "TimeoutError" ? "el archivo no terminó de leerse a tiempo" : e.message) : "no se pudo leer";
+      const causa = (e as { cause?: { code?: string; message?: string } })?.cause;
+      const msg = e instanceof Error ? (e.name === "AbortError" || e.name === "TimeoutError" ? "el archivo no terminó de leerse a tiempo" : `${e.message}${causa ? ` (${[causa.code, causa.message].filter(Boolean).join(": ")})` : ""}`) : "no se pudo leer";
       out.avisos.push(`${decodeURIComponent(u.split("/").pop() ?? u)}: ${msg}`);
     }
   });
