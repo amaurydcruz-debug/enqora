@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { empresaHoy, type PerfilPublico } from "@/lib/dashboard/empresa-hoy";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
@@ -126,6 +127,10 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const news = ((newsRows ?? []) as { id: string; title: string; summary: string; institution: string | null; kind: string; source_url: string; published_on: string | null; rubros: string[] }[])
     .filter((n) => !n.rubros?.length || (rubro && n.rubros.includes(rubro))).slice(0, 4);
   const benefits = active ? benefitsFor(profile, rubro).slice(0, 3) : [];
+
+  // Dashboard Engine v1 · «Tu empresa hoy»: perfil público del SII + obligaciones según dotación + alertas preventivas.
+  const { data: ppData } = active ? await supabase.rpc("company_public_profile", { p_company: active.id }) : { data: null };
+  const hoy = active ? empresaHoy(ppData as PerfilPublico | null, typeof answers.trabajadores === "string" ? answers.trabajadores : undefined) : null;
 
   // Próximos vencimientos del calendario de obligaciones (M17).
   const { data: obRows } = active
@@ -280,6 +285,71 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
           <div className={`kpi${attention ? " kpi-gold" : ""}`} role="listitem"><span>Requieren tu atención</span><b>{attention}</b></div>
           <div className="kpi" role="listitem"><span>Resueltos</span><b>{finished.length}</b></div>
         </div>
+      ) : null}
+
+      {/* Tu empresa hoy (Dashboard Engine v1): solo módulos con datos reales */}
+      {active && hoy && (hoy.perfil || hoy.laboral || hoy.senales.length) ? (
+        <section className="zone" id="empresa-hoy">
+          <div className="zone-head">
+            <h2 className="zone-title">Tu empresa hoy</h2>
+            <Link href={`/empresas/${active.id}/hoja-de-vida`} className="link-arrow">Ver hoja de vida y fuentes <IconArrowRight size={15} /></Link>
+          </div>
+          <div className="hoy-grid">
+            {hoy.perfil ? (
+              <div className="hoy-card">
+                <h3>Perfil según el SII</h3>
+                <dl className="facts">
+                  {hoy.perfil.tamano ? <div><dt>Tamaño por ventas{hoy.perfil.anio ? ` (${hoy.perfil.anio})` : ""}</dt><dd>{hoy.perfil.tamano}</dd></div> : null}
+                  {hoy.perfil.trabajadores !== null ? <div><dt>Trabajadores informados</dt><dd>{hoy.perfil.trabajadores}</dd></div> : null}
+                  {hoy.perfil.rubro ? <div><dt>Rubro</dt><dd>{hoy.perfil.rubro}</dd></div> : null}
+                  {hoy.perfil.region ? <div><dt>Región</dt><dd>{hoy.perfil.region}</dd></div> : null}
+                  {hoy.perfil.antiguedad ? <div><dt>Antigüedad</dt><dd>{hoy.perfil.antiguedad}</dd></div> : null}
+                </dl>
+                <p className="hoy-note">Datos públicos del SII, informados por la propia empresa. Son anuales y preliminares.</p>
+              </div>
+            ) : null}
+
+            {hoy.laboral ? (
+              <div className="hoy-card">
+                <h3>Obligaciones según tus trabajadores</h3>
+                <p className="hoy-lead">{hoy.laboral.dotacion}.</p>
+                {hoy.laboral.aplican.length ? (
+                  <ul className="hoy-list">
+                    {hoy.laboral.aplican.map((o) => <li key={o.id}><b>{o.nombre}</b><small>Se acredita con: {o.acredita}</small></li>)}
+                  </ul>
+                ) : <p className="hoy-lead">Sin trabajadores con contrato no aplican obligaciones laborales ni previsionales de empleador.</p>}
+                {hoy.laboral.segun_cantidad.length ? (
+                  <p className="hoy-note">Según cuántos sean exactamente, también pueden aplicar: {hoy.laboral.segun_cantidad.map((o) => o.nombre).join(" · ")}.</p>
+                ) : null}
+                <p className="hoy-note">Son obligaciones potencialmente aplicables, no un diagnóstico de cumplimiento.</p>
+                {canCreate && hoy.laboral.aplican.length ? (
+                  <Link href={`/casos/nuevo?modulo=legal&asunto=${encodeURIComponent("Revisar mi cumplimiento laboral y de seguridad")}`} className="btn btn-ghost btn-inline btn-sm">Pedir revisión de cumplimiento</Link>
+                ) : null}
+              </div>
+            ) : null}
+
+            {hoy.preventivo || hoy.senales.length ? (
+              <div className="hoy-card">
+                <h3>Alertas preventivas</h3>
+                {hoy.senales.map((s) => (
+                  <div key={s.codigo} className="hoy-alert">
+                    <span className={`badge ${s.gravedad === "alta" ? "badge-risk" : s.gravedad === "media" ? "badge-gold" : "badge-muted"}`}>{s.gravedad === "alta" ? "Importante" : s.gravedad === "media" ? "Revisar" : "Informativa"}</span>
+                    <b>{s.titulo}</b>
+                    <small>{s.detalle}</small>
+                    {canCreate ? <Link href={`/casos/nuevo?modulo=${s.servicio}&asunto=${encodeURIComponent(s.asunto)}`} className="link-arrow">Resolverlo con ENQORA <IconArrowRight size={14} /></Link> : null}
+                  </div>
+                ))}
+                {hoy.preventivo ? (
+                  <div className="hoy-alert">
+                    <span className="badge badge-muted">Si creces</span>
+                    <b>{hoy.preventivo.desde === 1 ? "Al contratar tu primer trabajador" : `Al llegar a ${hoy.preventivo.desde} trabajadores`} se suman:</b>
+                    <small>{hoy.preventivo.nuevas.map((o) => `${o.nombre} (${o.fundamento})`).join(" · ")}</small>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        </section>
       ) : null}
 
       {/* Advertencias importantes: siempre visibles */}
