@@ -58,7 +58,7 @@ export const AGENTES: Agente[] = [
     fuentes: [], secciones: ["clientes", "gestion"], estado: "parcial",
     responsabilidades: ["Control de clientes, ventas e inventario según la autoevaluación"] },
   { id: "a09", numero: "09", nombre: "Mercado público", especialidad: "ChileCompra y licitaciones",
-    fuentes: ["mercado_publico_api", "chilecompra_datos"], secciones: ["mercado_publico"], estado: "proxima_etapa",
+    fuentes: ["mercado_publico_api"], secciones: ["mercado_publico"], estado: "proxima_etapa",
     responsabilidades: ["Registro como proveedor, licitaciones y órdenes de compra (Etapa 2, API oficial)"] },
   { id: "a10", numero: "10", nombre: "Propiedad intelectual", especialidad: "Marcas e INAPI",
     fuentes: ["inapi"], secciones: ["marca"], estado: "parcial",
