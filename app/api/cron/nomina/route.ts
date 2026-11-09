@@ -39,9 +39,15 @@ export async function GET(request: NextRequest) {
   if (logErr) console.error("[ENQORA nómina SII] registro", logErr.message);
 
   // Encadenar: queda trabajo (carga a medias) o puede haber otro conjunto con versión nueva.
-  if ((report.estado === "continua" || report.estado === "completada") && step < 400) {
+  // Un corte de red (el SII cierra la conexión) también encadena, hasta 5 fallos seguidos: antes la carga quedaba
+  // detenida hasta la tarea del día siguiente. El cursor guardado garantiza que no se pierde ni se duplica avance.
+  const fallos = Number(request.nextUrl.searchParams.get("fallos") ?? "0") || 0;
+  const corteDeRed = report.estado === "error" && /terminated|socket|other side closed|fetch failed|ECONNRESET|ETIMEDOUT|tiempo|aborted|respondió 5\d\d/i.test(report.detalle ?? "");
+  const seguir = report.estado === "continua" || report.estado === "completada" || (corteDeRed && fallos < 5);
+  if (seguir && step < 400) {
     const next = new URL("/api/cron/nomina", request.nextUrl.origin);
     next.searchParams.set("paso", String(step + 1));
+    if (corteDeRed) next.searchParams.set("fallos", String(fallos + 1));
     after(async () => {
       // Se espera hasta 12 s a que arranque la siguiente ejecución: con 4 s, un arranque en frío lento cortaba la cadena
       // y la carga quedaba detenida hasta la tarea del día siguiente.
