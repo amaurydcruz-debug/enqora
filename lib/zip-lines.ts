@@ -123,6 +123,33 @@ class LocalEntry extends Transform {
   }
 }
 
+// Descarga por rangos que se reanuda: el servidor del SII corta las descargas largas («other side closed»).
+// Si la conexión se cae, se vuelve a pedir desde el último byte recibido (hasta 6 veces seguidas sin avance),
+// y el descompresor sigue sin notar el corte.
+async function* rangoReanudable(url: string, e: ZipEntry, desde: number, hasta: number, signal: AbortSignal): AsyncGenerator<Buffer> {
+  let pos = desde;
+  let fallos = 0;
+  while (pos <= hasta) {
+    let avanzo = false;
+    try {
+      const res = await get(url, signal, `bytes=${pos}-${hasta}`);
+      if (res.status !== 206 || !res.body) throw Object.assign(new Error(`El SII respondió ${res.status} al leer «${e.name}».`), { definitivo: res.status !== 200 && res.status < 500 });
+      for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+        const b = Buffer.from(chunk);
+        pos += b.length;
+        avanzo = true;
+        yield b;
+      }
+      return;
+    } catch (err) {
+      if (signal.aborted || (err as { definitivo?: boolean }).definitivo) throw err;
+      fallos = avanzo ? 1 : fallos + 1;
+      if (fallos > 6) throw err;
+      await new Promise((r) => setTimeout(r, 1_000 * fallos));
+    }
+  }
+}
+
 // Líneas (Latin-1) de un archivo del ZIP. Al cortar la lectura se cancela la descarga.
 export async function* entryLines(source: Source, e: ZipEntry, signal: AbortSignal): AsyncGenerator<string> {
   if (e.method !== 0 && e.method !== 8) throw new Error(`Compresión ZIP no soportada en «${e.name}».`);
@@ -134,9 +161,7 @@ export async function* entryLines(source: Source, e: ZipEntry, signal: AbortSign
     raw = Readable.from([source.full.subarray(e.offset, Math.min(source.full.length, e.offset + 30 + 65_535 * 2 + e.compSize))]);
   } else {
     const end = Math.min((source.total ?? Infinity) - 1, e.offset + 30 + 65_535 * 2 + e.compSize);
-    const res = await get(source.url, controller.signal, `bytes=${e.offset}-${end}`);
-    if (res.status !== 206 || !res.body) throw new Error(`El SII respondió ${res.status} al leer «${e.name}».`);
-    raw = Readable.fromWeb(res.body as import("node:stream/web").ReadableStream<Uint8Array>);
+    raw = Readable.from(rangoReanudable(source.url, e, e.offset, end, controller.signal));
   }
   const local = new LocalEntry(e.compSize);
   raw.on("error", (err) => local.destroy(err));
