@@ -10,6 +10,7 @@ import "server-only";
 //   OPENAI_API_KEY / OPENAI_CHAT_MODEL    OpenAI (opcional)
 //   ENQORA_IA_ORDEN                       orden de proveedores, p. ej. "anthropic,hf" (por defecto: "anthropic,hf,openai")
 //   ENQORA_IA_PRIVADOS                    proveedores autorizados para datos privados de clientes (por defecto: "anthropic")
+//   ENQORA_IA_PRECIOS                     precio USD por millón de tokens, p. ej. "anthropic:3:15" (opcional; sin él, el costo se ve en tokens)
 //
 // Regla de datos: lo que no es público (documentos, contabilidad de un cliente) solo va a los proveedores
 // autorizados en ENQORA_IA_PRIVADOS. Los datos públicos o ficticios pueden ir a cualquiera.
@@ -31,8 +32,27 @@ export type Pedido = {
   solo?: Proveedor;
 };
 
-export type Intento = { proveedor: Proveedor; modelo: string; ms: number; motivo?: string };
-export type Respuesta = { input: unknown | null; proveedor?: Proveedor; modelo?: string; motivo?: string; intentos: Intento[] };
+// Uso: tokens consumidos (entrada y salida), sumando reintentos y proveedores probados. Campo adicional y opcional:
+// los módulos existentes no lo necesitan; la Escuela lo usa para hacer visible el costo de cada misión.
+export type Uso = { entrada: number; salida: number };
+export type Intento = { proveedor: Proveedor; modelo: string; ms: number; motivo?: string; uso?: Uso };
+export type Respuesta = { input: unknown | null; proveedor?: Proveedor; modelo?: string; motivo?: string; intentos: Intento[]; uso?: Uso };
+
+const sumarUso = (a: Uso, b?: Uso): Uso => ({ entrada: a.entrada + (b?.entrada ?? 0), salida: a.salida + (b?.salida ?? 0) });
+
+// Precio por millón de tokens (USD), solo si se configura en Vercel: ENQORA_IA_PRECIOS="anthropic:3:15,openai:2.5:10".
+// ENQORA no inventa precios: sin esta variable, el costo se muestra en tokens.
+export function precioDe(p: Proveedor): { entrada: number; salida: number } | null {
+  for (const parte of (process.env.ENQORA_IA_PRECIOS ?? "").split(",")) {
+    const [prov, ent, sal] = parte.split(":").map((x) => x.trim());
+    if (prov?.toLowerCase() === p && Number.isFinite(Number(ent)) && Number.isFinite(Number(sal)) && ent && sal) return { entrada: Number(ent), salida: Number(sal) };
+  }
+  return null;
+}
+export function costoUsd(p: Proveedor, uso: Uso): number | null {
+  const pr = precioDe(p);
+  return pr ? (uso.entrada * pr.entrada + uso.salida * pr.salida) / 1_000_000 : null;
+}
 
 const TODOS: Proveedor[] = ["anthropic", "hf", "openai"];
 
@@ -66,19 +86,21 @@ export async function llamarHerramienta(pedido: Pedido): Promise<Respuesta> {
   const candidatos = pedido.solo ? (configurado(pedido.solo) ? [pedido.solo] : []) : orden(pedido.datos);
   const intentos: Intento[] = [];
   if (!candidatos.length) return { input: null, motivo: "sin_proveedor", intentos };
+  let uso: Uso = { entrada: 0, salida: 0 };
   for (const p of candidatos) {
     const t0 = Date.now();
     const r = p === "anthropic" ? await anthropic(pedido) : await compatibleOpenAI(p, pedido);
+    uso = sumarUso(uso, r.uso);
     let motivo = r.motivo;
     if (r.input && pedido.validar && !pedido.validar(r.input)) motivo = "validador";
-    intentos.push({ proveedor: p, modelo: modeloDe(p), ms: Date.now() - t0, motivo: r.input && !motivo ? undefined : motivo });
-    if (r.input && !motivo) return { input: r.input, proveedor: p, modelo: modeloDe(p), intentos };
+    intentos.push({ proveedor: p, modelo: modeloDe(p), ms: Date.now() - t0, motivo: r.input && !motivo ? undefined : motivo, uso: r.uso });
+    if (r.input && !motivo) return { input: r.input, proveedor: p, modelo: modeloDe(p), intentos, uso };
     console.error(`[ENQORA AI] ${p} sin respuesta válida:`, motivo);
   }
-  return { input: null, motivo: intentos.map((i) => `${i.proveedor}:${i.motivo}`).join(" · "), intentos };
+  return { input: null, motivo: intentos.map((i) => `${i.proveedor}:${i.motivo}`).join(" · "), intentos, uso };
 }
 
-type Salida = { input: unknown | null; motivo?: string };
+type Salida = { input: unknown | null; motivo?: string; uso?: Uso };
 const recordatorio = (name: string) => `Entrega ahora tu respuesta llamando a la herramienta ${name}.`;
 const sistema = (p: Pedido) => `${p.system}\n\nResponde ÚNICAMENTE llamando a la herramienta ${p.tool.name}, sin texto adicional.`;
 const fallo = (e: unknown): Salida => ({ input: null, motivo: e instanceof Error && e.name === "TimeoutError" ? "tiempo" : "red" });
@@ -88,6 +110,7 @@ const httpMotivo = (status: number, err?: { type?: string; message?: string; cod
 // Claude: el modelo no admite forzar la herramienta (tool_choice «tool»/«any»): «auto» y un recordatorio.
 async function anthropic(p: Pedido): Promise<Salida> {
   const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: p.prompt }];
+  let uso: Uso = { entrada: 0, salida: 0 };
   try {
     for (let intento = 0; intento < 2; intento++) {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
@@ -95,16 +118,20 @@ async function anthropic(p: Pedido): Promise<Salida> {
         headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY ?? "", "anthropic-version": "2023-06-01" },
         body: JSON.stringify({ model: modeloDe("anthropic"), max_tokens: p.maxTokens ?? 3000, system: sistema(p), tools: [p.tool], tool_choice: { type: "auto" }, messages }),
       });
-      const data = (await res.json().catch(() => ({}))) as { content?: { type: string; name?: string; input?: unknown }[]; error?: { type?: string; message?: string } };
-      if (!res.ok) return { input: null, motivo: httpMotivo(res.status, data.error) };
+      const data = (await res.json().catch(() => ({}))) as {
+        content?: { type: string; name?: string; input?: unknown }[]; error?: { type?: string; message?: string };
+        usage?: { input_tokens?: number; output_tokens?: number };
+      };
+      uso = sumarUso(uso, { entrada: data.usage?.input_tokens ?? 0, salida: data.usage?.output_tokens ?? 0 });
+      if (!res.ok) return { input: null, motivo: httpMotivo(res.status, data.error), uso };
       const input = data.content?.find((b) => b.type === "tool_use" && b.name === p.tool.name)?.input ?? null;
-      if (input) return { input };
+      if (input) return { input, uso };
       messages.push({ role: "assistant", content: data.content?.length ? data.content : [{ type: "text", text: "(sin respuesta)" }] });
       messages.push({ role: "user", content: recordatorio(p.tool.name) });
     }
-    return { input: null, motivo: "sin_herramienta" };
+    return { input: null, motivo: "sin_herramienta", uso };
   } catch (e) {
-    return fallo(e);
+    return { ...fallo(e), uso };
   }
 }
 
@@ -114,6 +141,7 @@ async function compatibleOpenAI(prov: Proveedor, p: Pedido): Promise<Salida> {
   const key = prov === "hf" ? process.env.HF_TOKEN : process.env.OPENAI_API_KEY;
   const tools = [{ type: "function", function: { name: p.tool.name, description: p.tool.description, parameters: p.tool.input_schema } }];
   const messages: { role: string; content: string }[] = [{ role: "system", content: sistema(p) }, { role: "user", content: p.prompt }];
+  let uso: Uso = { entrada: 0, salida: 0 };
   try {
     for (let intento = 0; intento < 2; intento++) {
       const res = await fetch(url, {
@@ -124,18 +152,20 @@ async function compatibleOpenAI(prov: Proveedor, p: Pedido): Promise<Salida> {
       const data = (await res.json().catch(() => ({}))) as {
         choices?: { message?: { content?: string | null; tool_calls?: { function?: { name?: string; arguments?: string } }[] } }[];
         error?: { type?: string; message?: string; code?: string } | string;
+        usage?: { prompt_tokens?: number; completion_tokens?: number };
       };
-      if (!res.ok) return { input: null, motivo: httpMotivo(res.status, typeof data.error === "string" ? { message: data.error } : data.error) };
+      uso = sumarUso(uso, { entrada: data.usage?.prompt_tokens ?? 0, salida: data.usage?.completion_tokens ?? 0 });
+      if (!res.ok) return { input: null, motivo: httpMotivo(res.status, typeof data.error === "string" ? { message: data.error } : data.error), uso };
       const msg = data.choices?.[0]?.message;
       const call = msg?.tool_calls?.find((c) => c.function?.name === p.tool.name);
       const input = call?.function?.arguments ? parseJson(call.function.arguments) : extraerJson(msg?.content ?? "");
-      if (input) return { input };
+      if (input) return { input, uso };
       messages.push({ role: "assistant", content: msg?.content || "(sin respuesta)" });
       messages.push({ role: "user", content: recordatorio(p.tool.name) });
     }
-    return { input: null, motivo: "sin_herramienta" };
+    return { input: null, motivo: "sin_herramienta", uso };
   } catch (e) {
-    return fallo(e);
+    return { ...fallo(e), uso };
   }
 }
 
