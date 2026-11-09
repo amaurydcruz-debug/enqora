@@ -14,6 +14,9 @@ export const metadata: Metadata = { title: "Datos públicos" };
 // «Sincronizar ahora» espera el resultado de un tramo del conector.
 export const maxDuration = 60;
 
+// Mismo valor que ARCHIVO en lib/public-sync.ts: el cursor codifica archivo del ZIP y línea.
+const ARCHIVO = 100_000_000;
+
 type Import = {
   id: string; dataset: string; source_url: string; published_on: string; file_name: string | null;
   rows_received: number; status: string; started_at: string; finished_at: string | null;
@@ -55,7 +58,9 @@ export default async function PublicDataPage({ searchParams }: { searchParams: P
   const res = sp.resultado ? RESULT[sp.resultado] : null;
   const current = (ds: string) => imports.find((i) => i.dataset === ds && i.status === "completada");
   const running = imports.find((i) => i.status === "en_curso" && i.mode === "automatica");
-  const failed = imports.find((i) => i.mode === "automatica" && i.last_error && (i.status === "en_curso" || i.status === "cancelada"));
+  // Último problema: solo si no hay una carga posterior del mismo conjunto que lo haya superado.
+  const failed = imports.find((i, k) => i.mode === "automatica" && i.last_error && (i.status === "en_curso" || i.status === "cancelada")
+    && !imports.slice(0, k).some((j) => j.dataset === i.dataset && j.status === "completada"));
 
   return (
     <div className="page">
@@ -97,7 +102,8 @@ export default async function PublicDataPage({ searchParams }: { searchParams: P
         <h2>Estado del conector</h2>
         {running ? (
           <p>
-            Cargando <b>{DATASETS[running.dataset]}</b>: {running.cursor_line.toLocaleString("es-CL")} líneas procesadas,{" "}
+            Cargando <b>{DATASETS[running.dataset]}</b>: {running.cursor_line >= ARCHIVO ? `archivo ${Math.floor(running.cursor_line / ARCHIVO) + 1} del ZIP, ` : ""}
+            {(running.cursor_line % ARCHIVO).toLocaleString("es-CL")} líneas procesadas,{" "}
             {running.rows_received.toLocaleString("es-CL")} filas válidas. Último avance: {fmt(running.heartbeat_at)}.
           </p>
         ) : (

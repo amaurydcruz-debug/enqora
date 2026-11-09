@@ -9,7 +9,7 @@ import { entryLines, firstLine, openZip } from "@/lib/zip-lines";
 // Procesa hasta agotar su tiempo y deja el cursor guardado: la siguiente ejecución sigue donde quedó.
 
 type Active = { id: string; modo: string; cursor: number; fuente: string; modificado: string | null; latido: string | null };
-type Last = { id: string; modificado: string | null; publicada: string; termino: string | null; filas: number };
+type Last = { id: string; modificado: string | null; publicada: string; termino: string | null; filas: number; archivo?: string | null };
 type State = Record<Dataset, { activa: Active | null; ultima: Last | null }>;
 
 export type SyncReport = {
@@ -21,6 +21,15 @@ export type SyncReport = {
 };
 
 const BATCH = 1000;
+// Un ZIP puede traer varios archivos con la misma nómina (p. ej., un archivo por año comercial 2020 a 2024).
+// Se cargan todos, del año más reciente al más antiguo, y el cursor codifica archivo y línea:
+// cursor = índice del archivo × ARCHIVO + línea dentro del archivo. La base conserva el año más reciente de cada RUT.
+export const ARCHIVO = 100_000_000;
+// Marca guardada en el nombre del archivo de la carga: si la última carga completada no la tiene, se hizo con un
+// solo archivo del ZIP (versión anterior del conector) y se vuelve a cargar completa.
+const MARCA_TODOS = " · todos los archivos";
+// Conjuntos cuyo ZIP trae varios archivos de la misma nómina (los demás traen uno solo y no se recargan).
+const VARIOS_ARCHIVOS: Dataset[] = ["empresas"];
 // Mayor que la duración máxima de un tramo (300 s): mientras uno trabaja, otro no lo interrumpe.
 const STALE_MS = 330 * 1000;
 const REFRESH_WITHOUT_DATE_DAYS = 30;
@@ -89,10 +98,12 @@ export async function runPublicSync(supabase: SupabaseClient, token: string, dea
     const isNew = !last
       || (modified && (!last.modificado || modified.getTime() > new Date(last.modificado).getTime() + 1000))
       || (!modified && last.termino && Date.now() - new Date(last.termino).getTime() > REFRESH_WITHOUT_DATE_DAYS * 86400000);
-    if (!isNew) continue;
+    // Carga anterior hecha con un solo archivo del ZIP (requiere la migración 0032, que informa el archivo).
+    const incompleta = VARIOS_ARCHIVOS.includes(ds) && !!last && "archivo" in last && !(last.archivo ?? "").endsWith(MARCA_TODOS);
+    if (!isNew && !incompleta) continue;
     const { data: id, error: startErr } = await supabase.rpc("svc_start_public_import", {
       p_token: token, p_dataset: ds, p_source_url: SOURCES[ds].url, p_modified: modified?.toISOString() ?? null,
-      p_file_name: SOURCES[ds].url.split("/").pop() ?? null,
+      p_file_name: `${SOURCES[ds].url.split("/").pop() ?? "nomina.zip"}${MARCA_TODOS}`,
     });
     if (startErr || !id) return { estado: "error", conjunto: ds, detalle: startErr?.message ?? "No se pudo iniciar la carga" };
     return processImport(supabase, token, ds, id as string, 0, deadline);
@@ -121,51 +132,63 @@ async function processImport(
   };
 
   try {
-    // El ZIP puede traer varios archivos (p. ej. una tabla de códigos y la nómina): se elige el que
-    // tenga las columnas de esta nómina, empezando por el más grande.
+    // El ZIP puede traer varios archivos: una tabla de códigos y una o más nóminas (p. ej., una por año).
+    // Se cargan todos los que tengan las columnas de esta nómina, del año más reciente al más antiguo.
     const { source, entries } = await openZip(SOURCES[ds].url, controller.signal);
     const candidates = entries.filter((e) => /\.(txt|csv)$/i.test(e.name) && e.size > 0).sort((a, b) => b.size - a.size);
-    let chosen: (typeof entries)[number] | null = null;
-    let map: ReturnType<typeof mapHeader> | null = null;
+    const anio = (n: string) => Number(n.match(/(19|20)\d{2}(?!.*(19|20)\d{2})/)?.[0] ?? 0);
+    const archivos: { e: (typeof entries)[number]; map: ReturnType<typeof mapHeader> }[] = [];
     const seen: string[] = [];
-    for (const e of candidates.slice(0, 8)) {
+    for (const e of candidates.slice(0, 12)) {
       const header = await firstLine(source, e, controller.signal);
       const m = mapHeader(ds, header);
-      if (!m.missing.length) { chosen = e; map = m; break; }
-      seen.push(`${e.name}: ${m.header.slice(0, 8).join(" | ")}`);
+      if (!m.missing.length) archivos.push({ e, map: m });
+      else seen.push(`${e.name}: ${m.header.slice(0, 8).join(" | ")}`);
     }
-    if (!chosen || !map) {
+    archivos.sort((a, b) => anio(b.e.name) - anio(a.e.name) || b.e.size - a.e.size);
+    if (!archivos.length) {
       await supabase.rpc("svc_finish_public_import", {
         p_token: token, p_import: importId, p_status: "cancelada",
         p_error: `Formato no reconocido. Archivos del ZIP: ${seen.join(" ;; ").slice(0, 440) || "ninguno de texto"}`,
       });
       return { estado: "error", conjunto: ds, detalle: "Formato no reconocido: ningún archivo del ZIP tiene las columnas esperadas" };
     }
-    let header = false;
-    for await (const raw of entryLines(source, chosen, controller.signal)) {
-      if (!header) {
-        if (raw.trim()) header = true;
-        continue;
-      }
-      if (!raw.trim()) continue;
-      line++;
-      if (line <= cursor) {
-        // Avance rápido hasta el cursor; si el tiempo se agota antes, la próxima ejecución sigue igual.
-        if (line % 50_000 === 0 && Date.now() > deadline) return { estado: "continua", conjunto: ds, filas: 0, cursor };
-        continue;
-      }
-      const row = toRow(ds, map, raw);
-      if (row) rows.push(row);
-      if (line - sent >= BATCH) {
-        await flush();
-        if (Date.now() > deadline) {
-          return { estado: "continua", conjunto: ds, filas: total, cursor: sent };
+
+    for (let idx = Math.floor(cursor / ARCHIVO); idx < archivos.length; idx++) {
+      const { e: chosen, map } = archivos[idx];
+      const base = idx * ARCHIVO;
+      const desde = Math.max(0, cursor - base); // líneas ya cargadas de este archivo
+      let header = false;
+      line = base;
+      for await (const raw of entryLines(source, chosen, controller.signal)) {
+        if (!header) {
+          if (raw.trim()) header = true;
+          continue;
+        }
+        if (!raw.trim()) continue;
+        line++;
+        if (line - base <= desde) {
+          // Avance rápido hasta el cursor; si el tiempo se agota antes, la próxima ejecución sigue igual.
+          if (line % 50_000 === 0 && Date.now() > deadline) return { estado: "continua", conjunto: ds, filas: 0, cursor };
+          continue;
+        }
+        const row = toRow(ds, map, raw);
+        if (row) rows.push(row);
+        if (line - sent >= BATCH) {
+          await flush();
+          if (Date.now() > deadline) return { estado: "continua", conjunto: ds, filas: total, cursor: sent };
         }
       }
+      if (!header) throw new Error(`El archivo «${chosen.name}» de la nómina venía vacío.`);
+      if (line - base < desde) throw new Error("El archivo publicado es más corto que el avance guardado: se reiniciará la carga.");
+      await flush();
+      if (idx + 1 < archivos.length) {
+        // Salta al inicio del siguiente archivo (sin filas) y guarda el cursor.
+        line = (idx + 1) * ARCHIVO;
+        await flush();
+        if (Date.now() > deadline) return { estado: "continua", conjunto: ds, filas: total, cursor: sent };
+      }
     }
-    if (!header) throw new Error("El archivo de la nómina venía vacío.");
-    if (line < cursor) throw new Error("El archivo publicado es más corto que el avance guardado: se reiniciará la carga.");
-    await flush();
     await supabase.rpc("svc_finish_public_import", { p_token: token, p_import: importId, p_status: "completada", p_error: null });
     return { estado: "completada", conjunto: ds, filas: total, cursor: sent };
   } catch (e) {
