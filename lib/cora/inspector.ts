@@ -10,7 +10,9 @@ const HOSTS = [
   "datosabiertos.chilecompra.cl", "www.sii.cl", "datos.gob.cl", "www.registrodeempresasysociedades.cl", "www.cmfchile.cl",
 ];
 const UA = { "user-agent": "ENQORA/1.0 (+inspector de datos abiertos)" };
-const TIMEOUT = 25_000;
+const TIMEOUT = 20_000;
+// Tope de cada muestra: la acción debe responder dentro del límite de la página (120 s), con margen.
+const MUESTRA_MS = 45_000;
 
 export type Preset = { id: string; nombre: string; tipo: "ckan" | "pagina"; url: string; q?: string };
 export const PRESETS: Preset[] = [
@@ -103,7 +105,7 @@ const colIdx = (ref: string) => {
 
 async function muestraXlsx(url: string): Promise<Muestra> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 50_000);
+  const timer = setTimeout(() => controller.abort(), MUESTRA_MS);
   try {
     const { source, entries } = await openZip(url, controller.signal);
     const hoja = entries.filter((e) => /^xl\/worksheets\/sheet\d+\.xml$/i.test(e.name)).sort((a, b) => a.name.localeCompare(b.name, "en", { numeric: true }))[0];
@@ -149,7 +151,7 @@ async function muestraXlsx(url: string): Promise<Muestra> {
 
 async function muestraZip(url: string): Promise<Muestra[]> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 50_000);
+  const timer = setTimeout(() => controller.abort(), MUESTRA_MS);
   try {
     const { source, entries } = await openZip(url, controller.signal);
     const textos = entries.filter((e) => /\.(txt|csv)$/i.test(e.name) && e.size > 0).sort((a, b) => b.size - a.size).slice(0, 3);
@@ -206,13 +208,17 @@ export async function inspeccionar(presetId: string): Promise<Inspeccion> {
     out.enlaces = await enlacesDePagina(p.url);
     candidatos = [...out.enlaces].sort((a, b) => anioDe(b) - anioDe(a)).slice(0, 2);
   }
-  for (const u of [...new Set(candidatos)].slice(0, 3)) {
-    try {
-      out.muestras.push(...(await muestra(u)));
-    } catch (e) {
-      out.avisos.push(`${u.split("/").pop()}: ${e instanceof Error ? e.message : "no se pudo leer"}`);
+  // Las muestras se leen en paralelo: cada una tiene su propio tope de tiempo y un fallo no detiene a las demás.
+  const resultados = await Promise.allSettled([...new Set(candidatos)].slice(0, 3).map((u) => muestra(u)));
+  resultados.forEach((r, i) => {
+    const u = [...new Set(candidatos)][i];
+    if (r.status === "fulfilled") out.muestras.push(...r.value);
+    else {
+      const e = r.reason;
+      const msg = e instanceof Error ? (e.name === "AbortError" || e.name === "TimeoutError" ? "el archivo no terminó de leerse a tiempo" : e.message) : "no se pudo leer";
+      out.avisos.push(`${decodeURIComponent(u.split("/").pop() ?? u)}: ${msg}`);
     }
-  }
+  });
   return out;
 }
 

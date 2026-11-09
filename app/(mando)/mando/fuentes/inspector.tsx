@@ -1,13 +1,25 @@
 "use client";
 
-import { useActionState } from "react";
+import { useState, useTransition } from "react";
 import { inspeccionarFuenteAction, type EstadoInspector } from "@/app/actions/inspector";
-import { SubmitButton } from "@/components/submit-button";
 
 // Inspector de fuentes: muestra archivos, licencia, columnas y primeras filas de una fuente de datos abiertos.
 export function InspectorFuentes({ presets }: { presets: { id: string; nombre: string }[] }) {
-  const [estado, accion] = useActionState<EstadoInspector, FormData>(inspeccionarFuenteAction, null);
+  const [estado, setEstado] = useState<EstadoInspector>(null);
+  const [pendiente, iniciar] = useTransition();
   const r = estado?.ok ? estado.r : null;
+  // Se llama a la acción con manejo de errores: si el servidor corta la respuesta (tiempo agotado o caída),
+  // se muestra el motivo en vez de dejar la pantalla sin resultado.
+  const accion = (form: FormData) => {
+    setEstado(null);
+    iniciar(async () => {
+      try {
+        setEstado(await inspeccionarFuenteAction(null, form));
+      } catch (e) {
+        setEstado({ ok: false, error: `El servidor no entregó respuesta (${e instanceof Error ? e.message : "error de red"}). Intenta de nuevo; si se repite, copia este mensaje.` });
+      }
+    });
+  };
   return (
     <section className="card" id="inspector">
       <h2>Inspector de fuentes</h2>
@@ -19,9 +31,11 @@ export function InspectorFuentes({ presets }: { presets: { id: string; nombre: s
         <select name="fuente" className="input input-sm" aria-label="Fuente" defaultValue={presets[0]?.id}>
           {presets.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
         </select>
-        <SubmitButton className="btn-inline btn-sm" pendingText="Inspeccionando… (hasta 1 minuto)">Inspeccionar</SubmitButton>
+        <button type="submit" className="btn-inline btn-sm" disabled={pendiente}>{pendiente ? "Inspeccionando… (hasta 2 minutos)" : "Inspeccionar"}</button>
       </form>
+      {pendiente ? <p className="muted-line" role="status">Leyendo el catálogo y los archivos de la fuente…</p> : null}
       {estado && !estado.ok ? <p className="lookup-error" role="alert">{estado.error}</p> : null}
+      {r && !r.muestras.length && !r.avisos.length ? <p className="muted-line">La fuente respondió, pero no se encontraron archivos para mostrar.</p> : null}
       {r ? (
         <>
           {r.muestras.map((m, i) => (
