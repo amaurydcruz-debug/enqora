@@ -193,6 +193,50 @@ export async function* entryLines(source: Source, e: ZipEntry, signal: AbortSign
   }
 }
 
+// Bytes descomprimidos de un archivo del ZIP, hasta «max» bytes (se corta la descarga al llegar al límite).
+// Lo usa el inspector de fuentes para leer el XML interno de un Excel (.xlsx también es un ZIP).
+export async function entryBuffer(source: Source, e: ZipEntry, signal: AbortSignal, max: number): Promise<{ data: Buffer; completo: boolean }> {
+  if (e.method !== 0 && e.method !== 8) throw new Error(`Compresión ZIP no soportada en «${e.name}».`);
+  const controller = new AbortController();
+  const onAbort = () => controller.abort();
+  signal.addEventListener("abort", onAbort);
+  let raw: Readable;
+  if (source.full) {
+    raw = Readable.from([source.full.subarray(e.offset, Math.min(source.full.length, e.offset + 30 + 65_535 * 2 + e.compSize))]);
+  } else {
+    const end = Math.min((source.total ?? Infinity) - 1, e.offset + 30 + 65_535 * 2 + e.compSize);
+    raw = Readable.from(rangoReanudable(source.url, e, e.offset, end, controller.signal));
+  }
+  const local = new LocalEntry(e.compSize);
+  raw.on("error", (err) => local.destroy(err));
+  raw.pipe(local);
+  let data: AsyncIterable<Buffer> = local;
+  let inflate: ReturnType<typeof createInflateRaw> | null = null;
+  if (e.method === 8) {
+    inflate = createInflateRaw();
+    local.on("error", (err) => inflate?.destroy(err));
+    local.pipe(inflate);
+    data = inflate;
+  }
+  const partes: Buffer[] = [];
+  let n = 0;
+  let completo = true;
+  try {
+    for await (const chunk of data) {
+      partes.push(chunk as Buffer);
+      n += (chunk as Buffer).length;
+      if (n >= max) { completo = false; break; }
+    }
+    return { data: Buffer.concat(partes).subarray(0, max), completo };
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+    controller.abort();
+    raw.destroy();
+    local.destroy();
+    inflate?.destroy();
+  }
+}
+
 // Primera línea con contenido (para reconocer el encabezado de cada archivo del ZIP).
 export async function firstLine(source: Source, e: ZipEntry, signal: AbortSignal): Promise<string> {
   const it = entryLines(source, e, signal);

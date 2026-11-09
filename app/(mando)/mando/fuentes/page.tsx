@@ -6,9 +6,12 @@ import { resumenCatalogo } from "@/lib/cora/director";
 import { ESTADOS_CONEXION, FUENTES, NIVELES } from "@/lib/cora/fuentes";
 import { OBLIGACIONES_LABORALES } from "@/lib/cora/normativa-laboral";
 import { nombreSeccion } from "@/lib/cora/secciones";
-import { myStaffRole } from "@/lib/staff";
+import { isSupervisorRole, myStaffRole } from "@/lib/staff";
+import { PRESETS } from "@/lib/cora/inspector";
+import { InspectorFuentes } from "./inspector";
 
 export const metadata: Metadata = { title: "CORA · Fuentes y agentes" };
+export const maxDuration = 120;
 
 const fmt = (d: string | null) => (d ? d.split("-").reverse().join("-") : "Sin verificar");
 
@@ -107,6 +110,7 @@ export default async function CoraSourcesPage() {
           </table>
         </div>
       </section>
+      {isSupervisorRole(role) ? <InspectorFuentes presets={PRESETS.map((p) => ({ id: p.id, nombre: p.nombre }))} /> : null}
     </div>
   );
 }
