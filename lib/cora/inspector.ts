@@ -17,6 +17,7 @@ const MUESTRA_MS = 45_000;
 export type Preset = { id: string; nombre: string; tipo: "ckan" | "pagina" | "conexion"; url: string; q?: string };
 export const PRESETS: Preset[] = [
   { id: "conexion_inapi", nombre: "Prueba de conexión · sitios de INAPI", tipo: "conexion", url: "https://www.inapi.cl" },
+  { id: "inapi_tramites", nombre: "INAPI · página de datos abiertos de marcas (tramites.inapi.cl)", tipo: "pagina", url: "https://tramites.inapi.cl/OpenData/TrademarkOpenData" },
   { id: "inapi_marcas", nombre: "INAPI · marcas (registros y solicitudes)", tipo: "ckan", url: "https://dabiertos.inapi.cl", q: "marcas" },
   { id: "snifa", nombre: "SMA · SNIFA datos abiertos", tipo: "pagina", url: "https://snifa.sma.gob.cl/DatosAbiertos" },
   { id: "chilecompra", nombre: "ChileCompra · descargas de datos abiertos", tipo: "pagina", url: "https://datos-abiertos.chilecompra.cl/descargas" },
@@ -86,7 +87,7 @@ async function enlacesDePagina(url: string): Promise<string[]> {
   const out = new Set<string>();
   for (const m of html.matchAll(/href\s*=\s*["']([^"'#]+)["']/gi)) {
     const h = m[1].trim();
-    if (!/\.(csv|xlsx?|zip|json|txt|geojson)(\?|$)/i.test(h) && !/descarga|download|export/i.test(h)) continue;
+    if (!/\.(csv|xlsx?|zip|json|txt|geojson)(\?|$)/i.test(h) && !/descarga|download|export|opendata|dataset|resource|datos/i.test(h)) continue;
     try { out.add(new URL(h, url).toString()); } catch { /* enlace inválido */ }
   }
   if (!out.size && /habilitar javascript|enable javascript/i.test(html)) throw new Error("La página arma su contenido con JavaScript: no expone los enlaces en el HTML.");
@@ -228,7 +229,8 @@ export async function inspeccionar(presetId: string): Promise<Inspeccion> {
     }
   } else {
     out.enlaces = await enlacesDePagina(p.url);
-    candidatos = [...out.enlaces].sort((a, b) => anioDe(b) - anioDe(a)).slice(0, 2);
+    // Solo se abren enlaces a archivos (no páginas) y de dominios que respondan.
+    candidatos = out.enlaces.filter((e) => /\.(csv|xlsx?|zip|json|txt)(\?|$)/i.test(e) && !e.includes("dabiertos.inapi.cl")).sort((a, b) => anioDe(b) - anioDe(a)).slice(0, 2);
   }
   // Las muestras se leen en paralelo: cada una tiene su propio tope de tiempo y un fallo no detiene a las demás.
   const resultados = await Promise.allSettled([...new Set(candidatos)].slice(0, 3).map((u) => muestra(u)));
