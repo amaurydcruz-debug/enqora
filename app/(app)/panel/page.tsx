@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { empresaHoy, type PerfilPublico } from "@/lib/dashboard/empresa-hoy";
+import { oportunidades } from "@/lib/cora/oportunidades";
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import type { Metadata } from "next";
@@ -131,6 +132,14 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   // Dashboard Engine v1 · «Tu empresa hoy»: perfil público del SII + obligaciones según dotación + alertas preventivas.
   const { data: ppData } = active ? await supabase.rpc("company_public_profile", { p_company: active.id }) : { data: null };
   const hoy = active ? empresaHoy(ppData as PerfilPublico | null, typeof answers.trabajadores === "string" ? answers.trabajadores : undefined) : null;
+  // Oportunidades legales: reglas verificadas sobre el régimen declarado y el perfil público (siempre «por evaluar»).
+  const pp = ppData as PerfilPublico | null;
+  const ops = active
+    ? oportunidades({
+        regimen: active.tax_regime, tramo: pp?.estado === "encontrada" ? pp.perfil?.tramo_ventas ?? null : null,
+        trabajadores: pp?.estado === "encontrada" ? pp.perfil?.trabajadores ?? null : null, termino_giro: !!(pp?.estado === "encontrada" && pp.termino_giro),
+      })
+    : [];
 
   // Resultados (0033): ahorro verificado de la empresa y casos cerrados sin calificar (últimos 60 días).
   const [savRes, ratedRes] = active
@@ -370,6 +379,39 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                 ) : null}
               </div>
             ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Oportunidades legales por evaluar (principio rector: el cliente debe salir ganando) */}
+      {active && ops.length ? (
+        <section className="zone" id="oportunidades">
+          <div className="zone-head">
+            <h2 className="zone-title">Oportunidades legales por evaluar</h2>
+          </div>
+          <p className="hoy-note">
+            Alternativas que la ley permite y que podrían convenirle a tu empresa según sus datos. Ninguna es una recomendación todavía:
+            un profesional de ENQORA confirma los requisitos y calcula el efecto real antes de aplicarla.
+          </p>
+          <div className="hoy-grid">
+            {ops.map((o) => (
+              <div key={o.id} className="hoy-card">
+                <span className={`badge ${o.estado === "probable" ? "badge-gold" : "badge-muted"}`}>{o.estado === "probable" ? "Probable" : "Por confirmar"}</span>
+                <h3>{o.titulo}</h3>
+                <p className="hoy-lead">{o.beneficio}</p>
+                {o.ejemplo ? <p className="hoy-note">Ejemplo: {o.ejemplo}</p> : null}
+                <p className="hoy-note">Por qué podría aplicarte: {o.por_que}</p>
+                {o.plazo ? <p className="hoy-note"><b>Plazo:</b> {o.plazo}</p> : null}
+                <details>
+                  <summary className="hoy-note">Qué hay que confirmar y fuente</summary>
+                  <ul className="hoy-list">{o.confirmar.map((c) => <li key={c}><small>{c}</small></li>)}</ul>
+                  <p className="hoy-note"><a href={o.fuente.url} target="_blank" rel="noopener noreferrer">{o.fuente.titulo}</a> · verificado el {o.verificado.split("-").reverse().join("-")}</p>
+                </details>
+                {canCreate ? (
+                  <Link href={`/casos/nuevo?modulo=${o.accion.modulo}&asunto=${encodeURIComponent(o.accion.asunto)}`} className="btn btn-ghost btn-inline btn-sm">Evaluarla con ENQORA</Link>
+                ) : null}
+              </div>
+            ))}
           </div>
         </section>
       ) : null}
