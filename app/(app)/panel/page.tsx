@@ -345,9 +345,19 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                 <h3>Obligaciones según tus trabajadores</h3>
                 <p className="hoy-lead">{hoy.laboral.dotacion}.</p>
                 {hoy.laboral.aplican.length ? (
-                  <ul className="hoy-list">
-                    {hoy.laboral.aplican.map((o) => <li key={o.id}><b>{o.nombre}</b><small>Se acredita con: {o.acredita}</small></li>)}
-                  </ul>
+                  <>
+                    <ul className="hoy-list">
+                      {hoy.laboral.aplican.slice(0, 3).map((o) => <li key={o.id}><b>{o.nombre}</b><small>Se acredita con: {o.acredita}</small></li>)}
+                    </ul>
+                    {hoy.laboral.aplican.length > 3 ? (
+                      <details>
+                        <summary className="hoy-note">Ver las {hoy.laboral.aplican.length - 3} restantes</summary>
+                        <ul className="hoy-list">
+                          {hoy.laboral.aplican.slice(3).map((o) => <li key={o.id}><b>{o.nombre}</b><small>Se acredita con: {o.acredita}</small></li>)}
+                        </ul>
+                      </details>
+                    ) : null}
+                  </>
                 ) : <p className="hoy-lead">Sin trabajadores con contrato no aplican obligaciones laborales ni previsionales de empleador.</p>}
                 {hoy.laboral.segun_cantidad.length ? (
                   <p className="hoy-note">Según cuántos sean exactamente, también pueden aplicar: {hoy.laboral.segun_cantidad.map((o) => o.nombre).join(" · ")}.</p>
@@ -398,12 +408,15 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
               <div key={o.id} className="hoy-card">
                 <span className={`badge ${o.estado === "probable" ? "badge-gold" : "badge-muted"}`}>{o.estado === "probable" ? "Probable" : "Por confirmar"}</span>
                 <h3>{o.titulo}</h3>
-                <p className="hoy-lead">{o.beneficio}</p>
-                {o.ejemplo ? <p className="hoy-note">Ejemplo: {o.ejemplo}</p> : null}
-                <p className="hoy-note">Por qué podría aplicarte: {o.por_que}</p>
-                {o.plazo ? <p className="hoy-note"><b>Plazo:</b> {o.plazo}</p> : null}
+                <p className="hoy-lead">{o.resumen}</p>
+                {o.plazo && o.id !== "tgr_condonacion" ? <p className="hoy-note"><b>Plazo:</b> {o.plazo}</p> : null}
                 <details>
-                  <summary className="hoy-note">Qué hay que confirmar y fuente</summary>
+                  <summary className="hoy-note">Detalle, requisitos y fuente</summary>
+                  <p className="hoy-note">{o.beneficio}</p>
+                  {o.ejemplo ? <p className="hoy-note">Ejemplo: {o.ejemplo}</p> : null}
+                  <p className="hoy-note">Por qué podría aplicarte: {o.por_que}</p>
+                  {o.plazo && o.id === "tgr_condonacion" ? <p className="hoy-note"><b>Plazo:</b> {o.plazo}</p> : null}
+                  <p className="hoy-note"><b>Hay que confirmar:</b></p>
                   <ul className="hoy-list">{o.confirmar.map((c) => <li key={c}><small>{c}</small></li>)}</ul>
                   <p className="hoy-note"><a href={o.fuente.url} target="_blank" rel="noopener noreferrer">{o.fuente.titulo}</a> · verificado el {o.verificado.split("-").reverse().join("-")}</p>
                 </details>
