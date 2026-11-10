@@ -6,7 +6,7 @@ import type { AgentKey } from "@/lib/mirror";
 // mínimo) NO se escriben aquí: el agente debe pedirlas o verificarlas en la fuente oficial.
 // Al cambiar una norma: actualizar este archivo, KNOWLEDGE_VERSION y docs/ENQORA-AGENTES.md.
 
-export const KNOWLEDGE_VERSION = "2026-10-27";
+export const KNOWLEDGE_VERSION = "2026-11-09";
 
 export type Source = { titulo: string; articulo?: string; vigencia?: string; url?: string };
 export type Rule = { tema: string; regla: string; fuente: Source };
@@ -79,7 +79,7 @@ export const RULES: Record<string, Rule> = {
   },
   pro_pyme: {
     tema: "Régimen Pro Pyme",
-    regla: "Art. 14 letra D LIR. Requisitos de ingreso: capital efectivo inicial inferior a 85.000 UF y promedio de ingresos del giro de los últimos tres ejercicios inferior a 75.000 UF (además de otros requisitos legales). N°3 (Pro Pyme general): tasa de Primera Categoría 12,5% para rentas de 2025, 2026 y 2027 y 15% en 2028, SIEMPRE QUE al cierre de cada ejercicio la empresa cumpla con la cotización del art. 4° transitorio de la Ley 21.735 (1% en 2025, 3,5% en 2026, 4,25% en 2027, 5% en 2028); en esos años los PPM se reducen a la mitad. N°8 (Pro Pyme transparente): exento de Primera Categoría; los dueños tributan directamente.",
+    regla: "Art. 14 letra D LIR. Requisitos de ingreso: capital efectivo inicial inferior a 85.000 UF y promedio de ingresos del giro de los últimos tres ejercicios inferior a 75.000 UF (además de otros requisitos legales). N°3 (Pro Pyme general): tasa de Primera Categoría 12,5% para rentas de 2025, 2026 y 2027 y 15% en 2028, SIEMPRE QUE al cierre de cada ejercicio la empresa cumpla con la cotización del art. 4° transitorio de la Ley 21.735 (1% en 2025, 3,5% en 2026, 4,25% en 2027, 5% en 2028); en esos años los PPM se reducen a la mitad. N°8 (Pro Pyme transparente): exento de Primera Categoría; los dueños tributan directamente. La Ley 21.850 baja la tasa permanente del régimen Pro Pyme de 25% a 23% desde 2029.",
     fuente: { titulo: "SII · Circular N° 53 de 2025 (Ley 21.755)", articulo: "Art. 14 D N°3 y N°8 LIR; art. 25 Ley 21.755", vigencia: "Ejercicios 2025-2028", url: "https://www.sii.cl/normativa_legislacion/circulares/2025/circu53.pdf" },
   },
   retencion_honorarios: {
@@ -111,6 +111,21 @@ export const RULES: Record<string, Rule> = {
     tema: "Ley Karin (Ley 21.643)",
     regla: "Vigente desde el 1-8-2024: todo empleador debe contar con un protocolo de prevención del acoso laboral, sexual y la violencia en el trabajo, un procedimiento de investigación y sanción incorporado al reglamento interno (o documento equivalente) y canales de denuncia. Verificar dictámenes vigentes de la Dirección del Trabajo.",
     fuente: { titulo: "Ley 21.643 (Ley Karin)", vigencia: "Desde 01-08-2024" },
+  },
+  idpc_tasas: {
+    tema: "Tasas del Impuesto de Primera Categoría (Ley 21.850)",
+    regla: "Ley 21.850 (Reconstrucción Nacional, publicada el 17-10-2026): régimen general semi integrado (art. 14 A LIR) 27% en el año comercial 2026, 25,5% en 2027, 24% en 2028 y 23% desde 2029; la restitución del crédito baja a 30% (AT 2028), 20% (AT 2029) y se elimina desde AT 2030 (integración total). Pro Pyme general (14 D N°3): mantiene la tasa transitoria de la Ley 21.755 (12,5% en 2025-2027 y 15% en 2028, con el requisito de cotización); la tasa permanente baja de 25% a 23% desde 2029. El PPM del régimen Pro Pyme baja de 0,25% a 0,23% desde el 1-11-2026.",
+    fuente: { titulo: "Ley 21.850 · Ley para la Reconstrucción Nacional", articulo: "Arts. 14 A, 14 D y 20 LIR", vigencia: "Desde 01-11-2026 (tasas por año comercial)", url: "https://kpmg.com/cl/es/tendecias/tax-alert/ley-de-reconstruccion/ley-para-la-reconstruccion-nacional.html" },
+  },
+  tgr_condonacion: {
+    tema: "Condonación de intereses y multas en la Tesorería (Ley 21.850)",
+    regla: "Personas naturales y mipymes con deudas fiscales en mora vencidas al 31-12-2025: pago al contado con condonación de 100% de intereses y 80% de multas; convenio de hasta 48 cuotas con 95% de intereses y 75% de multas, pie mínimo de 10% del capital y hasta 3 convenios por contribuyente. Plazo: 180 días corridos desde el 17-10-2026 (hasta el 15-04-2027), sin prórroga. Si no se paga una cuota a tiempo, el beneficio se revoca. Se solicita en la plataforma de la TGR (tgr.gob.cl/reconstruccion).",
+    fuente: { titulo: "TGR · Ley de Reconstrucción: facilidades de pago para MiPymes", vigencia: "17-10-2026 al 15-04-2027", url: "https://tgr.gob.cl/2026/10/19/ley-de-reconstruccion-tgr-aplica-facilidades-de-pago-a-deudores-cae-mipymes-y-personas-naturales/noticias/" },
+  },
+  sence_franquicia: {
+    tema: "Franquicia tributaria de capacitación SENCE (Ley 21.850)",
+    regla: "Las empresas de primera categoría pueden descontar del impuesto a la renta el costo de capacitaciones autorizadas por SENCE. La Ley 21.850 redujo el tope de 1% a 0,7% de la planilla anual de remuneraciones y fijó copagos según la renta del trabajador: cobertura de 80% hasta 25 UTM, 50% entre 25 y 50 UTM y 15% sobre 50 UTM. Confirmar en SENCE desde qué fecha rigen el tope y los copagos. Requisito habitual: planilla imponible mayor a 35 UTM mensuales y cotizaciones pagadas.",
+    fuente: { titulo: "ChileAtiende · Franquicia tributaria SENCE; Ley 21.850", vigencia: "Tope y copagos según Ley 21.850 (fecha de aplicación por confirmar)", url: "https://www.chileatiende.gob.cl/fichas/44808-franquicia-tributaria" },
   },
   datos_personales: {
     tema: "Protección de datos personales",
@@ -297,7 +312,7 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Cuantificar multas e intereses solo con las herramientas de cálculo y datos verificados.",
       "Comparar regímenes con escenarios y supuestos explícitos.",
     ],
-    reglas: ["f29_plazos", "multa_97_2", "interes_53", "iva_tasa", "iva_credito_24", "iva_servicios", "pro_pyme", "retencion_honorarios", "inicio_actividades", "termino_giro", "prescripcion_200", "ley_21713"],
+    reglas: ["f29_plazos", "multa_97_2", "interes_53", "iva_tasa", "iva_credito_24", "iva_servicios", "pro_pyme", "idpc_tasas", "tgr_condonacion", "retencion_honorarios", "inicio_actividades", "termino_giro", "prescripcion_200", "ley_21713"],
     casos: ["f29_atrasado", "ventas_informales", "eleccion_regimen", "honorarios", "iva_servicios", "termino_giro"],
   },
   contable: {
@@ -324,7 +339,7 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Construir escenarios de flujo y comparar alternativas con supuestos explícitos.",
       "Nunca inventar cifras: si falta un dato, lo pide.",
     ],
-    reglas: ["multa_97_2", "interes_53", "pro_pyme", "retencion_honorarios"],
+    reglas: ["multa_97_2", "interes_53", "pro_pyme", "idpc_tasas", "tgr_condonacion", "sence_franquicia", "retencion_honorarios"],
     casos: ["f29_atrasado", "eleccion_regimen"],
   },
   investigador: {
@@ -341,7 +356,7 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Ordenar alternativas por impacto, urgencia y riesgo, en etapas.",
       "Proponer la ruta de trabajo y los servicios ENQORA que corresponden (sin fijar precios).",
     ],
-    reglas: ["inicio_actividades", "pro_pyme", "ley_21713", "empresa_un_dia", "marcas", "datos_personales"],
+    reglas: ["inicio_actividades", "pro_pyme", "idpc_tasas", "tgr_condonacion", "sence_franquicia", "ley_21713", "empresa_un_dia", "marcas", "datos_personales"],
     casos: ["ventas_informales", "eleccion_regimen", "constitucion_spa", "registro_marca", "datos_personales"],
   },
 };

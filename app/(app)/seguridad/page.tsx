@@ -174,7 +174,7 @@ export default async function SecurityPage({
               <div className="setting-body">
                 {totp.length ? (
                   <ul className="rows">
-                    {totp.map((f) => (
+                    {totp.map((f: { id: string; friendly_name?: string | null }) => (
                       <li key={f.id} className="row-item">
                         <span className="row-icon"><IconKey size={18} /></span>
                         <span className="row-text">
