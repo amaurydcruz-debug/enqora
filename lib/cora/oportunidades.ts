@@ -12,6 +12,7 @@ export type EstadoOportunidad = "probable" | "por_confirmar";
 export type Oportunidad = {
   id: string;
   titulo: string;
+  resumen: string;            // una línea, para informes breves
   estado: EstadoOportunidad;
   por_que: string;            // por qué podría aplicar a esta empresa (con sus datos)
   beneficio: string;          // qué gana el cliente
@@ -53,6 +54,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
     out.push({
       id: "tgr_condonacion",
       titulo: "Condonación de intereses y multas de deudas fiscales (Tesorería)",
+      resumen: "Hasta 100% de intereses y 80% de multas condonados en deudas fiscales vencidas al 31-12-2025. Plazo: 15-04-2027.",
       estado: "por_confirmar",
       por_que: tramoValido ? "Por su tamaño de ventas, la empresa está dentro de las mipymes que pueden usar este beneficio." : "Aplica a personas naturales y mipymes.",
       beneficio: "Si la empresa tiene deudas fiscales vencidas al 31 de diciembre de 2025, puede pagarlas con condonación del 100% de los intereses y el 80% de las multas al contado, o del 95% y el 75% en un convenio de hasta 48 cuotas (pie mínimo del 10% del capital).",
@@ -73,6 +75,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
     out.push({
       id: "pro_pyme_cambio",
       titulo: "Evaluar el cambio al régimen Pro Pyme",
+      resumen: "Impuesto de la empresa de 12,5% en vez de 25,5% en 2027, si cumple los requisitos del régimen Pro Pyme.",
       estado: probable ? "probable" : "por_confirmar",
       por_que: probable
         ? "La empresa declara el régimen general y sus ventas informadas al SII están bajo el límite del régimen Pro Pyme."
@@ -92,6 +95,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
     out.push({
       id: "pro_pyme_tasa",
       titulo: "Asegurar la tasa reducida de 12,5% del régimen Pro Pyme",
+      resumen: "Conservar la tasa de 12,5% cumpliendo al cierre del año el requisito de cotización.",
       estado: "por_confirmar",
       por_que: "La empresa declara el régimen Pro Pyme general.",
       beneficio: "La tasa transitoria de 12,5% (años comerciales 2025 a 2027; 15% en 2028) no es automática: depende de cumplir al cierre del ejercicio el requisito de cotización del art. 4° transitorio de la Ley 21.735.",
@@ -108,6 +112,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
     out.push({
       id: "postergacion_iva",
       titulo: "Postergar el pago del IVA hasta dos meses",
+      resumen: "Pagar el IVA hasta dos meses después, sin multas ni intereses: más caja para operar.",
       estado: "por_confirmar",
       por_que: tramoValido ? "Las ventas informadas al SII están dentro del límite de 100.000 UF." : "Aplica a empresas con ingresos promedio de hasta 100.000 UF.",
       beneficio: "Da aire a la caja: el IVA de un mes se paga hasta dos meses después, sin multas ni intereses. La declaración se sigue presentando a tiempo.",
@@ -123,6 +128,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
     out.push({
       id: "sence_franquicia",
       titulo: "Capacitar a los trabajadores con la franquicia tributaria SENCE",
+      resumen: "Descontar del impuesto parte de la capacitación de tus trabajadores (tope de 0,7% de la planilla).",
       estado: "por_confirmar",
       por_que: `La empresa informa ${e.trabajadores} ${e.trabajadores === 1 ? "trabajador" : "trabajadores"} al SII.`,
       beneficio: "Permite descontar del impuesto a la renta parte del costo de capacitaciones autorizadas por SENCE. La Ley 21.850 redujo el tope a 0,7% de la planilla anual y estableció copagos según la renta del trabajador: cobertura de 80% hasta 25 UTM, 50% entre 25 y 50 UTM y 15% sobre 50 UTM.",
@@ -138,6 +144,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
     out.unshift({
       id: "confirmar_regimen",
       titulo: "Confirmar el régimen tributario de la empresa",
+      resumen: "Tu régimen tributario define tu tasa de impuesto, tu contabilidad y tus beneficios.",
       estado: "probable",
       por_que: "La empresa no ha declarado su régimen tributario en ENQORA.",
       beneficio: "Es el punto de partida para evaluar las oportunidades tributarias: según el régimen cambian la tasa del impuesto, la contabilidad exigida y los beneficios disponibles.",

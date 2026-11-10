@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { CasoForm } from "@/app/cora-caso";
 import { identidadEmpresa, objetivosOrdenados } from "@/lib/cora/caso";
+import { oportunidades } from "@/lib/cora/oportunidades";
 import { respuestaDesdeVoz } from "@/lib/voz/interpretar";
 import { activarModoVoz, escuchar, hablar, modoVozActivo, useModoVoz } from "@/lib/voz/navegador";
 import { consultaCoraAction } from "@/app/actions/cora";
@@ -43,6 +44,14 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
   const ev = useMemo(() => new Map((evServidor.length ? evServidor : evidenciasDe(exp, respuestas)).map((e) => [e.id, e])), [evServidor, exp, respuestas]);
   const [pasos] = useState(() => exp.bitacora);
   const identidad = useMemo(() => identidadEmpresa(r, exp), [r, exp]);
+  // Oportunidades legales verificadas (fuente oficial y fecha). El régimen no es público: no se evalúa aquí.
+  // No se repiten las que CORA ya presentó como oportunidad identificada.
+  const opsLegales = useMemo(() => {
+    const texto = (turno?.descubrimientos ?? []).map((d) => `${d.titulo} ${d.por_que_importa}`).join(" ").toLowerCase();
+    const CLAVE: Record<string, RegExp> = { tgr_condonacion: /tesorer|condonaci/, postergacion_iva: /posterga/, sence_franquicia: /sence|capacitaci/ };
+    return oportunidades({ regimen: null, tramo: r.perfil?.tramo_ventas ?? null, trabajadores: r.perfil?.trabajadores ?? null, termino_giro: !!r.termino_giro })
+      .filter((o) => o.id !== "confirmar_regimen" && !(CLAVE[o.id] && CLAVE[o.id].test(texto)));
+  }, [r, turno]);
   // Evaluación de situación por área: una línea por área, sin repetir las oportunidades.
   const evaluacion = useMemo(() => {
     const NIVEL: Record<string, string> = { solido: "Hecho confirmado", atencion: "Hipótesis pendiente", prioritario: "Riesgo potencial" };
@@ -237,6 +246,22 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
                   {evaluacion.filas.map((f) => <li key={f.area}><b>{f.area}</b> <span className="report-note">· {f.clase}</span><span>{f.texto}</span></li>)}
                   {evaluacion.sinInfo.length ? <li><b>Información insuficiente</b><span>{evaluacion.sinInfo.join(", ")}: no hay datos públicos suficientes para evaluarlo.</span></li> : null}
                 </ul>
+              </section>
+            ) : null}
+
+            {/* D2 · Oportunidades legales por evaluar (reglas verificadas, sin cifras de la empresa) */}
+            {turno && opsLegales.length ? (
+              <section aria-label="Oportunidades legales por evaluar" className="cora-eval">
+                <span className="report-tag">Oportunidades legales por evaluar</span>
+                <ul>
+                  {opsLegales.map((o) => (
+                    <li key={o.id}>
+                      <b>{o.titulo}</b>
+                      <span>{o.resumen} <a href={o.fuente.url} target="_blank" rel="noopener noreferrer" className="report-note">Fuente oficial</a></span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="report-note">Son alternativas que la ley permite según el tamaño de tu empresa. Un profesional ENQORA confirma los requisitos antes de recomendarlas.</p>
               </section>
             ) : null}
 
