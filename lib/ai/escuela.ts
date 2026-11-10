@@ -48,10 +48,14 @@ export const PERSPECTIVAS: Record<Perspectiva, { nombre: string; enfoque: string
 };
 
 // El profesor asigna alumnos según la dificultad. Más alumnos solo donde la dificultad lo justifica.
+// Versión 2 (tras el examen del 09-11-2026: empate 9/9 con 7,5 veces más tokens). El crítico fue el mejor alumno
+// (8/8) y en 7 de 10 misiones todos coincidieron: se reducen los alumnos y se conserva el crítico en toda misión no simple.
+// «alternativas» e «investigacion» quedan definidos para futuras pruebas, sin asignación por defecto.
+export const VERSION_ESCUELA = "v2";
 const ASIGNACION: Record<Complejidad, Perspectiva[]> = {
   simple: ["calculo"],
-  media: ["normativa", "calculo", "critico"],
-  compleja: ["normativa", "calculo", "critico", "alternativas", "investigacion"],
+  media: ["calculo", "critico"],
+  compleja: ["normativa", "calculo", "critico"],
 };
 
 type Esperado = { tipo: "numero"; valor: () => number } | { tipo: "abstenerse"; motivo: string };
@@ -277,6 +281,7 @@ async function tribunal(m: Mision, propuestas: ResultadoAlumno[], proveedor: Pro
   const orden = mezclar(propuestas.map((a, i) => ({ a, i })));
   const system = `Eres el tribunal independiente de la Escuela Tributaria de ENQORA. No resolviste esta misión ni conoces a sus autores: recibes propuestas anónimas en orden aleatorio.
 Decide la respuesta correcta según la evidencia: un cálculo verificado por el motor pesa más que una afirmación, y la mayoría no es prueba. Si falta un dato indispensable o la premisa es incorrecta, la resolución correcta es abstenerse (falta_dato = true), aunque otros hayan calculado.
+Regla de ENQORA: no se suponen datos. Si una propuesta señala que el enunciado no dice algo que cambia el resultado (por ejemplo, si un monto es neto o total, si una compra es afecta o tiene derecho a crédito, o una tasa vigente), debes abstenerte, salvo que puedas citar la parte del propio enunciado que entrega ese dato. Elegir «la lectura más natural» para completar un dato que el enunciado no da es un error.
 Califica cada propuesta de 0 a 10 y anota sus errores. No puedes cambiar las reglas de ENQORA: solo puedes proponer una lección, que una persona revisará.`;
   const prompt = `${contexto(m, estrategias)}\n\nMisión: ${m.problema}\n\n${orden.map((x, k) => describir(x.a, k + 1)).join("\n\n")}`;
   const t0 = Date.now();
@@ -335,7 +340,19 @@ async function resolverMision(m: Mision, proveedor: Proveedor, tribunalProv: Pro
 
   let trib: ResultadoMision["tribunal"];
   let valor: number | null, falta: boolean;
-  if (tokAlumnos >= presupuesto.tokens) {
+  // Acuerdo verificado: si dos o más alumnos coinciden (mismo valor con un cálculo del motor sin errores, o todos se
+  // abstienen), el tribunal no se llama. Ahorra tokens donde no hay nada que decidir.
+  const validos = alumnos.filter((a) => !a.error);
+  const todosAbstienen = validos.length >= 2 && validos.every((a) => a.falta_dato);
+  const primero = validos[0]?.valor;
+  const mismoValor = validos.length >= 2 && primero !== null && primero !== undefined
+    && validos.every((a) => !a.falta_dato && a.valor !== null && Math.abs(a.valor - primero) <= 1)
+    && validos.some((a) => a.calculos.length > 0 && a.calculos.every((c) => c.ok));
+  if (validos.length === alumnos.length && (todosAbstienen || mismoValor)) {
+    valor = todosAbstienen ? null : (primero as number);
+    falta = todosAbstienen;
+    trib = { valor: null, falta_dato: false, fundamento: "", leccion: "", tokens: 0, ms: 0, omitido: "Acuerdo de todos los alumnos verificado por el motor: no fue necesario llamar al tribunal." };
+  } else if (tokAlumnos >= presupuesto.tokens) {
     const c = consenso(alumnos);
     valor = c.valor; falta = c.falta;
     trib = { valor: null, falta_dato: false, fundamento: "", leccion: "", tokens: 0, ms: 0, omitido: "Presupuesto de tokens agotado: se usó el consenso de los alumnos." };
@@ -368,9 +385,9 @@ async function resolverMision(m: Mision, proveedor: Proveedor, tribunalProv: Pro
 export function tribunalConfigurado(proveedorAlumnos: Proveedor): { proveedor: Proveedor; independencia: string } {
   const pedido = (process.env.ENQORA_ESCUELA_TRIBUNAL ?? "").trim().toLowerCase() as Proveedor;
   if (pedido && pedido !== proveedorAlumnos && (["anthropic", "hf", "openai"] as string[]).includes(pedido) && configurado(pedido)) {
-    return { proveedor: pedido, independencia: "Proveedor distinto al de los alumnos" };
+    return { proveedor: pedido, independencia: `Escuela ${VERSION_ESCUELA} · proveedor distinto al de los alumnos` };
   }
-  return { proveedor: proveedorAlumnos, independencia: "Mismo proveedor, contexto separado y propuestas anónimas" };
+  return { proveedor: proveedorAlumnos, independencia: `Escuela ${VERSION_ESCUELA} · mismo proveedor, contexto separado y propuestas anónimas` };
 }
 
 export function presupuestoMision() {

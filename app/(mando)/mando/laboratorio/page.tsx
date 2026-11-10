@@ -131,7 +131,7 @@ export default async function LaboratorioPage({ searchParams }: { searchParams: 
               <span className="ref-main">
                 <b>Composición</b>
                 <small className="muted-line">
-                  Alumnos: {Object.values(PERSPECTIVAS).map((p) => p.nombre).join(" · ")}. Simple: 1 alumno · Media: 3 · Compleja: 5.
+                  Alumnos: {Object.values(PERSPECTIVAS).map((p) => p.nombre).join(" · ")}. Versión 2: simple, 1 alumno (cálculo) · media, 2 (cálculo y crítico) · compleja, 3 (normativa, cálculo y crítico). Si los alumnos coinciden con cálculos verificados, no se llama al tribunal.
                 </small>
               </span>
             </li>
