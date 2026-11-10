@@ -225,7 +225,7 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
       encontro: `Según el DS 44, una empresa con ${workers} trabajador(es) debe contar con encargado de prevención, matriz de riesgos y programa preventivo${workers > 25 ? ", y comité paritario" : workers >= 10 ? ", y delegado de seguridad (si no hay comité paritario)" : ""}.`,
       importa: "El DS 44 rige desde el 1 de febrero de 2025 y reemplazó a los DS 40 y 54, con nuevas exigencias de gestión preventiva.",
       hacer: "Revisar con la mutualidad o el ISL la matriz de riesgos y la organización preventiva exigible.",
-      servicio: svc("seguridad", "SST-PROX", "ENQORA Seguridad Laboral", "profesionales", "Implementar el DS 44 y el protocolo Ley Karin."),
+      servicio: svc("seguridad", "LEG-02", "Cumplimiento laboral y prevención", "profesionales", "Implementar el DS 44 y el protocolo Ley Karin."),
       fuente: "Decreto 44 (ISL) + trabajadores informados al SII", fecha: `verificada el ${fmt("2026-11-02")}`,
     });
   }
@@ -359,14 +359,14 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
       encontro: "La empresa está registrada como proveedora del Estado en Mercado Público.",
       importa: "Ya tiene la puerta de entrada a las compras públicas: el valor está en postular de forma constante y con ofertas bien preparadas.",
       hacer: "Revisar licitaciones y Compra Ágil de su rubro y preparar ofertas con su documentación al día.",
-      servicio: svc("crecimiento", "GEN-01", "Consulta profesional", "crecimiento", "Preparar ofertas para compras públicas."),
+      servicio: svc("compras_publicas", "CRC-02", "Inteligencia de compras públicas", "crecimiento", "Preparar ofertas para compras públicas."),
       fuente: "ChileCompra · API de Mercado Público", fecha: `consultada el ${fmt(mp.consultado)}`,
     } : {
       id: "sin_proveedor", seccion: "mercado_publico", agente: "09 · Mercado público", estado: "no_encontrado", prioridad: "baja",
       encontro: "No localizamos a la empresa como proveedora en Mercado Público.",
       importa: "Vender al Estado solo conviene si lo que ofrece calza con lo que compran los organismos públicos; la inscripción en Mercado Público es gratuita en ChileCompra.",
       hacer: "Revisar con órdenes de compra reales si su rubro calza con lo que compra el Estado antes de inscribirse.",
-      servicio: svc("crecimiento", "GEN-01", "Consulta profesional", "crecimiento", "Evaluar y preparar el ingreso a Mercado Público."),
+      servicio: svc("compras_publicas", "CRC-02", "Inteligencia de compras públicas", "crecimiento", "Evaluar y preparar el ingreso a Mercado Público."),
       fuente: "ChileCompra · API de Mercado Público", fecha: `consultada el ${fmt(mp.consultado)}`,
     });
   } else {
@@ -394,7 +394,7 @@ export function investigar(p: PublicProfileForReport, catalog: Catalog, answers:
       encontro: `${r360.beneficios.length} programa(s) público(s) podrían aplicar según los datos públicos de la empresa: ${r360.beneficios.map((b) => b.nombre).join(", ")}.`,
       importa: "Son apoyos no reembolsables, beneficios tributarios u oportunidades de venta al Estado.",
       hacer: "Confirmar requisitos y convocatorias vigentes antes de postular.",
-      servicio: svc("crecimiento", "GEN-01", "Consulta profesional", "crecimiento", "Revisar las convocatorias que calzan con tu empresa."),
+      servicio: svc("beneficios", "CRC-01", "Postulación a beneficios y fondos", "crecimiento", "Revisar las convocatorias que calzan con tu empresa."),
       fuente: "Catálogo de beneficios ENQORA (M16)", fecha: `verificado el ${fmt(r360.beneficios[0].verificado)}`,
     });
   } else {

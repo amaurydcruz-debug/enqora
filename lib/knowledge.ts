@@ -155,6 +155,21 @@ export const PLAYBOOKS: Playbook[] = [
     riesgo: "alto",
   },
   {
+    id: "tgr_condonacion",
+    caso: "Empresa o persona con deudas fiscales en mora que puede usar la condonación de la Ley 21.850",
+    senales: ["deudas con la Tesorería", "giros o convenios impagos", "embargo o cobranza de la TGR", "multas e intereses acumulados"],
+    pasos: [
+      "Pedir al cliente el certificado de deuda fiscal de la Tesorería (lo obtiene con su clave; ENQORA nunca la pide) y separar las deudas vencidas al 31-12-2025 de las posteriores.",
+      "Confirmar que el cliente es persona natural o mipyme y que no ha usado los 3 convenios permitidos.",
+      "Calcular, por cada deuda, el monto a pagar al contado (100% de intereses y 80% de multas condonados) y en convenio (95% y 75%, pie mínimo de 10% del capital, hasta 48 cuotas).",
+      "Comparar ambas alternativas con la caja del cliente: el convenio se revoca si se atrasa una cuota.",
+      "Acompañar la solicitud en la plataforma de la TGR antes del 15-04-2027 y registrar el comprobante como evidencia del ahorro (intereses y multas condonados).",
+    ],
+    normas: ["tgr_condonacion", "multa_97_2", "interes_53"],
+    preguntar: ["¿Tienes el certificado de deuda fiscal actualizado?", "¿Prefieres pagar al contado o en cuotas? ¿Cuánto puedes pagar de pie?", "¿Tienes convenios vigentes o anteriores con la Tesorería?"],
+    riesgo: "alto",
+  },
+  {
     id: "ventas_informales",
     caso: "Persona o empresa que vende (redes sociales, transferencias) sin inicio de actividades",
     senales: ["vende por redes sociales", "recibe muchas transferencias", "sin RUT de empresa o sin giro"],
@@ -313,7 +328,7 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Comparar regímenes con escenarios y supuestos explícitos.",
     ],
     reglas: ["f29_plazos", "multa_97_2", "interes_53", "iva_tasa", "iva_credito_24", "iva_servicios", "pro_pyme", "idpc_tasas", "tgr_condonacion", "retencion_honorarios", "inicio_actividades", "termino_giro", "prescripcion_200", "ley_21713"],
-    casos: ["f29_atrasado", "ventas_informales", "eleccion_regimen", "honorarios", "iva_servicios", "termino_giro"],
+    casos: ["f29_atrasado", "tgr_condonacion", "ventas_informales", "eleccion_regimen", "honorarios", "iva_servicios", "termino_giro"],
   },
   contable: {
     capacidades: [
@@ -340,7 +355,7 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Nunca inventar cifras: si falta un dato, lo pide.",
     ],
     reglas: ["multa_97_2", "interes_53", "pro_pyme", "idpc_tasas", "tgr_condonacion", "sence_franquicia", "retencion_honorarios"],
-    casos: ["f29_atrasado", "eleccion_regimen"],
+    casos: ["f29_atrasado", "tgr_condonacion", "eleccion_regimen"],
   },
   investigador: {
     capacidades: [

@@ -63,7 +63,7 @@ export const CATEGORIES: Category[] = [
     solves: ["¿Qué régimen me conviene?", "Diferencias con el SII", "Multas y regularización", "Beneficios que podrían corresponder"],
     module: "contabilidad",
     emblem: "investigacion",
-    services: { codes: ["CON-02", "CON-05", "GEN-01"] },
+    services: { codes: ["CON-06", "CON-07", "CON-02", "CON-05", "GEN-01"] },
   },
   {
     key: "gestion",
@@ -83,7 +83,7 @@ export const CATEGORIES: Category[] = [
     solves: ["Revisión de contratos", "Modificar la sociedad", "Regularizar situaciones pendientes", "Hora con un profesional"],
     module: "legal",
     emblem: "legal",
-    services: { codes: ["LEG-01", "GEN-01"], module: "legal" },
+    services: { codes: ["LEG-02", "LEG-03", "LEG-01", "GEN-01"], module: "legal" },
   },
   {
     key: "crecimiento",
