@@ -51,6 +51,18 @@ export function InspectorFuentes({ presets }: { presets: { id: string; nombre: s
             </div>
           ))}
           {r.avisos.map((a, i) => <p key={i} className="muted-line">Aviso: {a}</p>)}
+          {r.paquetes.map((p, i) => (
+            <div key={`p${i}`} style={{ marginTop: "1rem" }}>
+              <p><b>Conjunto: {p.titulo}</b> · licencia: {p.licencia ?? "—"} · actualizado: {p.actualizado ?? "—"}</p>
+              <ul className="muted-line">{p.recursos.slice(0, 40).map((x, k) => <li key={k}>{x.nombre} [{x.formato}] {x.url}</li>)}</ul>
+            </div>
+          ))}
+          {r.enlaces.length ? (
+            <div style={{ marginTop: "1rem" }}>
+              <p><b>Enlaces encontrados ({r.enlaces.length})</b></p>
+              <ul className="muted-line" style={{ wordBreak: "break-all" }}>{r.enlaces.map((e, k) => <li key={k}>{e}</li>)}</ul>
+            </div>
+          ) : null}
           <p className="muted-line" style={{ marginTop: "1rem" }}>Resultado completo (cópialo y pégalo en la conversación con Claude):</p>
           <textarea className="input" readOnly rows={12} value={estado?.ok ? estado.texto : ""} style={{ width: "100%", fontFamily: "monospace", fontSize: "12px" }} />
         </>

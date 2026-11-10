@@ -16,8 +16,8 @@ const MUESTRA_MS = 45_000;
 
 export type Preset = { id: string; nombre: string; tipo: "ckan" | "pagina" | "conexion"; url: string; q?: string };
 export const PRESETS: Preset[] = [
-  { id: "conexion_inapi", nombre: "Prueba de conexión · sitios de INAPI", tipo: "conexion", url: "https://www.inapi.cl" },
   { id: "inapi_tramites", nombre: "INAPI · página de datos abiertos de marcas (tramites.inapi.cl)", tipo: "pagina", url: "https://tramites.inapi.cl/OpenData/TrademarkOpenData" },
+  { id: "conexion_inapi", nombre: "Prueba de conexión · sitios de INAPI", tipo: "conexion", url: "https://www.inapi.cl" },
   { id: "inapi_marcas", nombre: "INAPI · marcas (registros y solicitudes)", tipo: "ckan", url: "https://dabiertos.inapi.cl", q: "marcas" },
   { id: "snifa", nombre: "SMA · SNIFA datos abiertos", tipo: "pagina", url: "https://snifa.sma.gob.cl/DatosAbiertos" },
   { id: "chilecompra", nombre: "ChileCompra · descargas de datos abiertos", tipo: "pagina", url: "https://datos-abiertos.chilecompra.cl/descargas" },
@@ -85,13 +85,18 @@ async function enlacesDePagina(url: string): Promise<string[]> {
   if (!res.ok) throw new Error(`La página respondió ${res.status}.`);
   const html = await texto(res, 3_000_000);
   const out = new Set<string>();
+  const todos = new Set<string>();
   for (const m of html.matchAll(/href\s*=\s*["']([^"'#]+)["']/gi)) {
     const h = m[1].trim();
-    if (!/\.(csv|xlsx?|zip|json|txt|geojson)(\?|$)/i.test(h) && !/descarga|download|export|opendata|dataset|resource|datos/i.test(h)) continue;
-    try { out.add(new URL(h, url).toString()); } catch { /* enlace inválido */ }
+    if (/^(javascript:|mailto:|tel:)/i.test(h)) continue;
+    let abs: string;
+    try { abs = new URL(h, url).toString(); } catch { continue; }
+    todos.add(abs);
+    if (/\.(csv|xlsx?|zip|json|txt|geojson)(\?|$)/i.test(h) || /descarga|download|export|opendata|dataset|resource|datos/i.test(h)) out.add(abs);
   }
-  if (!out.size && /habilitar javascript|enable javascript/i.test(html)) throw new Error("La página arma su contenido con JavaScript: no expone los enlaces en el HTML.");
-  return [...out].slice(0, 60);
+  if (!todos.size && /habilitar javascript|enable javascript/i.test(html)) throw new Error("La página arma su contenido con JavaScript: no expone los enlaces en el HTML.");
+  // Si ningún enlace parece de datos, se devuelven todos (para ver adónde apunta, por ejemplo, «Ver Datos»).
+  return [...(out.size ? out : todos)].slice(0, 60);
 }
 
 // ---------- Muestras ----------
@@ -218,6 +223,12 @@ export async function inspeccionar(presetId: string): Promise<Inspeccion> {
   let candidatos: string[] = [];
   if (p.tipo === "conexion") {
     out.avisos = await Promise.all(SITIOS_INAPI.map(probar));
+    // Además, los enlaces de la página de datos abiertos de marcas (tramites.inapi.cl sí responde).
+    try {
+      out.enlaces = await enlacesDePagina("https://tramites.inapi.cl/OpenData/TrademarkOpenData");
+    } catch (e) {
+      out.avisos.push(`Página de marcas en tramites.inapi.cl: ${e instanceof Error ? e.message : "no se pudo leer"}`);
+    }
     return out;
   }
   if (p.tipo === "ckan") {
