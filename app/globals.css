@@ -2975,3 +2975,11 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .kpis-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 @media (max-width: 720px) { .kpis-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } .kpis-4 .kpi { padding: 12px 12px; } }
 .kpi small { display: block; font-size: 0.74rem; color: var(--text-3); margin-top: 2px; }
+.hoy-card .facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px; margin: 0; }
+.hoy-card .facts > div { min-width: 0; }
+.hoy-card .facts dt { font-size: 0.74rem; color: var(--text-3); }
+.hoy-card .facts dd { margin: 2px 0 0; font-size: 0.9rem; overflow-wrap: anywhere; }
+.hoy-card details > summary { cursor: pointer; list-style-position: inside; }
+.hoy-card details[open] > summary { margin-bottom: 6px; }
+.hoy-card > .badge, .hoy-alert > .badge { align-self: flex-start; }
+.hoy-card > .btn { align-self: flex-start; margin-top: auto; }
