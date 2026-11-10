@@ -8,6 +8,7 @@ import { CLOSED, MODULES, PRIORITIES, STAFF_ROLES, statusLabel, statusTone, type
 import { APPROVAL_KINDS, APPROVER_ROLES, type InboxItem } from "@/lib/approvals";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient, currentUser } from "@/lib/supabase/server";
+import { VistaEjecutiva } from "./ejecutivo";
 
 export const metadata: Metadata = { title: "Centro de Mando" };
 
@@ -99,8 +100,8 @@ export default async function CommandCenterPage({
       <header className="hero">
         <div className="hero-main">
           <span className="eyebrow">Centro de Mando · {STAFF_ROLES[role]}</span>
-          <h1>Casos ENQORA</h1>
-          <p className="hero-lead">{supervisor ? "Supervisión de todos los casos, asignaciones y plazos." : "Tus casos asignados."}</p>
+          <h1>{supervisor ? "Command Center" : "Casos ENQORA"}</h1>
+          <p className="hero-lead">{supervisor ? "Cómo está funcionando ENQORA, qué requiere atención y qué decisiones te esperan. Debajo, la bandeja de casos." : "Tus casos asignados."}</p>
         </div>
         <div className="hero-actions">
           <Link href="/mando/catalogo" className="btn btn-ghost btn-inline">Catálogo y precios</Link>
@@ -111,12 +112,15 @@ export default async function CommandCenterPage({
           <Link href="/mando/vigilancia" className="btn btn-ghost btn-inline">Vigilancia normativa</Link>
           {supervisor ? <Link href="/mando/cobros" className="btn btn-ghost btn-inline">Cobros y pagos</Link> : null}
           {supervisor ? <Link href="/mando/estado" className="btn btn-ghost btn-inline">Estado del sistema</Link> : null}
+          {supervisor ? <Link href="/mando/agentes" className="btn btn-ghost btn-inline">Operación de agentes</Link> : null}
           {supervisor ? <Link href="/mando/laboratorio" className="btn btn-ghost btn-inline">Laboratorio de IA</Link> : null}
           {role === "enqora_admin" ? (
             <Link href="/mando/equipo" className="btn btn-ghost btn-inline"><IconUsers size={18} /> Equipo ENQORA</Link>
           ) : null}
         </div>
       </header>
+
+      {supervisor ? <VistaEjecutiva aprobaciones={inbox.length} /> : null}
 
       <div className="kpis kpis-mando">
         {canApprove ? (
