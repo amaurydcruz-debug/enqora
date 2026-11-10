@@ -162,6 +162,19 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     </form>
   );
 
+  // Siguiente paso por servicio (solo los que esperan una decisión de precio).
+  type Tarea = { s: Service; tipo: "verificar" | "borrador" | "publicar" | "investigar"; texto: string; accion: string; orden: number };
+  const tareas: Tarea[] = services.flatMap((s): Tarea[] => {
+    if (current(s.id)) return [];
+    const a = advice.get(s.id);
+    const borrador = tariffs.some((t) => t.service_id === s.id && t.status === "borrador");
+    const min = a?.minimo_referencias ?? 3;
+    if (borrador) return [{ s, tipo: "publicar", texto: "Tiene un borrador de tarifa listo para revisar.", accion: "Revisar y publicar", orden: 1 }];
+    if (a?.suficiente && a.sugerido) return [{ s, tipo: "borrador", texto: `Precio sugerido ${clp(a.sugerido)} con ${a.referencias} referencias verificadas (mediana de mercado ${a.mediana ? clp(a.mediana) : "—"}).`, accion: `Crear borrador con ${clp(a.sugerido)}`, orden: 2 }];
+    if (a?.por_verificar) return [{ s, tipo: "verificar", texto: `${a.por_verificar} referencia(s) encontradas por el asesor esperan tu revisión; ${a.referencias} de ${min} verificadas.`, accion: `Revisar ${a.por_verificar} referencia(s)`, orden: 0 }];
+    return [{ s, tipo: "investigar", texto: a?.referencias ? `${a.referencias} de ${min} referencias verificadas: hace falta buscar más.` : "Sin referencias de mercado todavía.", accion: "Investigar precios", orden: 3 }];
+  }).sort((x, y) => x.orden - y.orden || x.s.code.localeCompare(y.s.code));
+
   const items: AccordionItem[] = services.map((s) => {
     const cur = current(s.id);
     const versions = tariffs.filter((t) => t.service_id === s.id);
@@ -176,6 +189,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       status: (
         <span className="catalog-status">
           {cur ? <b>{clp(cur.base_price)} <small>/ {UNITS[s.unit]?.per}</small></b> : <span className="status status-gold">Sin tarifa vigente</span>}
+          {advice.get(s.id)?.por_verificar ? <span className="tag">{advice.get(s.id)!.por_verificar} por verificar</span> : null}
+          {!cur && advice.get(s.id)?.suficiente && advice.get(s.id)?.sugerido ? <span className="tag">Sugerido {clp(advice.get(s.id)!.sugerido!)}</span> : null}
           {!s.active ? <span className="tag">Inactivo</span> : null}
         </span>
       ),
@@ -263,7 +278,8 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
                   <dl className="data-grid">
                     <div><dt>Mediana de mercado</dt><dd>{a?.mediana ? `${clp(a.mediana)} / ${UNITS[s.unit]?.per}` : "—"}</dd></div>
                     <div><dt>Referencias verificadas</dt><dd>{a?.referencias ?? 0} de {a?.minimo_referencias ?? 3} mínimas{a?.por_verificar ? ` · ${a.por_verificar} por verificar` : ""}</dd></div>
-                    <div><dt>Precio ENQORA normal sugerido</dt><dd>{a?.sugerido && a.suficiente ? <b>{clp(a.sugerido)}{a.descuento ? <small> (−{a.descuento}%)</small> : <small> (= mercado)</small>}</b> : "Faltan referencias verificadas"}</dd></div>
+                    <div><dt>Precio ENQORA normal sugerido</dt><dd>{a?.sugerido && a.suficiente ? <b>{clp(a.sugerido)}{a.descuento ? <small> (−{a.descuento}%)</small> : <small> (= mercado)</small>}</b>
+                      : `Faltan ${Math.max(1, (a?.minimo_referencias ?? 3) - (a?.referencias ?? 0))} referencia(s) verificada(s)${a?.por_verificar ? `: revisa las ${a.por_verificar} por verificar más abajo` : ": pulsa «Investigar precios de mercado»"}`}</dd></div>
                     {a?.sugerido && a.suficiente && a.bienvenida_pct ? (
                       <div><dt>Primeros {a.bienvenida_meses} meses de cada cliente</dt><dd><b>{clp(a.precio_bienvenida ?? 0)}</b> <small>(bienvenida −{a.bienvenida_pct}%)</small></dd></div>
                     ) : null}
@@ -391,12 +407,46 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
 
       {!tariffs.some((t) => t.status === "vigente") ? (
         <Callout kind="info" title="Aún no hay precios publicados">
-          El catálogo inicial viene sin tarifas a propósito: ENQORA las fija después de medir el costo por caso y el margen.
-          Mientras un servicio no tenga tarifa vigente, no se puede cotizar.
+          El catálogo viene sin tarifas a propósito: el asesor investiga los precios de mercado y sugiere, y una persona de ENQORA
+          define y publica cada tarifa. Mientras un servicio no tenga tarifa vigente, no se puede cotizar. Empieza por «Qué hacer ahora».
         </Callout>
       ) : null}
 
       {!admin ? <p className="muted-line">Solo el Administrador ENQORA edita el catálogo y publica tarifas. Puedes registrar referencias de mercado.</p> : null}
+
+
+      {/* Qué hacer ahora: el siguiente paso de cada servicio que espera precio (el equipo sugiere, una persona define) */}
+      {tareas.length ? (
+        <section className="card" id="que-hacer">
+          <h2>Qué hacer ahora</h2>
+          <p className="panel-lead">
+            El asesor investiga precios publicados y sugiere; tú defines. Pasos: investigar → verificar al menos {policy?.minimo_referencias ?? 3} referencias
+            → crear el borrador con el precio sugerido → revisarlo y publicarlo.
+          </p>
+          <ul className="ref-list" role="list">
+            {tareas.map((t) => (
+              <li key={t.s.id}>
+                <span className="ref-main"><b>{t.s.code} · {t.s.name}</b><small>{t.texto}</small></span>
+                {t.tipo === "investigar" ? (
+                  <form action={researchPricesAction}>
+                    <input type="hidden" name="service_id" value={t.s.id} />
+                    <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="Investigando (hasta 1 minuto)…">Investigar precios</SubmitButton>
+                  </form>
+                ) : t.tipo === "borrador" && admin ? (
+                  <form action={draftFromAdviceAction}>
+                    <input type="hidden" name="service_id" value={t.s.id} />
+                    <SubmitButton className="btn-inline btn-sm" pendingText="Creando borrador…">{t.accion}</SubmitButton>
+                  </form>
+                ) : (
+                  <a href={`#s-${t.s.id}`} className={`btn btn-inline btn-sm ${t.tipo === "verificar" ? "btn-gold" : "btn-ghost"}`}>{t.accion}</a>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <Accordion label="Servicios del catálogo" items={items} />
 
       <section className="card" id="politica">
         <h2>Asesor de precios · política comercial</h2>
@@ -425,8 +475,6 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
           </form>
         ) : null}
       </section>
-
-      <Accordion label="Servicios del catálogo" items={items} />
     </div>
   );
 }
