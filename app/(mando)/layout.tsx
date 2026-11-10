@@ -33,6 +33,7 @@ export default async function MandoLayout({ children }: { children: React.ReactN
   const items: NavItem[] = [
     { href: "/mando", label: "Resumen y bandeja", short: "Resumen", icon: "control", group: "operacion" },
     { href: "/mando/mandatos", label: "Mandatos", short: "Mandatos", icon: "documento", group: "operacion", bottom: false },
+    { href: "/mando/legal", label: "Documentos legales", short: "Legal", icon: "documento", group: "operacion", bottom: false },
     { href: "/mando/aprendizajes", label: "Aprendizajes y rutas", short: "Rutas", icon: "casos", group: "operacion", bottom: false },
     { href: "/mando/vigilancia", label: "Vigilancia normativa", short: "Normas", icon: "novedades", group: "operacion" },
     { href: "/mando/datos-publicos", label: "Datos públicos (SII)", short: "Datos", icon: "empresas", group: "operacion" },

@@ -52,6 +52,8 @@ import type { CaseAction, Mandate } from "@/lib/mandates";
 import { DiagnosisReport, type ServiceRef } from "./diagnosis-report";
 import { Quotes } from "./quotes";
 import { Authorizations } from "./authorizations";
+import { LegalDocs } from "./legal-docs";
+import { resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 import { CommentForm } from "./comment-form";
 import { MirrorConsole } from "./mirror-console";
 import { UploadDocument } from "./upload";
@@ -245,10 +247,13 @@ export default async function CasePage({
 
   const supervisor = isSupervisorRole(staffRole);
   // Resultados para el cliente (0033): calificación y ahorro (el cliente solo ve el verificado, por RLS).
-  const [ratingRes, savingsRes] = await Promise.all([
+  const [ratingRes, savingsRes, legalRes] = await Promise.all([
     supabase.from("case_ratings").select("resuelto, satisfaccion, comentario, created_at").eq("case_id", id).maybeSingle(),
     supabase.from("case_savings").select("id, monto, concepto, fundamento, evidencia_document_id, estado, registrado_por, nota").eq("case_id", id).order("created_at"),
+    // Documentos legales y ficha legal del trámite (0036).
+    supabase.rpc("legal_case_status", { p_case: id }),
   ]);
+  const legal = (legalRes.data as CaseLegalStatus | null) ?? null;
   const caseRating = (ratingRes.data as Rating | null) ?? null;
   const caseSavings = (savingsRes.data ?? []) as Saving[];
   const messages = events.filter((e) => e.kind === "comentario" || e.kind === "nota_interna").length;
@@ -397,6 +402,8 @@ export default async function CasePage({
         return `registró el pago del cobro ${e.metadata?.folio ?? ""}`;
       case "actuacion":
         return `${ACTUACION_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó un trámite"} «${e.metadata?.titulo ?? ""}»`;
+      case "legal":
+        return `firmó «${e.metadata?.titulo ?? ""}»${e.metadata?.version ? ` (versión ${e.metadata.version})` : ""}`;
       case "autorizacion":
         return `${AUTH_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó una autorización"} «${e.metadata?.titulo ?? e.body ?? ""}»`;
       default:
@@ -941,6 +948,17 @@ export default async function CasePage({
               userId={user.id}
             />
           ),
+        } satisfies AccordionItem]
+      : []),
+    ...(legal && legal.documentos.length
+      ? [{
+          id: "legal",
+          aliases: ["documentos-legales"],
+          title: "Documentos legales",
+          emblem: <Emblem name="legal" size="sm" />,
+          tone: (resumenLegal(legal).porFirmar && canDecide ? "gold" : "default") as AccordionItem["tone"],
+          status: <span className={resumenLegal(legal).listo ? "status status-ok" : "status status-gold"}>{resumenLegal(legal).texto}</span>,
+          content: <LegalDocs caseId={c.id} companyId={c.company_id} status={legal} canSign={canDecide && !isClosed} worker={worker} />,
         } satisfies AccordionItem]
       : []),
     {
