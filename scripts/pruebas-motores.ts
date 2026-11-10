@@ -8,6 +8,8 @@ import { oportunidades, FIN_PLAZO_TGR, TASA_GENERAL, TASA_PRO_PYME } from "@/lib
 import { ejecutivo } from "@/lib/mando/ejecutivo";
 import { operacion, type Run } from "@/lib/agentes/operacion";
 import { runCalculator } from "@/lib/tax-calc";
+import { analizarReglas } from "@/lib/cora/caso";
+import { PLAYBOOKS, RULES } from "@/lib/knowledge";
 
 let ok = 0;
 const fallos: string[] = [];
@@ -97,6 +99,30 @@ prueba("Toda oportunidad tiene fuente oficial, fecha y resumen", () => {
     assert.match(o.verificado, /^\d{4}-\d{2}-\d{2}$/);
     assert.ok(o.resumen.length > 20);
   }
+});
+
+// ---------- Casos piloto: clasificación, documentos y servicios ----------
+prueba("Relato de deudas con la Tesorería → tributario y certificado de deuda", () => {
+  const a = analizarReglas("Tengo deudas con la Tesorería y quiero saber si puedo pedir condonación");
+  assert.ok(a.categorias.includes("tributario"));
+  assert.equal(a.documentos[0], "certificado_deuda");
+});
+prueba("Relato de cierre de empresa → formalización", () => {
+  assert.ok(analizarReglas("Quiero hacer el término de giro y cerrar mi empresa").categorias.includes("formalizacion"));
+});
+prueba("Relato de datos personales → profesionales y lista de datos", () => {
+  const a = analizarReglas("Necesito adecuarme a la ley de datos personales");
+  assert.ok(a.categorias.includes("profesionales"));
+  assert.ok(a.documentos.includes("datos_personales"));
+});
+prueba("Cada oportunidad apunta a un servicio del catálogo", () => {
+  const validos = ["CON-02", "CON-06", "CON-07", "CRC-01"];
+  for (const o of oportunidades({ regimen: "general_semi_integrado", tramo: "5", trabajadores: 3, hoy })) assert.ok(validos.includes(o.accion.servicio), o.id);
+});
+prueba("Ruta de trabajo de la condonación con normas existentes", () => {
+  const p = PLAYBOOKS.find((x) => x.id === "tgr_condonacion");
+  assert.ok(p);
+  for (const n of p!.normas) assert.ok(RULES[n], n);
 });
 
 // ---------- Command Center ----------

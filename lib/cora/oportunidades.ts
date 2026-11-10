@@ -21,7 +21,7 @@ export type Oportunidad = {
   plazo?: string;
   fuente: { titulo: string; url: string };
   verificado: string;         // AAAA-MM-DD
-  accion: { modulo: "contabilidad" | "legal" | "crece"; asunto: string };
+  accion: { modulo: "contabilidad" | "legal" | "crece"; asunto: string; servicio: string }; // servicio = código del catálogo
 };
 
 export type EntradaOportunidades = {
@@ -63,7 +63,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
       plazo: "Hasta el 15 de abril de 2027 (180 días corridos desde el 17 de octubre de 2026), sin prórroga.",
       fuente: { titulo: "TGR · Ley de Reconstrucción: facilidades de pago para MiPymes", url: "https://tgr.gob.cl/2026/10/19/ley-de-reconstruccion-tgr-aplica-facilidades-de-pago-a-deudores-cae-mipymes-y-personas-naturales/noticias/" },
       verificado: "2026-11-09",
-      accion: { modulo: "contabilidad", asunto: "Evaluar la condonación de intereses y multas en la Tesorería (Ley 21.850)" },
+      accion: { modulo: "contabilidad", asunto: "Evaluar la condonación de intereses y multas en la Tesorería (Ley 21.850)", servicio: "CON-06" },
     });
   }
 
@@ -86,7 +86,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
       plazo: "Las empresas existentes eligen el régimen entre el 1 de enero y el 30 de abril del año en que se incorporan.",
       fuente: { titulo: "SII · Requisitos para optar al Régimen Pro Pyme", url: "https://www.sii.cl/preguntas_frecuentes/declaracion_renta/001_140_7530.htm" },
       verificado: "2026-11-09",
-      accion: { modulo: "contabilidad", asunto: "Evaluar el cambio al régimen Pro Pyme" },
+      accion: { modulo: "contabilidad", asunto: "Evaluar el cambio al régimen Pro Pyme", servicio: "CON-07" },
     });
   }
 
@@ -103,7 +103,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
       confirmar: ["Cumplimiento del requisito de cotización al cierre del ejercicio"],
       fuente: { titulo: "SII · Circular N°53 de 2025 (Ley 21.755)", url: "https://www.sii.cl/normativa_legislacion/circulares/2025/circu53.pdf" },
       verificado: "2026-11-09",
-      accion: { modulo: "contabilidad", asunto: "Revisar que la empresa conserve la tasa Pro Pyme de 12,5%" },
+      accion: { modulo: "contabilidad", asunto: "Revisar que la empresa conserve la tasa Pro Pyme de 12,5%", servicio: "CON-07" },
     });
   }
 
@@ -119,7 +119,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
       confirmar: ["Ventas afectas a IVA", "Sin morosidad reiterada en IVA o Renta (o con convenio vigente)", "Declaraciones de los últimos 36 meses presentadas a tiempo", "Notificación por correo electrónico del SII"],
       fuente: { titulo: "SII · Postergación del IVA (art. 64 DL 825)", url: "https://www.sii.cl/preguntas_frecuentes/impuestos_mensuales/001_130_6628.htm" },
       verificado: "2026-11-06",
-      accion: { modulo: "contabilidad", asunto: "Evaluar la postergación del pago del IVA" },
+      accion: { modulo: "contabilidad", asunto: "Evaluar la postergación del pago del IVA", servicio: "CON-02" },
     });
   }
 
@@ -135,7 +135,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
       confirmar: ["Planilla de remuneraciones imponibles mayor a 35 UTM mensuales", "Cotizaciones previsionales pagadas", "Fecha desde la que rigen el nuevo tope y los copagos"],
       fuente: { titulo: "ChileAtiende · Franquicia tributaria SENCE", url: "https://www.chileatiende.gob.cl/fichas/44808-franquicia-tributaria" },
       verificado: "2026-11-09",
-      accion: { modulo: "crece", asunto: "Evaluar la franquicia SENCE para capacitar a los trabajadores" },
+      accion: { modulo: "crece", asunto: "Evaluar la franquicia SENCE para capacitar a los trabajadores", servicio: "CRC-01" },
     });
   }
 
@@ -151,7 +151,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
       confirmar: ["Régimen vigente según el SII (Carpeta Tributaria o certificado de situación tributaria)"],
       fuente: { titulo: "SII · Regímenes tributarios", url: "https://www.sii.cl/preguntas_frecuentes/declaracion_renta/001_140_7530.htm" },
       verificado: "2026-11-09",
-      accion: { modulo: "contabilidad", asunto: "Confirmar el régimen tributario de mi empresa" },
+      accion: { modulo: "contabilidad", asunto: "Confirmar el régimen tributario de mi empresa", servicio: "CON-07" },
     });
   }
   return out;

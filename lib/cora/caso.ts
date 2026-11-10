@@ -21,6 +21,8 @@ export const DOCUMENTOS: Record<string, { nombre: string; como: string }> = {
   domicilio: { nombre: "Respaldo del domicilio comercial", como: "Contrato de arriendo, dominio vigente o autorización." },
   marca: { nombre: "Nombre y logo de la marca", como: "Y una descripción de tus productos o servicios." },
   estados_financieros: { nombre: "Balance o estados financieros del último año", como: "Si los tienes." },
+  certificado_deuda: { nombre: "Certificado de deuda fiscal (Tesorería)", como: "Se descarga gratis en tgr.gob.cl con tu propia clave y se comparte como PDF. ENQORA nunca pide tus claves." },
+  datos_personales: { nombre: "Lista de los datos personales que maneja tu empresa", como: "Qué datos guardas de clientes y trabajadores, dónde y para qué (una lista simple basta)." },
 };
 
 export type AnalisisCaso = { resumen: string; categorias: string[]; documentos: string[]; origen: "ia" | "reglas" };
@@ -28,7 +30,7 @@ export type AnalisisCaso = { resumen: string; categorias: string[]; documentos: 
 export const CATEGORIAS_CASO = CATEGORIES.filter((c) => c.key !== "enterprise").map((c) => c.key);
 const DOCS_POR_CATEGORIA: Record<string, string[]> = {
   contabilidad: ["carpeta_tributaria", "f29", "rcv", "cartolas"],
-  tributario: ["carpeta_tributaria", "notificacion_sii", "f29", "f22"],
+  tributario: ["carpeta_tributaria", "certificado_deuda", "notificacion_sii", "f29", "f22"],
   marcas: ["marca"],
   constitucion: ["socios"],
   formalizacion: ["escritura", "domicilio"],
@@ -39,12 +41,12 @@ const DOCS_POR_CATEGORIA: Record<string, string[]> = {
 
 const sinTildes = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const REGLAS: [RegExp, string][] = [
-  [/\b(renta|f22|operacion renta|impuesto|sii|multa|giro|fiscaliz|notificaci|citaci|deuda|tgr|tesoreria)\b/, "tributario"],
+  [/\b(renta|f22|operacion renta|impuesto|sii|multa|giro|fiscaliz|notificaci|citaci|deuda|deudas|tgr|tesoreria|condonaci\w*|convenio de pago|regimen|pro ?pyme)\b/, "tributario"],
   [/\b(contab|iva|f29|libro|balance|factura|boleta|conciliaci)\w*/, "contabilidad"],
   [/\b(marca|logo|inapi|nombre comercial)\w*/, "marcas"],
-  [/\b(trabajador|empleado|contrato|despido|finiquito|sueldo|liquidaci|cotizaci|previred|ley karin|direccion del trabajo)\w*/, "profesionales"],
+  [/\b(trabajador|empleado|contrato|despido|finiquito|sueldo|liquidaci|cotizaci|previred|ley karin|direccion del trabajo|reglamento interno|mutual|prevencion de riesgos|datos personales|privacidad|ley 21\.?719)\w*/, "profesionales"],
   [/\b(constituir|crear (mi |una )?empresa|nueva empresa|sociedad|socio|spa|eirl)\b/, "constitucion"],
-  [/\b(patente|permiso|inicio de actividades|formaliz|municipal|resolucion sanitaria)\w*/, "formalizacion"],
+  [/\b(patente|permiso|inicio de actividades|formaliz|municipal|resolucion sanitaria|termino de giro|cerrar (?:mi |la )?empresa|disolver|disolucion)\w*/, "formalizacion"],
   [/\b(licitaci|mercado publico|fondo|sercotec|corfo|financiamiento|credito|crecer)\w*/, "crecimiento"],
   [/\b(inventario|caja|clientes|ventas|cobranza)\b/, "gestion"],
 ];
@@ -54,7 +56,13 @@ export function analizarReglas(relato: string): AnalisisCaso {
   const t = sinTildes(relato);
   const categorias = [...new Set(REGLAS.filter(([re]) => re.test(t)).map(([, c]) => c))].slice(0, 2);
   const cats = categorias.length ? categorias : ["contabilidad"];
-  return { resumen: "", categorias: cats, documentos: documentosPara(cats), origen: "reglas" };
+  // Documentos específicos que el relato pide aunque la categoría sea general.
+  const extra = [
+    ...(/\b(deuda|deudas|tgr|tesoreria|condonaci\w*|convenio de pago)\b/.test(t) ? ["certificado_deuda"] : []),
+    ...(/\b(datos personales|privacidad|ley 21\.?719)\b/.test(t) ? ["datos_personales"] : []),
+  ];
+  const documentos = [...new Set([...extra, ...documentosPara(cats)])].slice(0, 5);
+  return { resumen: "", categorias: cats, documentos, origen: "reglas" };
 }
 
 export const documentosPara = (cats: string[]) => [...new Set(cats.flatMap((c) => DOCS_POR_CATEGORIA[c] ?? []))].slice(0, 5);
