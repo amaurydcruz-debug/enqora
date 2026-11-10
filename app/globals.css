@@ -2983,3 +2983,7 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .hoy-card details[open] > summary { margin-bottom: 6px; }
 .hoy-card > .badge, .hoy-alert > .badge { align-self: flex-start; }
 .hoy-card > .btn { align-self: flex-start; margin-top: auto; }
+.hoy-card .facts.facts-1 { grid-template-columns: 1fr; gap: 0; }
+.hoy-card .facts.facts-1 > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 8px 0; border-top: 1px solid var(--hairline); }
+.hoy-card .facts.facts-1 > div:first-child { border-top: 0; padding-top: 0; }
+.hoy-card .facts.facts-1 dd { margin: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }

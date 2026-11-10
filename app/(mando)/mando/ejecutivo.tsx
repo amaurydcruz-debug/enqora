@@ -30,15 +30,16 @@ export async function VistaEjecutiva({ aprobaciones }: { aprobaciones: number })
   const solicitudes = Array.isArray(solR.data) ? solR.data.length : 0;
 
   // Centro de alertas: solo lo que requiere una decisión o una acción, con su acceso directo.
+  const pl = (n: number, uno: string, varios: string) => (n === 1 ? uno : varios);
   const alertas = [
-    { n: e.casos.atrasados, nivel: "risk", texto: "casos atrasados (vencimiento pasado)", href: "/mando?vista=activos" },
-    { n: aprobaciones, nivel: "gold", texto: "aprobaciones humanas pendientes", href: "/mando?vista=aprobaciones" },
-    { n: e.casos.sin_responsable, nivel: "gold", texto: "casos sin responsable", href: "/mando?vista=sin_asignar" },
-    { n: solicitudes, nivel: "gold", texto: "solicitudes nuevas de clientes por cotizar", href: "/mando/solicitudes" },
-    { n: e.finanzas.cobros_vencidos, nivel: "risk", texto: `cobros vencidos (${clp(e.finanzas.vencido)})`, href: "/mando/cobros" },
-    { n: e.experiencia.bajas, nivel: "risk", texto: "calificaciones bajas o casos que el cliente considera no resueltos", href: "/mando?vista=cerrados" },
-    { n: e.ahorro.por_verificar, nivel: "muted", texto: "ahorros por verificar", href: "/mando?vista=cerrados" },
-    { n: alertasIA, nivel: "warn", texto: "alertas de los agentes de IA", href: "/mando/agentes" },
+    { n: e.casos.atrasados, nivel: "risk", texto: pl(e.casos.atrasados, "caso atrasado (vencimiento pasado)", "casos atrasados (vencimiento pasado)"), href: "/mando?vista=activos" },
+    { n: aprobaciones, nivel: "gold", texto: pl(aprobaciones, "aprobación humana pendiente", "aprobaciones humanas pendientes"), href: "/mando?vista=aprobaciones" },
+    { n: e.casos.sin_responsable, nivel: "gold", texto: pl(e.casos.sin_responsable, "caso sin responsable", "casos sin responsable"), href: "/mando?vista=sin_asignar" },
+    { n: solicitudes, nivel: "gold", texto: pl(solicitudes, "solicitud nueva de cliente por cotizar", "solicitudes nuevas de clientes por cotizar"), href: "/mando/solicitudes" },
+    { n: e.finanzas.cobros_vencidos, nivel: "risk", texto: `${pl(e.finanzas.cobros_vencidos, "cobro vencido", "cobros vencidos")} (${clp(e.finanzas.vencido)})`, href: "/mando/cobros" },
+    { n: e.experiencia.bajas, nivel: "risk", texto: pl(e.experiencia.bajas, "calificación baja o caso que el cliente considera no resuelto", "calificaciones bajas o casos que el cliente considera no resueltos"), href: "/mando?vista=cerrados" },
+    { n: e.ahorro.por_verificar, nivel: "muted", texto: pl(e.ahorro.por_verificar, "ahorro por verificar", "ahorros por verificar"), href: "/mando?vista=cerrados" },
+    { n: alertasIA, nivel: "warn", texto: pl(alertasIA, "alerta de los agentes de IA", "alertas de los agentes de IA"), href: "/mando/agentes" },
   ].filter((a) => a.n > 0);
 
   return (
@@ -71,7 +72,7 @@ export async function VistaEjecutiva({ aprobaciones }: { aprobaciones: number })
 
         <div className="hoy-card">
           <h3>Finanzas y resultados</h3>
-          <dl className="facts">
+          <dl className="facts facts-1">
             <div><dt>Cobrado en el período</dt><dd>{clp(e.finanzas.cobrado)}</dd></div>
             <div><dt>Por cobrar (al día)</dt><dd>{clp(e.finanzas.por_cobrar)}</dd></div>
             <div><dt>Vencido</dt><dd>{clp(e.finanzas.vencido)}</dd></div>
@@ -89,7 +90,7 @@ export async function VistaEjecutiva({ aprobaciones }: { aprobaciones: number })
                 <li key={s.modulo}>
                   <b>{MODULES[s.modulo as keyof typeof MODULES]?.name ?? s.modulo}</b>
                   <small>
-                    {s.abiertos} abiertos · {s.resueltos} resueltos{s.atrasados ? ` · ${s.atrasados} atrasados` : ""}
+                    {s.abiertos} {pl(s.abiertos, "abierto", "abiertos")} · {s.resueltos} {pl(s.resueltos, "resuelto", "resueltos")}{s.atrasados ? ` · ${s.atrasados} ${pl(s.atrasados, "atrasado", "atrasados")}` : ""}
                     {s.satisfaccion !== null ? ` · satisfacción ${s.satisfaccion.toFixed(1).replace(".", ",")}/5` : ""}
                   </small>
                 </li>
