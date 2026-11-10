@@ -39,6 +39,7 @@ export default async function MandoLayout({ children }: { children: React.ReactN
     { href: "/mando/fuentes", label: "CORA · Fuentes y agentes", short: "CORA", icon: "novedades", group: "operacion", bottom: false },
     { href: "/mando/investigador", label: "CORA · Investigador web", short: "Bot", icon: "novedades", group: "operacion", bottom: false },
     { href: "/mando/solicitudes", label: "Solicitudes de clientes", short: "Casos", icon: "novedades", group: "operacion", bottom: false },
+    ...(supervisor ? [{ href: "/mando/agentes", label: "Operación de agentes", short: "Agentes", icon: "control", group: "operacion", bottom: false } as NavItem] : []),
     ...(supervisor ? [{ href: "/mando/laboratorio", label: "Laboratorio de IA", short: "IA", icon: "novedades", group: "operacion", bottom: false } as NavItem] : []),
     { href: "/mando/catalogo", label: "Catálogo y precios", short: "Catálogo", icon: "contabilidad", group: "configuracion", bottom: false },
     { href: "/mando/planes", label: "Planes", short: "Planes", icon: "pagos", group: "configuracion", bottom: false },
