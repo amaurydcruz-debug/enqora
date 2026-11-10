@@ -76,6 +76,13 @@ const MESSAGES: Record<string, string> = {
   ENQ_FALTA_EVIDENCIA: "Para marcarlo como presentado, obtenido o pagado, adjunta la evidencia (documento del caso) o el folio del comprobante.",
   ENQ_SIN_RUBRO: "La empresa aún no indica su tipo de negocio. Completa el perfil de la empresa o elige un rubro.",
   ENQ_AGENTE_OCUPADO: "Este agente ya está trabajando en el caso. Espera a que termine.",
+  ENQ_FALTAN_DOCUMENTOS_LEGALES: "Antes de ejecutar el trabajo, la empresa debe firmar los documentos legales del caso (sección «Documentos legales»).",
+  ENQ_DOCUMENTO_NO_APROBADO: "Este documento aún no está aprobado tras la revisión jurídica. Todavía no se puede firmar.",
+  ENQ_DOCUMENTO_CAMBIO: "El documento cambió mientras lo leías. Revisa la versión actual antes de firmar.",
+  ENQ_YA_FIRMADO: "Este documento ya está firmado para esta empresa o este caso.",
+  ENQ_DOCUMENTO_NO_EDITABLE: "Esta versión ya salió de borrador y no se puede editar. Crea una versión nueva.",
+  ENQ_DOCUMENTO_NO_EN_REVISION: "Solo se aprueba o devuelve una versión que está en revisión jurídica.",
+  ENQ_FALTA_REVISION_JURIDICA: "Para aprobar, registra el estudio jurídico que revisó el texto, la referencia de su informe y la fecha de revisión.",
   ENQ_YA_SOLICITADA: "Ya lo solicitaste. El equipo ENQORA te enviará la cotización en este caso.",
 };
 

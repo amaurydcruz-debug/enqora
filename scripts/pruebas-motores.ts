@@ -10,6 +10,7 @@ import { operacion, type Run } from "@/lib/agentes/operacion";
 import { runCalculator } from "@/lib/tax-calc";
 import { analizarReglas } from "@/lib/cora/caso";
 import { PLAYBOOKS, RULES } from "@/lib/knowledge";
+import { estadoDocumento, renderPreview, resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 
 let ok = 0;
 const fallos: string[] = [];
@@ -123,6 +124,30 @@ prueba("Ruta de trabajo de la condonación con normas existentes", () => {
   const p = PLAYBOOKS.find((x) => x.id === "tgr_condonacion");
   assert.ok(p);
   for (const n of p!.normas) assert.ok(RULES[n], n);
+});
+
+// ---------- Documentos legales ----------
+prueba("Documento sin versión aprobada: en revisión jurídica, no se puede firmar", () => {
+  assert.equal(estadoDocumento({ code: "DOC-CONTRATO", scope: "empresa", title: "Contrato", document_id: null, version: null, firma: null }), "sin_aprobar");
+});
+prueba("Resumen legal: listo solo cuando no falta nada", () => {
+  const s: CaseLegalStatus = {
+    faltan: ["DOC-VERACIDAD"],
+    documentos: [
+      { code: "DOC-CONTRATO", scope: "empresa", title: "Contrato", document_id: "a", version: 1, firma: { id: "f", fecha: "2026-11-10", firmante: "María" } },
+      { code: "DOC-VERACIDAD", scope: "caso", title: "Veracidad", document_id: "b", version: 1, firma: null },
+    ],
+    fichas: [],
+  };
+  const r = resumenLegal(s);
+  assert.equal(r.listo, false);
+  assert.equal(r.porFirmar, 1);
+  assert.equal(r.texto, "1 por firmar");
+  assert.equal(resumenLegal({ ...s, faltan: [] }).listo, true);
+});
+prueba("Vista previa: datos de la empresa sí, datos de quien firma quedan por completar", () => {
+  const t = renderPreview("{{EMPRESA}} RUT {{RUT_EMPRESA}} firma {{FIRMANTE}}", { empresa: "Pyme SpA", rut: "76.123.456-0" });
+  assert.equal(t, "Pyme SpA RUT 76.123.456-0 firma [tu nombre]");
 });
 
 // ---------- Command Center ----------
