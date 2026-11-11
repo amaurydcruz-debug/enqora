@@ -189,6 +189,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
       status: (
         <span className="catalog-status">
           {cur ? <b>{clp(cur.base_price)} <small>/ {UNITS[s.unit]?.per}</small></b> : <span className="status status-gold">Sin tarifa vigente</span>}
+          {cur?.notes?.startsWith("[PRUEBA]") ? <span className="tag">Precio de prueba · no se publica</span> : null}
           {advice.get(s.id)?.por_verificar ? <span className="tag">{advice.get(s.id)!.por_verificar} por verificar</span> : null}
           {!cur && advice.get(s.id)?.suficiente && advice.get(s.id)?.sugerido ? <span className="tag">Sugerido {clp(advice.get(s.id)!.sugerido!)}</span> : null}
           {!s.active ? <span className="tag">Inactivo</span> : null}
