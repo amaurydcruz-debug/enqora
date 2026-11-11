@@ -56,7 +56,11 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
 
       {lista.map((s) => {
         const digitos = s.contacto.replace(/[^\d]/g, "");
-        const href = s.canal === "whatsapp" ? `https://wa.me/${digitos}` : `mailto:${s.contacto}`;
+        // Respuesta con texto inicial (el profesional lo completa con la propuesta y la cotización).
+        const saludo = `Hola ${s.nombre.split(/\s+/)[0]}, te escribo de ENQORA por tu solicitud${s.razon_social ? ` de ${s.razon_social}` : ""}. Revisé tu caso y te propongo lo siguiente:\n\n`;
+        const href = s.canal === "whatsapp"
+          ? `https://wa.me/${digitos}?text=${encodeURIComponent(saludo)}`
+          : `mailto:${s.contacto}?subject=${encodeURIComponent("Tu solicitud en ENQORA · propuesta")}&body=${encodeURIComponent(saludo)}`;
         const h = horas(s.creada);
         return (
           <section key={s.id} className="card">

@@ -2,6 +2,8 @@
 
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
+import { after } from "next/server";
+import { acuseSolicitud } from "@/lib/notify-delivery";
 import { llamarHerramienta } from "@/lib/ai/gateway";
 import { analizarReglas, CATEGORIAS_CASO, DOCUMENTOS, validarAnalisis, type AnalisisCaso } from "@/lib/cora/caso";
 import { dbCode } from "@/lib/db-errors";
@@ -66,6 +68,11 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
     console.error("[ENQORA Caso]", error.message);
     return { ok: false, error: "No pudimos registrar tu caso. Intenta nuevamente en unos minutos." };
   }
+  // Acuse de recibo por el canal elegido (si el correo o WhatsApp están conectados). No bloquea la respuesta.
+  after(async () => {
+    const e = await acuseSolicitud(canal, contacto, nombre).catch((x) => (x instanceof Error ? x.message : "error"));
+    if (e) console.warn("[ENQORA Caso] acuse no enviado:", e);
+  });
   return { ok: true, analisis, canal };
 }
 

@@ -96,3 +96,32 @@ export async function flushDeliveries(origin?: string, force = false) {
     console.error("[ENQORA avisos]", e instanceof Error ? e.message : e);
   }
 }
+
+// Acuse de recibo a quien envió una solicitud pública (sin cuenta). Solo confirma la recepción y el plazo:
+// no repite su relato ni datos. Correo: Resend. WhatsApp: plantilla aprobada por Meta con 1 variable (nombre),
+// categoría «Utilidad», nombre en WHATSAPP_TEMPLATE_SOLICITUD (por defecto «enqora_solicitud»), p. ej.:
+// «Hola {{1}}, recibimos tu solicitud en ENQORA. Un profesional te responde con una propuesta y su cotización
+// en un plazo de 24 horas hábiles. ENQORA nunca te pedirá tu ClaveÚnica ni tu clave del SII.»
+export async function acuseSolicitud(canal: "correo" | "whatsapp", contacto: string, nombre: string): Promise<string | null> {
+  const n = nombre.trim().split(/\s+/)[0]?.slice(0, 40) || "hola";
+  if (canal === "whatsapp") {
+    return sendWhatsAppTemplate(contacto.replace(/[^\d]/g, ""), process.env.WHATSAPP_TEMPLATE_SOLICITUD || "enqora_solicitud", [n]);
+  }
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return "Correo sin configurar";
+  const html = `<div style="background:#0A1220;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;">
+<div style="max-width:480px;margin:0 auto;background:#101B2D;border:1px solid #24354F;border-top:2px solid #C6A66B;border-radius:12px;padding:32px 28px;color:#D9E0EA;">
+<p style="margin:0 0 4px;font-size:12px;letter-spacing:4px;color:#C6A66B;">ENQORA</p>
+<h1 style="margin:0 0 16px;font-size:20px;line-height:1.35;color:#F4F0E8;">Hola ${esc(n)}, recibimos tu solicitud</h1>
+<p style="margin:0 0 16px;line-height:1.6;">Un profesional ENQORA la revisa y te responde por este correo con una propuesta y su cotización, en un plazo de 24 horas hábiles. No pagas nada hasta aceptarla.</p>
+<p style="margin:0 0 6px;font-size:13px;color:#9AA6B8;">Usamos tus datos solo para responder tu solicitud.</p>
+<p style="margin:0;font-size:13px;color:#9AA6B8;">ENQORA nunca te pedirá tu ClaveÚnica ni tu clave del SII.</p>
+</div></div>`;
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: process.env.ALERT_EMAIL_FROM || "ENQORA <onboarding@resend.dev>", to: [contacto], subject: "Recibimos tu solicitud · ENQORA", html }),
+    signal: AbortSignal.timeout(6000),
+  }).catch(() => null);
+  return res?.ok ? null : `Resend ${res?.status ?? "sin conexión"}`;
+}
