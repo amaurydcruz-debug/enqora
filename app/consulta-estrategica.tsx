@@ -7,7 +7,7 @@ import { identidadEmpresa, objetivosOrdenados } from "@/lib/cora/caso";
 import { oportunidades } from "@/lib/cora/oportunidades";
 import { respuestaDesdeVoz } from "@/lib/voz/interpretar";
 import { activarModoVoz, escuchar, hablar, modoVozActivo, useModoVoz } from "@/lib/voz/navegador";
-import { consultaCoraAction } from "@/app/actions/cora";
+import { consultaCoraAction, hallazgosRobotAction } from "@/app/actions/cora";
 import type { PublicCompany } from "@/app/actions/public";
 import { InvestigacionEnVivo, PropuestaView } from "@/app/cora-solucion";
 import { PriceLine } from "@/app/diagnostico-360";
@@ -15,6 +15,13 @@ import { ExpedienteCora } from "@/app/expediente-cora";
 import { investigar } from "@/lib/cora/director";
 import { CAPACIDADES, evidenciasDe, MAX_PREGUNTAS, TIPOS_HALLAZGO, type Evidencia, type Informe, type Turno } from "@/lib/cora/estratega";
 import type { HallazgoWeb } from "@/lib/cora/web/hallazgos";
+
+// Une los hallazgos nuevos con los anteriores sin repetir portal (gana el más reciente).
+function mezclarWeb(nuevos: HallazgoWeb[], previos: HallazgoWeb[]): HallazgoWeb[] {
+  const m = new Map(previos.map((w) => [w.portal, w]));
+  for (const w of nuevos) m.set(w.portal, w);
+  return [...m.values()];
+}
 import { QUESTIONS, type Answer } from "@/lib/diagnostic-360";
 import type { Catalog } from "@/lib/initial-report";
 
@@ -34,6 +41,7 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
   const [motivo, setMotivo] = useState<string | null>(null);
   const [evServidor, setEvServidor] = useState<Evidencia[]>([]);
   const [web, setWeb] = useState<HallazgoWeb[]>([]);
+  const [robot, setRobot] = useState<string>("ninguna");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expediente, setExpediente] = useState(false);
@@ -86,12 +94,26 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
     setOrigen(res.origen);
     setMotivo(res.motivo ?? null);
     setEvServidor(res.evidencias ?? []);
-    setWeb(res.web ?? []);
+    setWeb((prev) => mezclarWeb(res.web ?? [], prev));
+    if (res.robot) setRobot(res.robot);
     if (res.fase === "turno") {
       setTurno(res.turno);
       if (!res.turno.pregunta_id) await pedir("informe", resp);
     } else setInforme(res.informe);
   }
+
+  // Mientras el robot investiga los portales, la pantalla pregunta cada 20 s (máximo 5 minutos) y suma lo que encuentra.
+  useEffect(() => {
+    if (robot !== "en_curso" || !r.rut) return;
+    let n = 0;
+    const t = setInterval(async () => {
+      n++;
+      const x = await hallazgosRobotAction(r.rut ?? "").catch(() => null);
+      if (x) { setWeb((prev) => mezclarWeb(x.web, prev)); if (x.robot !== "en_curso") setRobot(x.robot); }
+      if (n >= 15) { clearInterval(t); setRobot((s) => (s === "en_curso" ? "demora" : s)); }
+    }, 20_000);
+    return () => clearInterval(t);
+  }, [robot, r.rut]);
 
   useEffect(() => {
     if (iniciado.current) return;
@@ -192,6 +214,14 @@ export function ConsultaEstrategica({ r }: { r: PublicCompany }) {
             {origen === "ia" ? "Análisis del estratega CORA, validado con evidencias" : origen === "reglas" ? `Análisis por reglas: el estratega IA no estuvo disponible${motivo ? ` (${motivo})` : ""}` : "Preparando el análisis…"}
             {" "}· expediente {exp.completitud.pct}% completo · no se guarda
           </small>
+          {robot === "en_curso" ? (
+            <small className="robot-estado" role="status">
+              <span className="cora-live-dot" aria-hidden="true" /> El robot investigador está consultando los portales oficiales (hoy, el Registro de Empresas y Sociedades), cada uno con su agente en paralelo.
+              El expediente se actualiza solo cuando termine (1 a 3 minutos).
+            </small>
+          ) : robot === "demora" ? (
+            <small className="robot-estado">La investigación en los portales está tardando más de lo normal: el equipo ENQORA la revisa y completa el expediente.</small>
+          ) : null}
         </div>
 
         {error ? <p className="lookup-error" role="alert">{error}</p> : null}

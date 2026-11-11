@@ -13,10 +13,20 @@ const LIMITE_PORTAL_MS = 90_000;
 
 type Run = { id: string; rut: string; razon_social: string | null; modo: "investigacion" | "entorno" };
 
-export async function ejecutarInvestigacion(supabase: SupabaseClient, run: Run) {
+// auto: investigación lanzada sola desde una consulta pública. Escribe con la clave de servicio ENQORA
+// (funciones svc_research_*), sin sesión y sin captura. Sin auto: la lanza el equipo con su sesión.
+export async function ejecutarInvestigacion(supabase: SupabaseClient, run: Run, auto?: { token: string }) {
   const t0 = Date.now();
   let maxMem = memoriaMb();
-  await supabase.from("research_runs").update({ status: "en_curso", started_at: new Date().toISOString() }).eq("id", run.id);
+  const terminar = async (status: "completada" | "fallida", metrics: Record<string, unknown>, error?: string) => {
+    if (auto) {
+      const { error: e } = await supabase.rpc("svc_research_finish", { p_token: auto.token, p_run: run.id, p_status: status, p_metrics: metrics, p_error: error ?? null });
+      if (e) console.error("[ENQORA bot] cierre no guardado", e.message);
+    } else {
+      await supabase.from("research_runs").update({ status, finished_at: new Date().toISOString(), metrics, ...(error ? { error } : {}) }).eq("id", run.id);
+    }
+  };
+  if (!auto) await supabase.from("research_runs").update({ status: "en_curso", started_at: new Date().toISOString() }).eq("id", run.id);
   let browser: Awaited<ReturnType<typeof abrirNavegador>>["browser"] | null = null;
   const metrics: Record<string, unknown> = { region: process.env.VERCEL_REGION ?? "local", node: process.version };
   try {
@@ -24,7 +34,9 @@ export async function ejecutarInvestigacion(supabase: SupabaseClient, run: Run) 
     browser = nav.browser;
     Object.assign(metrics, { chromium: nav.version, lanzamiento_ms: nav.launchMs });
     maxMem = Math.max(maxMem, memoriaMb());
-    const procedimientos: Procedimiento[] = run.modo === "entorno" ? [INAPI] : PROCEDIMIENTOS;
+    // Automáticas: no se envía el robot a portales que hoy lo bloquean con CAPTCHA (INAPI): ENQORA no los evade
+    // ni los carga con intentos repetidos. Esos quedan para la búsqueda asistida del equipo.
+    const procedimientos: Procedimiento[] = run.modo === "entorno" ? [INAPI] : auto ? PROCEDIMIENTOS.filter((p) => p.id !== INAPI.id) : PROCEDIMIENTOS;
     // Los portales se consultan EN PARALELO (cada uno en su pestaña): menos tiempo total y ninguno bloquea a los demás.
     const consultar = async (proc: Procedimiento) => {
       const ctx = await browser!.newContext({ userAgent: USER_AGENT, viewport: { width: 1366, height: 900 }, locale: "es-CL" });
@@ -48,6 +60,15 @@ export async function ejecutarInvestigacion(supabase: SupabaseClient, run: Run) 
       maxMem = Math.max(maxMem, memoriaMb());
       // Captura: la prueba de que el portal fue consultado (también cuando falla o hay barrera).
       let path: string | null = null;
+      if (auto) {
+        res.detail = `${res.detail} · Investigación automática (sin captura).`.slice(0, 990);
+        const { error: e } = await supabase.rpc("svc_research_evidence", { p_token: auto.token, p_run: run.id, p: {
+          portal: proc.id, procedure_version: proc.version, query: res.query, url: res.url.slice(0, 500), status: res.status,
+          result: res.result, duration_ms: duracion, detail: res.detail.slice(0, 1000),
+        } });
+        if (e) console.error("[ENQORA bot] evidencia automática no guardada", proc.id, e.message);
+        return res.status;
+      }
       try {
         const png = await page.screenshot({ type: "png", fullPage: true, timeout: 15_000 });
         path = `${run.id}/${proc.id}-${Date.now()}.png`;
@@ -69,13 +90,10 @@ export async function ejecutarInvestigacion(supabase: SupabaseClient, run: Run) 
     const estados = await Promise.all(procedimientos.map((p) => consultar(p).catch(() => "error" as const)));
     const fallas = estados.filter((e) => e === "error" || e === "procedimiento_fallo").length;
     Object.assign(metrics, { total_ms: Date.now() - t0, memoria_max_mb: maxMem, portales: procedimientos.length, fallas });
-    await supabase.from("research_runs").update({ status: "completada", finished_at: new Date().toISOString(), metrics }).eq("id", run.id);
+    await terminar("completada", metrics);
   } catch (e) {
     Object.assign(metrics, { total_ms: Date.now() - t0, memoria_max_mb: maxMem });
-    await supabase.from("research_runs").update({
-      status: "fallida", finished_at: new Date().toISOString(), metrics,
-      error: (e instanceof Error ? e.message : "Error inesperado").slice(0, 1000),
-    }).eq("id", run.id);
+    await terminar("fallida", metrics, (e instanceof Error ? e.message : "Error inesperado").slice(0, 1000));
   } finally {
     await browser?.close().catch(() => undefined);
   }
