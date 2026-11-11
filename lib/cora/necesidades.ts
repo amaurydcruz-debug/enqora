@@ -18,6 +18,7 @@ export const RUTAS: Record<string, RutaExterna> = {
   dt: { nombre: "Dirección del Trabajo", url: "https://www.dt.gob.cl", nota: "Modelos, orientación y el portal del Libro de Remuneraciones Electrónico." },
   isl: { nombre: "ISL o tu mutualidad", url: "https://www.isl.gob.cl/decreto-44/", nota: "Tu organismo administrador del seguro laboral orienta sobre el DS 44 para sus adheridos." },
   sercotec: { nombre: "Sercotec", url: "https://www.sercotec.cl", nota: "Convocatorias, asesoría y Centros de Negocios gratuitos." },
+  tgr: { nombre: "Tesorería · certificado de deuda y convenios", url: "https://www.tgr.cl", nota: "El certificado de deuda y los convenios con condonación se obtienen gratis en tgr.cl con tu clave." },
   municipio: { nombre: "Tu municipalidad", url: "https://www.chileatiende.gob.cl", nota: "La patente se tramita en el municipio de tu domicilio comercial." },
 };
 
@@ -56,6 +57,10 @@ export const CONOCIMIENTO: Record<string, Conocimiento> = {
   p_patente: { necesidad: "Obtener la patente de tu local", beneficio: "Funcionar sin riesgo de multas o clausura.", documentos: "Contrato o título del local y resolución sanitaria si el rubro la exige.", urgencia: 3, impacto: 2, plan: "formalizacion", externa: "municipio" },
   p_cuentas: { necesidad: "Separar tus finanzas personales de las del negocio", beneficio: "Saber cuánto gana realmente tu negocio y ordenar tus impuestos.", urgencia: 2, impacto: 2, plan: "gestion" },
   p_marca: { necesidad: "Proteger el nombre de tu negocio", beneficio: "Asegurar la marca en la que inviertes.", urgencia: 1, impacto: 2, plan: "formalizacion", externa: "inapi" },
+  p_tgr: { necesidad: "Pagar tus deudas con la Tesorería con condonación (Ley 21.850)", beneficio: "Pagar menos: hasta 100% de los intereses y 80% de las multas condonados al contado, o convenio en cuotas.", documentos: "Certificado de deuda de la Tesorería (lo obtienes gratis en tgr.cl).", urgencia: 3, impacto: 3, plan: "regularizacion", externa: "tgr" },
+  p_declaraciones: { necesidad: "Poner al día las declaraciones atrasadas", beneficio: "Detener multas e intereses y dejar el camino libre para cerrar o retomar el negocio.", documentos: "Carpeta Tributaria Electrónica (gratis en sii.cl).", urgencia: 3, impacto: 3, plan: "regularizacion", externa: "sii" },
+  p_cierre: { necesidad: "Cerrar el negocio con el término de giro", beneficio: "Dejar de tener obligaciones mensuales y anuales por un negocio que ya no funciona.", documentos: "Carpeta Tributaria y antecedentes de las últimas declaraciones.", urgencia: 2, impacto: 3, plan: "regularizacion", externa: "sii" },
+  p_retomar: { necesidad: "Retomar el negocio con las cuentas en orden", beneficio: "Volver a vender con tus declaraciones al día y sin deudas que crezcan.", urgencia: 2, impacto: 2, plan: "regularizacion", externa: "sii" },
   p_fondos: { necesidad: "Postular a programas para emprendedores", beneficio: "Financiar tu proyecto con subsidios no reembolsables.", urgencia: 1, impacto: 2, plan: "crecimiento", externa: "sercotec" },
 };
 

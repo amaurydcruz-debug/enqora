@@ -199,7 +199,8 @@ export function buildInitialReport(p: PublicProfileForReport, catalog: Catalog, 
 // ───────────────────────────── Persona natural con giro ─────────────────────────────
 // Se responde en el navegador del visitante: nada de esto se envía ni se guarda.
 export type NaturalAnswers = {
-  venta: "honorarios" | "facturas" | "ambas" | "sin_inicio";
+  // inactivo: tiene inicio de actividades, pero hoy no tiene movimiento (no ha hecho término de giro).
+  venta: "honorarios" | "facturas" | "ambas" | "sin_inicio" | "inactivo";
   trabajadores: "no" | "si";
   contador: "nadie" | "contador" | "no_se";
   lugar: "local" | "casa" | "online";
@@ -214,7 +215,15 @@ export function buildNaturalReport(a: NaturalAnswers, catalog: Catalog, today = 
   let nivel: InitialReport["nivel"] = "atencion";
   let veredicto: string;
 
-  if (a.venta === "sin_inicio") {
+  if (a.venta === "inactivo") {
+    veredicto = "Tienes inicio de actividades, pero hoy no tienes movimiento: mientras no hagas el término de giro, tus obligaciones ante el SII siguen vigentes.";
+    conclusiones.push("Dejar de vender no cierra el negocio ante el SII. Hasta el término de giro, el F29 se presenta cada mes aunque sea sin movimiento (si eras contribuyente de IVA) y la renta (F22) cada abril.");
+    conclusiones.push("Las declaraciones atrasadas y las deudas con la Tesorería suman multas e intereses mientras no se regularicen.");
+    conclusiones.push(`Hasta el 15 de abril de 2027, la Ley 21.850 permite pagar deudas fiscales vencidas al 31 de diciembre de 2025 con condonación de hasta 100% de los intereses y 80% de las multas al contado.`);
+    pushUnique(servicios, offer(catalog, "tgr", "CON-06", "Regularización de deudas fiscales con condonación (Ley 21.850)", "contabilidad", "Pagar tus deudas con la Tesorería con condonación."));
+    pushUnique(servicios, offer(catalog, "regularizacion", "CON-03", "Regularización de contabilidad atrasada", "contabilidad", "Poner al día tus declaraciones atrasadas."));
+    pushUnique(servicios, offer(catalog, "cierre", "FOR-03", "Término de giro", "formalizacion", "Cerrar ordenadamente el negocio ante el SII."));
+  } else if (a.venta === "sin_inicio") {
     veredicto = "Antes de vender necesitas iniciar actividades en el SII y elegir cómo operar: a tu nombre o con una empresa.";
     conclusiones.push("Vender sin inicio de actividades impide emitir boletas o facturas y puede generar multas. El inicio de actividades es gratuito y se hace en línea.");
     conclusiones.push("Si tu negocio tendrá socios, deudas o crecimiento, una EIRL o una SpA separa tu patrimonio personal del de la empresa; a tu nombre, respondes con tus bienes.");
@@ -247,7 +256,11 @@ export function buildNaturalReport(a: NaturalAnswers, catalog: Catalog, today = 
   if (a.lugar === "local") pushUnique(servicios, offer(catalog, "patente", "FOR-02", "Patente municipal", "formalizacion", "La patente y los permisos de tu local."));
   if (a.trabajadores === "si") conclusiones.push("Con trabajadores aplican contratos, liquidaciones, cotizaciones (día 13 si se pagan en línea), el protocolo de la Ley Karin y, desde 5 trabajadores, el Libro de Remuneraciones Electrónico.");
 
-  if (a.venta !== "sin_inicio") {
+  if (a.venta === "inactivo") {
+    obligaciones.push({ que: "IVA mensual (F29)", cuando: dm(nextMonthly(20, today)), nota: "Si eras contribuyente de IVA: aun sin movimiento, cada mes hasta el término de giro." });
+    obligaciones.push({ que: "Renta anual (F22)", cuando: dmy(nextYearly(3, 30, today)), nota: "Mientras no hagas el término de giro." });
+    obligaciones.push({ que: "Plazo de la condonación en la Tesorería (Ley 21.850)", cuando: "15 de abril de 2027", nota: "Sin prórroga. Para deudas fiscales vencidas al 31 de diciembre de 2025." });
+  } else if (a.venta !== "sin_inicio") {
     if (iva) obligaciones.push({ que: "IVA mensual (F29)", cuando: dm(nextMonthly(20, today)), nota: "Día 20 si declaras en línea y emites documentos electrónicos; si no, día 12. Aun sin ventas." });
     if (a.trabajadores === "si") obligaciones.push({ que: "Cotizaciones de tus trabajadores", cuando: dm(nextMonthly(13, today)), nota: "Día 13 si se pagan en línea; día 10 si no." });
     obligaciones.push({ que: "Renta anual (F22)", cuando: dmy(nextYearly(3, 30, today)) });

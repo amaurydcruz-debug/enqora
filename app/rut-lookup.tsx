@@ -7,7 +7,7 @@ import { CasoForm } from "@/app/cora-caso";
 import { PriceLine } from "@/app/diagnostico-360";
 import { objetivosOrdenados } from "@/lib/cora/caso";
 import { ConsultaEstrategica } from "@/app/consulta-estrategica";
-import { ESTADO_SITUACION, investigarPersona, PREGUNTAS_PERSONA, type ExpedientePersona, type PersonaAnswers } from "@/lib/cora/personas";
+import { ESTADO_SITUACION, investigarPersona, PREGUNTAS_PERSONA, preguntaVisible, type ExpedientePersona, type PersonaAnswers } from "@/lib/cora/personas";
 import { EnqoraClockLoader } from "@/components/clock-loader";
 import type { Catalog } from "@/lib/initial-report";
 import { salesTrancheLabel } from "@/lib/public-data";
@@ -224,16 +224,17 @@ function consultedAt(iso?: string) {
 }
 
 // CORA PERSONAS (modalidad pública): con un RUT de persona, CORA no consulta ninguna fuente sobre ella.
-// 7 preguntas, respondidas en el navegador, arman su perfil emprendedor, sus necesidades y su plan.
+// Hasta 8 preguntas (según lo respondido), respondidas en el navegador, arman su perfil emprendedor, sus necesidades y su plan.
 // Nada se envía ni se guarda.
 function NaturalFlow({ r }: { r: PublicCompany }) {
   const [a, setA] = useState<Partial<PersonaAnswers>>({});
   const catalog = (r.catalogo ?? []) as Catalog;
-  // Conversación: una pregunta a la vez. Si aún no inicia actividades, no se pregunta quién lleva sus impuestos.
-  const visibles = PREGUNTAS_PERSONA.filter((q) => !(q.key === "contador" && a.venta === "sin_inicio"));
+  // Conversación: una pregunta a la vez, solo las que aplican según lo ya respondido
+  // (sin inicio de actividades no se pregunta por impuestos; sin movimiento, no se pregunta por local, marca o crecimiento).
+  const visibles = PREGUNTAS_PERSONA.filter((q) => preguntaVisible(q.key, a));
   const siguiente = visibles.find((q) => !a[q.key]);
-  const completo = !siguiente;
-  const respuestas = { contador: "nadie", ...a } as PersonaAnswers;
+  const completo = !!a.venta && !siguiente;
+  const respuestas = { contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no", ...a } as PersonaAnswers;
   return (
     <>
       <h3>CORA Personas · RUT {formatRut(r.rut ?? "")}</h3>

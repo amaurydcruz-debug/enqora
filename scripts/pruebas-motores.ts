@@ -11,6 +11,7 @@ import { runCalculator } from "@/lib/tax-calc";
 import { analizarReglas } from "@/lib/cora/caso";
 import { PLAYBOOKS, RULES } from "@/lib/knowledge";
 import { isNaturalPersonRut } from "@/lib/rut";
+import { investigarPersona, PREGUNTAS_PERSONA, preguntaVisible, type PersonaAnswers } from "@/lib/cora/personas";
 import { estadoDocumento, renderPreview, resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 
 let ok = 0;
@@ -140,6 +141,25 @@ prueba("Honorarios o sin inicio de actividades: sin postergación de IVA, con co
     assert.ok(o.includes("tgr_condonacion"), regimen);
     assert.ok(!o.includes("confirmar_regimen"), regimen);
   }
+});
+
+prueba("Persona sin movimiento: solo pregunta lo que aplica", () => {
+  const a: Partial<PersonaAnswers> = { venta: "inactivo" };
+  const keys = PREGUNTAS_PERSONA.filter((q) => preguntaVisible(q.key, a)).map((q) => q.key);
+  assert.deepEqual(keys, ["venta", "declara", "futuro", "deudas"]);
+});
+prueba("Persona sin movimiento con deuda TGR que quiere cerrar: condonación, declaraciones y término de giro", () => {
+  const cat = [
+    { code: "CON-06", module: "contabilidad", name: "Condonación", price_from: 10000, market_price: null, welcome_pct: null, welcome_months: null },
+    { code: "CON-03", module: "contabilidad", name: "Regularización", price_from: 10000, market_price: null, welcome_pct: null, welcome_months: null },
+    { code: "FOR-03", module: "formaliza", name: "Término de giro", price_from: 10000, market_price: null, welcome_pct: null, welcome_months: null },
+  ];
+  const a = { venta: "inactivo", declara: "no", futuro: "cerrar", deudas: "si", contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" } as PersonaAnswers;
+  const e = investigarPersona(a, cat as never, hoy);
+  const codigos = e.prioridades.map((n) => n.servicio?.codigo);
+  assert.deepEqual([...codigos].sort(), ["CON-03", "CON-06", "FOR-03"]);
+  assert.ok(e.impacto.some((i) => i.titulo.includes("Ley 21.850")));
+  assert.ok(e.obligaciones.some((o) => o.cuando === "15 de abril de 2027"));
 });
 
 // ---------- Documentos legales ----------
