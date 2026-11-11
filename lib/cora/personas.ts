@@ -13,7 +13,21 @@ export type PersonaAnswers = NaturalAnswers & {
   cuentas: "si" | "no";
   crecer: "si" | "no" | "no_se";
   marca: "si" | "no";
+  // Persona con inicio de actividades sin movimiento, y deudas fiscales (para todos los que tienen inicio).
+  declara?: "si" | "no" | "no_se";
+  futuro?: "retomar" | "cerrar" | "no_se";
+  deudas?: "si" | "no" | "no_se";
 };
+
+// Preguntas que solo aplican según lo ya respondido (una persona sin movimiento no responde sobre su local o su marca).
+export function preguntaVisible(key: keyof PersonaAnswers, a: Partial<PersonaAnswers>): boolean {
+  const inactivo = a.venta === "inactivo";
+  if (key === "declara" || key === "futuro") return inactivo;
+  if (key === "deudas") return a.venta !== "sin_inicio";
+  if (key === "contador") return a.venta !== "sin_inicio" && !inactivo;
+  if (["trabajadores", "lugar", "cuentas", "crecer", "marca"].includes(key)) return !inactivo;
+  return true;
+}
 
 // porque: el propósito de cada pregunta (se muestra al preguntar: nada se pregunta «por si acaso»).
 export const PREGUNTAS_PERSONA: { key: keyof PersonaAnswers; q: string; porque: string; options: [string, string][] }[] = [
@@ -22,13 +36,17 @@ export const PREGUNTAS_PERSONA: { key: keyof PersonaAnswers; q: string; porque: 
     ["honorarios", "Emito boletas de honorarios"],
     ["ambas", "Ambas"],
     ["sin_inicio", "Aún no inicio actividades"],
+    ["inactivo", "Tengo inicio de actividades, pero hoy no tengo movimiento"],
   ] },
+  { key: "declara", q: "¿Sigues presentando tus declaraciones (el F29 cada mes y la renta en abril), aunque sea sin movimiento?", porque: "Mientras no hagas el término de giro, las declaraciones siguen siendo obligatorias aunque no vendas.", options: [["si", "Sí, al día"], ["no", "No, las dejé de presentar"], ["no_se", "No lo sé"]] },
+  { key: "futuro", q: "¿Qué quieres hacer con ese negocio?", porque: "Para cerrarlo se hace el término de giro; para retomarlo, primero se ponen al día las declaraciones.", options: [["cerrar", "Cerrarlo"], ["retomar", "Retomarlo"], ["no_se", "Aún no lo decido"]] },
   { key: "trabajadores", q: "¿Tienes trabajadores contratados?", porque: "Con trabajadores se suman contratos, cotizaciones y prevención de riesgos.", options: [["no", "No"], ["si", "Sí"]] },
   { key: "contador", q: "¿Quién lleva tus impuestos?", porque: "Así sabemos si tus declaraciones ya tienen respaldo profesional o conviene revisarlas.", options: [["nadie", "Yo mismo"], ["contador", "Un contador"], ["no_se", "No lo tengo claro"]] },
   { key: "lugar", q: "¿Dónde funciona tu negocio?", porque: "Un local requiere patente municipal y, según el rubro, permisos.", options: [["local", "En un local"], ["casa", "Desde mi casa"], ["online", "Solo en línea"]] },
   { key: "cuentas", q: "¿Separas tu dinero personal del dinero del negocio?", porque: "Separar las cuentas ordena tus impuestos y te deja ver si el negocio gana.", options: [["si", "Sí"], ["no", "No"]] },
   { key: "crecer", q: "¿Quieres crecer en los próximos 12 meses (más ventas, socios o contratar)?", porque: "Si quieres crecer, conviene revisar tu estructura y los programas de apoyo vigentes.", options: [["si", "Sí"], ["no", "No"], ["no_se", "No lo sé"]] },
   { key: "marca", q: "¿Tu negocio tiene un nombre o marca que quieras proteger?", porque: "Una marca registrada en INAPI es un activo de tu negocio.", options: [["si", "Sí"], ["no", "No"]] },
+  { key: "deudas", q: "¿Tienes deudas con la Tesorería (impuestos, multas o giros sin pagar)?", porque: "Hasta el 15 de abril de 2027, la Ley 21.850 permite pagarlas con condonación de intereses y multas.", options: [["si", "Sí"], ["no", "No"], ["no_se", "No lo sé"]] },
 ];
 
 // Estados de la evaluación de situación: nunca se califica de incumplimiento sin evidencia.
@@ -57,6 +75,7 @@ const SEGMENTO: Record<NaturalAnswers["venta"], string> = {
   honorarios: "Profesional independiente (boletas de honorarios)",
   facturas: "Emprendedor con negocio a su nombre (persona natural con giro)",
   ambas: "Emprendedor y profesional independiente",
+  inactivo: "Persona con negocio a su nombre, hoy sin movimiento",
 };
 
 export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = new Date()): ExpedientePersona {
@@ -66,10 +85,38 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
   const iva = a.venta === "facturas" || a.venta === "ambas";
   const hon = a.venta === "honorarios" || a.venta === "ambas";
   const inicio = a.venta !== "sin_inicio";
+  const inactivo = a.venta === "inactivo";
   const h: HallazgoBase[] = [];
   const add = (x: Omit<HallazgoBase, "fuente" | "fecha" | "estado"> & { estado?: HallazgoBase["estado"] }) => h.push({ fuente, fecha, estado: x.estado ?? "declarado", ...x });
   const svc = (id: string, code: string, nombre: string, cat: string, porque: string) => offer(catalog, id, code, nombre, cat, porque);
 
+  // Deudas con la Tesorería: plazo legal acotado (Ley 21.850), por eso van primero.
+  if (inicio && (a.deudas === "si" || a.deudas === "no_se")) {
+    add({ id: "p_tgr", prioridad: "alta", estado: a.deudas === "si" ? "declarado" : "requiere_documentacion",
+      encontro: a.deudas === "si" ? "Declaras deudas con la Tesorería." : "No sabes si tienes deudas con la Tesorería.",
+      consecuencias: "Las deudas fiscales siguen sumando intereses y multas mientras no se paguen o se convengan.",
+      hacer: "Obtener tu certificado de deuda en tgr.cl (gratis, con tu clave) y evaluar pagarlo con la condonación de la Ley 21.850, solo para deudas vencidas al 31 de diciembre de 2025 y hasta el 15 de abril de 2027.",
+      servicio: svc("tgr", "CON-06", "Regularización de deudas fiscales con condonación (Ley 21.850)", "contabilidad", "Calcular contado frente a convenio y acompañarte en la Tesorería.") });
+  }
+  if (inactivo && a.declara !== "si") {
+    add({ id: "p_declaraciones", prioridad: "alta", estado: a.declara === "no" ? "declarado" : "requiere_documentacion",
+      encontro: a.declara === "no" ? "Declaras que dejaste de presentar tus declaraciones." : "No sabes si tus declaraciones están presentadas.",
+      consecuencias: "Mientras no hagas el término de giro, el F29 (si eras contribuyente de IVA) y la renta siguen siendo obligatorios aunque no vendas; las declaraciones atrasadas generan multas.",
+      hacer: "Revisar en tu Carpeta Tributaria (gratis en sii.cl) qué falta y presentarlo.",
+      servicio: svc("regularizacion", "CON-03", "Regularización de contabilidad atrasada", "contabilidad", "Poner al día tus declaraciones atrasadas.") });
+  }
+  if (inactivo && a.futuro !== "retomar") {
+    add({ id: "p_cierre", prioridad: a.futuro === "cerrar" ? "alta" : "media",
+      encontro: a.futuro === "cerrar" ? "Quieres cerrar el negocio." : "Aún no decides si cerrar o retomar el negocio.",
+      consecuencias: "Sin término de giro, las obligaciones mensuales y anuales siguen corriendo.",
+      hacer: a.futuro === "cerrar" ? "Hacer el término de giro ante el SII, después de revisar las declaraciones y deudas pendientes." : "Evaluar con un profesional si te conviene cerrar con el término de giro.",
+      servicio: svc("cierre", "FOR-03", "Término de giro", "formalizacion", "Cerrar ordenadamente el negocio ante el SII.") });
+  }
+  if (inactivo && a.futuro === "retomar") {
+    add({ id: "p_retomar", prioridad: "media", encontro: "Quieres retomar el negocio.",
+      hacer: "Poner al día las declaraciones y deudas, y luego llevar la contabilidad mensual.",
+      servicio: svc("contabilidad", "CON-01", "Contabilidad mensual pyme", "contabilidad", "Tu F29, libros y control mensual al día.") });
+  }
   if (!inicio) {
     add({ id: "p_inicio", prioridad: "alta", encontro: "Declaras que aún no inicias actividades en el SII.",
       consecuencias: "Vender sin inicio de actividades impide emitir documentos y puede generar multas.",
@@ -83,7 +130,7 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
       hacer: "Evaluar con un profesional si te conviene una EIRL o una SpA (cambia también cómo tributas).",
       servicio: svc("constituir", "CRE-01", "Constitución de empresa", "constitucion", "Evaluar y crear tu EIRL o SpA.") });
   }
-  if (inicio && a.contador !== "contador") {
+  if (inicio && !inactivo && a.contador !== "contador") {
     add({ id: "p_impuestos", prioridad: "media",
       encontro: a.contador === "nadie" ? "Llevas tus impuestos tú mismo." : "No tienes claro quién lleva tus impuestos.",
       consecuencias: iva ? "El F29 se presenta todos los meses, aunque no vendas; olvidarlo genera multas." : undefined,
@@ -123,7 +170,7 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
   const semilla = BENEFITS.find((b) => b.id === "capital_semilla_emprende");
   const crece = BENEFITS.find((b) => b.id === "sercotec_crece");
   if (!inicio && semilla) beneficios.push({ nombre: semilla.nombre, url: semilla.url, porque: "Está dirigido a personas sin inicio de actividades en primera categoría.", falta: "Que tu idea calce con el foco regional de la convocatoria vigente." });
-  if (inicio && a.crecer === "si" && crece) beneficios.push({ nombre: crece.nombre, url: crece.url, porque: "Apoya a micro y pequeñas empresas con inicio de actividades que quieren crecer.", falta: "Que tus ventas calcen con los rangos de la convocatoria y sus bases regionales." });
+  if (inicio && !inactivo && a.crecer === "si" && crece) beneficios.push({ nombre: crece.nombre, url: crece.url, porque: "Apoya a micro y pequeñas empresas con inicio de actividades que quieren crecer.", falta: "Que tus ventas calcen con los rangos de la convocatoria y sus bases regionales." });
   if (beneficios.length) {
     add({ id: "p_fondos", prioridad: "baja", estado: "parcial", encontro: `${beneficios.length} programa(s) público(s) podrían aplicar a tu situación.`,
       hacer: "Confirmar requisitos y fechas de la convocatoria vigente.",
@@ -131,7 +178,8 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
   }
 
   const fortalezas = [
-    ...(inicio ? ["Tienes actividad económica iniciada."] : []),
+    ...(inicio && !inactivo ? ["Tienes actividad económica iniciada."] : []),
+    ...(inactivo ? ["Buscas ordenar tu situación: es el primer paso para cerrar o retomar sin cargas."] : []),
     ...(a.contador === "contador" ? ["Cuentas con apoyo contable."] : []),
     ...(a.cuentas === "si" ? ["Separas tus finanzas personales de las del negocio."] : []),
     ...(a.crecer === "si" ? ["Tienes intención de crecer: es el mejor momento para ordenar la estructura."] : []),
@@ -142,15 +190,20 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
 
   // Perfil tributario contextual (según lo declarado: no se infiere un régimen a partir del giro).
   const categoria = !inicio ? "Sin inicio de actividades: aún no tributas por una actividad independiente"
+    : inactivo ? "Con inicio de actividades y sin movimiento: tus obligaciones siguen hasta el término de giro"
     : a.venta === "honorarios" ? "Segunda categoría: profesional independiente con boletas de honorarios"
     : a.venta === "facturas" ? "Primera categoría: negocio a tu nombre con boletas o facturas (régimen por confirmar)"
     : "Actividades mixtas: primera categoría (negocio) y segunda categoría (honorarios)";
 
   // Evaluación de situación (cuatro estados; sin etiquetas de incumplimiento).
   const situacion: ExpedientePersona["situacion"] = [
-    { tema: "Actividad económica", estado: "confirmado", detalle: inicio ? "Declaras actividad iniciada ante el SII." : "Declaras que aún no inicias actividades." },
+    { tema: "Actividad económica", estado: "confirmado", detalle: inactivo ? "Declaras inicio de actividades sin movimiento actual y sin término de giro." : inicio ? "Declaras actividad iniciada ante el SII." : "Declaras que aún no inicias actividades." },
+    ...(inicio && a.deudas ? [{ tema: "Deudas con la Tesorería", estado: (a.deudas === "no_se" ? "requiere_documentos" : "confirmado") as EstadoSituacion,
+      detalle: a.deudas === "si" ? "Declaras que tienes deudas: el monto se confirma con el certificado de deuda." : a.deudas === "no" ? "Declaras que no tienes deudas." : "Se confirma con el certificado de deuda de la Tesorería." }] : []),
+    ...(inactivo ? [{ tema: "Declaraciones (F29 y renta)", estado: (a.declara === "si" ? "confirmado" : "requiere_documentos") as EstadoSituacion,
+      detalle: a.declara === "si" ? "Declaras que las sigues presentando: se verifica con tu Carpeta Tributaria." : "Se verifica con tu Carpeta Tributaria." }] : []),
     ...(inicio ? [{ tema: "Régimen tributario", estado: "pendiente" as const, detalle: iva ? "Define tus impuestos de primera categoría: se confirma con tu Carpeta Tributaria." : "Se confirma con tu Carpeta Tributaria." }] : []),
-    { tema: "Antecedentes en el SII y la Tesorería", estado: "no_consultado", detalle: "Por privacidad, CORA no consulta fuentes con el RUT de una persona. Con tu cuenta y autorización se revisan tus documentos." },
+    { tema: "Antecedentes en el SII", estado: "no_consultado", detalle: "Por privacidad, CORA no consulta fuentes con el RUT de una persona. Con tu cuenta y autorización se revisan tus documentos." },
     ...(iva ? [{ tema: "Declaraciones mensuales (F29)", estado: "requiere_documentos" as const, detalle: "Se verifican con tu Carpeta Tributaria o tus F29." }] : []),
     ...(a.trabajadores === "si" ? [{ tema: "Contratos y cotizaciones", estado: "requiere_documentos" as const, detalle: "Se verifican con contratos y el certificado de cotizaciones." }] : []),
   ];
@@ -176,6 +229,16 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
     });
   }
 
+  if (inicio && (a.deudas === "si" || a.deudas === "no_se") && today.toISOString().slice(0, 10) <= "2027-04-15") {
+    impacto.push({
+      titulo: "Condonación de la Tesorería (Ley 21.850)", datos: `Ejemplo: ${pesos(1_000_000)} de multas y ${pesos(500_000)} de intereses, en deudas vencidas al 31-12-2025.`,
+      supuestos: "Montos ilustrativos; tu deuda real sale del certificado de la Tesorería.",
+      formula: "Al contado: se condona 100% de los intereses y 80% de las multas. En convenio de hasta 48 cuotas: 95% y 75%.",
+      resultado: `Al contado se condonan ${pesos(500_000 + 800_000)} de ${pesos(1_500_000)} (pagas ${pesos(200_000)} más el capital del impuesto).`,
+      confirmar: "Que las deudas sean fiscales y estén vencidas al 31 de diciembre de 2025. Si se atrasa una cuota del convenio, el beneficio se revoca.",
+    });
+  }
+
   // Plan de acción: máximo tres prioridades, sin repetir servicio.
   const vistos = new Set<string>();
   const prioridades = [...necesidades].sort((x, y) => y.urgencia - x.urgencia)
@@ -185,7 +248,7 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
     categoria, situacion, impacto, prioridades,
     perfil: [
       { etiqueta: "Perfil", valor: SEGMENTO[a.venta] },
-      { etiqueta: "Formalización", valor: inicio ? "Con inicio de actividades (declarado)" : "Sin inicio de actividades" },
+      { etiqueta: "Formalización", valor: inactivo ? "Con inicio de actividades, sin movimiento (declarado)" : inicio ? "Con inicio de actividades (declarado)" : "Sin inicio de actividades" },
       { etiqueta: "Estructura", valor: inicio ? "Persona natural (sin empresa separada)" : "Por definir" },
       { etiqueta: "Equipo", valor: a.trabajadores === "si" ? "Con trabajadores" : "Sin trabajadores" },
     ],
