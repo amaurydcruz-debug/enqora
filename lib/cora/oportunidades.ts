@@ -108,7 +108,8 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
   }
 
   // 4. Postergación del IVA (caja, no ahorro).
-  if (mipyme && e.regimen !== "renta_presunta") {
+  // No aplica a quien solo emite boletas de honorarios ni a quien aún no inicia actividades: no declaran IVA.
+  if (mipyme && !["renta_presunta", "honorarios", "sin_inicio"].includes(e.regimen ?? "")) {
     out.push({
       id: "postergacion_iva",
       titulo: "Postergar el pago del IVA hasta dos meses",

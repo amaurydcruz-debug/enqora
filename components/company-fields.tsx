@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { REGIMES, type Company } from "@/lib/company-constants";
-import { formatRut, isValidRut } from "@/lib/rut";
+import { formatRut, isNaturalPersonRut, isValidRut } from "@/lib/rut";
 
 // Campos del formulario de empresa (registro y edición).
 export function CompanyFields({
@@ -16,11 +16,13 @@ export function CompanyFields({
 }) {
   const [rut, setRut] = useState(company ? formatRut(company.rut) : "");
   const rutState = !rut ? null : isValidRut(rut) ? "ok" : rut.replace(/[^0-9kK]/g, "").length >= 8 ? "bad" : null;
+  // Persona natural: se registra con su propio RUT y su nombre (no hay razón social).
+  const natural = isNaturalPersonRut(rut);
 
   return (
     <>
       <div className="field">
-        <label htmlFor="rut">RUT de la empresa</label>
+        <label htmlFor="rut">{rutEditable ? "RUT de la empresa o tu RUT personal" : natural ? "RUT" : "RUT de la empresa"}</label>
         <input
           id="rut" name="rut" className="input mono" inputMode="text" autoComplete="off" placeholder="76.123.456-7"
           required={rutEditable} readOnly={!rutEditable} maxLength={12}
@@ -28,16 +30,25 @@ export function CompanyFields({
         />
         {rutEditable ? (
           <span className={`hint${rutState === "bad" ? " hint-bad" : ""}`}>
-            {rutState === "ok" ? "RUT válido." : rutState === "bad" ? "El dígito verificador no coincide." : "Con o sin puntos y guion."}
+            {rutState === "ok" ? (natural ? "RUT válido de persona natural." : "RUT válido.") : rutState === "bad" ? "El dígito verificador no coincide." : "Con o sin puntos y guion."}
           </span>
         ) : (
-          <span className="hint">El RUT identifica a la empresa y no se puede cambiar.</span>
+          <span className="hint">El RUT identifica {natural ? "tu cuenta" : "a la empresa"} y no se puede cambiar.</span>
         )}
       </div>
+      {rutEditable && natural ? (
+        <label className="check-inline">
+          <input type="checkbox" name="own_rut" required />
+          <span>
+            Este RUT es mío. Me registro como persona natural. Entiendo que no puedo registrar el RUT de otra persona y que un
+            profesional ENQORA lo confirmará con mis documentos.
+          </span>
+        </label>
+      ) : null}
       <div className="field">
-        <label htmlFor="legal_name">Razón social</label>
+        <label htmlFor="legal_name">{natural ? "Tu nombre completo (como figura en el SII)" : "Razón social"}</label>
         <input id="legal_name" name="legal_name" className="input" required minLength={2} maxLength={160}
-          defaultValue={company?.legal_name ?? ""} placeholder="Comercial Ejemplo SpA" />
+          defaultValue={company?.legal_name ?? ""} placeholder={natural ? "María José Pérez Soto" : "Comercial Ejemplo SpA"} />
       </div>
       <div className="field">
         <label htmlFor="trade_name">Nombre de fantasía <span className="optional">(opcional)</span></label>
@@ -69,7 +80,11 @@ export function CompanyFields({
             <option key={value} value={value}>{label}</option>
           ))}
         </select>
-        <span className="hint">Si no lo sabes, deja "Por definir". Lo confirmaremos en el diagnóstico inicial.</span>
+        <span className="hint">
+          {natural
+            ? "Si vendes con boletas o facturas a tu nombre, tu régimen es Pro Pyme, general o renta presunta. Si solo emites boletas de honorarios o aún no inicias actividades, elige esa opción. Si no lo sabes, deja «Por definir»."
+            : "Si no lo sabes, deja «Por definir». Lo confirmaremos en el diagnóstico inicial."}
+        </span>
       </div>
     </>
   );

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Callout } from "@/components/disclosure";
 import { NewCompanyForm } from "./form";
 
-export const metadata: Metadata = { title: "Registrar empresa" };
+export const metadata: Metadata = { title: "Registrar empresa o RUT personal" };
 
 export default function NewCompanyPage() {
   return (
@@ -12,8 +12,11 @@ export default function NewCompanyPage() {
       <header className="hero">
         <div className="hero-main">
           <span className="eyebrow">Empresas</span>
-          <h1>Registrar empresa</h1>
-          <p className="hero-lead">Quedarás como propietario y podrás invitar a tu contador o a tu equipo.</p>
+          <h1>Registrar empresa o RUT personal</h1>
+          <p className="hero-lead">
+            Registra tu empresa o, si trabajas a tu nombre, tu propio RUT como persona natural. Quedarás como propietario y podrás
+            invitar a tu contador o a tu equipo.
+          </p>
         </div>
       </header>
 
