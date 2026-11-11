@@ -3007,3 +3007,6 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .sol-quien.sol-tu { border-color: var(--blue); color: var(--text); }
 .sol-quien.sol-enqora { border-color: var(--gold); color: var(--gold-bright); }
 .sol-quien.sol-ambos { border-color: var(--ok); color: var(--ok); }
+.enjambre .enj-aplica { color: var(--gold-bright); }
+.enjambre .enj-no_aplica { color: var(--text-3); }
+.enjambre .enj-por_confirmar { color: var(--warn); }

@@ -52,6 +52,21 @@ export const RULES: Record<string, Rule> = {
     regla: "Art. 69 CT: el aviso de término de giro (Formulario 2121, en línea) se presenta dentro de los dos meses siguientes al término de las actividades. Requiere no tener pendientes con el SII (documentos electrónicos, libros de los últimos tres años). El SII tiene hasta seis meses para resolver.",
     fuente: { titulo: "SII Educa · Término de giro", articulo: "Art. 69 CT; Circular SII N° 66 de 1998", vigencia: "Vigente", url: "https://www.sii.cl/siieduca/aprende-con-nosotros/termino-de-giro-que-es.html" },
   },
+  f29_sin_movimiento: {
+    tema: "F29 sin movimiento",
+    regla: "El Formulario 29 es obligatorio en todos los períodos tributarios, aunque no haya movimiento, mientras no se haga el término de giro. Las declaraciones sin movimiento se presentan solo por internet. Una declaración sin impuesto presentada fuera de plazo tiene multa de 1 UTM a 1 UTA.",
+    fuente: { titulo: "SII · ¿Hay que declarar el F29 aunque no se tenga movimiento? (act. 05-06-2025)", articulo: "Art. 97 CT", vigencia: "Vigente", url: "https://www.sii.cl/preguntas_frecuentes/impuestos_mensuales/001_130_1053.htm" },
+  },
+  presuncion_termino_giro: {
+    tema: "Presunción de término de giro por F29 no presentados (Ley 21.713)",
+    regla: "Art. 69 inciso final CT (Ley 21.713): el SII puede presumir el término de giro, por resolución fundada y sin citación, si se cumplen copulativamente: 6 o más períodos continuos sin presentar F29; 6 meses desde el contacto del SII sin que el contribuyente regularice ni comunique que sigue operando; sin utilidades ni activos pendientes de tributación, y SIN DEUDAS TRIBUTARIAS VIGENTES. Admite prueba en contrario y se puede impugnar (RAF, RAV o Tribunal Tributario y Aduanero). Quien tiene deudas no queda cerrado por esta vía: debe hacer su término de giro. Rige desde el 01-03-2026 (Res. Ex. SII N° 171 de 2025; Circular N° 32 de 2025).",
+    fuente: { titulo: "Diario Constitucional · SII establece procedimiento para la presunción de término de giro", articulo: "Art. 69 CT; Res. Ex. SII 171/2025; Circular SII 32/2025", vigencia: "Desde 01-03-2026", url: "https://www.diarioconstitucional.cl/estudios-juridicos/sii-establece-procedimiento-administrativo-para-nueva-presuncion-de-termino-de-giro/" },
+  },
+  termino_giro_sii: {
+    tema: "Término de giro dispuesto por el SII (Leyes 20.780 y 20.899)",
+    regla: "Por resolución (Ley 20.899): el SII presume el término de giro de quien tiene 36 o más períodos continuos sin operaciones, sin utilidades ni activos pendientes de tributación y SIN DEUDAS TRIBUTARIAS. Con citación (Ley 20.780): si no se presentan declaraciones por 18 meses continuos (o dos años tributarios), el SII puede citar (art. 63 CT), liquidar y girar; al notificar los giros anota la observación 50 (personas naturales) o 60 (jurídicas), y el plazo de prescripción del art. 200 se aumenta en un año desde la citación. Pagada la deuda, el SII ordena el término de giro.",
+    fuente: { titulo: "SII · Término de giro por parte del SII", articulo: "Art. 69 CT; Leyes 20.780 y 20.899", vigencia: "Vigente", url: "https://www.sii.cl/portales/reforma_tributaria/terminodegiro_rt.html" },
+  },
   prescripcion_200: {
     tema: "Plazo de revisión del SII",
     regla: "Art. 200 CT: el SII puede revisar, liquidar y girar dentro de 3 años desde la expiración del plazo legal de pago; el plazo es de 6 años si no se presentó la declaración o fue maliciosamente falsa. Verifica el texto vigente antes de afirmar que un período está prescrito.",

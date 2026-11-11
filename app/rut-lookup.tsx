@@ -7,6 +7,8 @@ import { CasoForm } from "@/app/cora-caso";
 import { PriceLine } from "@/app/diagnostico-360";
 import { objetivosOrdenados } from "@/lib/cora/caso";
 import { ConsultaEstrategica } from "@/app/consulta-estrategica";
+import { InvestigacionEnVivo } from "@/app/cora-solucion";
+import { enjambrePersonaAction, type EnjambreResult } from "@/app/actions/enjambre";
 import { QUIEN, solucionPersona } from "@/lib/cora/solucion-persona";
 import { ESTADO_SITUACION, investigarPersona, PREGUNTAS_PERSONA, preguntaVisible, type ExpedientePersona, type PersonaAnswers } from "@/lib/cora/personas";
 import { EnqoraClockLoader } from "@/components/clock-loader";
@@ -236,6 +238,17 @@ function NaturalFlow({ r }: { r: PublicCompany }) {
   const siguiente = visibles.find((q) => !a[q.key]);
   const completo = !!a.venta && !siguiente;
   const respuestas = { contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no", ...a } as PersonaAnswers;
+  // El enjambre trabaja en el servidor con las respuestas (nunca con el RUT): revisa la normativa y verifica en vivo las fuentes.
+  const clave = completo ? JSON.stringify(a) : "";
+  const [enj, setEnj] = useState<{ clave: string; r: EnjambreResult | null }>({ clave: "", r: null });
+  useEffect(() => {
+    if (!clave) return;
+    let vivo = true;
+    setEnj({ clave, r: null });
+    enjambrePersonaAction(JSON.parse(clave)).then((r) => { if (vivo) setEnj({ clave, r }); }, () => { if (vivo) setEnj({ clave, r: { ok: false } }); });
+    return () => { vivo = false; };
+  }, [clave]);
+  const enjambre = enj.clave === clave ? enj.r : null;
   return (
     <>
       <h3>CORA Personas · RUT {formatRut(r.rut ?? "")}</h3>
@@ -274,12 +287,29 @@ function NaturalFlow({ r }: { r: PublicCompany }) {
           </fieldset>
         ) : null}
       </div>
-      {completo ? <PersonaReport a={respuestas} e={investigarPersona(respuestas, catalog)} when={consultedAt(r.consultado)} rut={r.rut ?? ""} /> : null}
+      {completo && !enjambre ? (
+        <div className="cora-live" role="status" aria-live="polite">
+          <span className="eyebrow">CORA está investigando</span>
+          <b>Los agentes revisan la normativa vigente con tus respuestas y verifican en vivo las fuentes oficiales…</b>
+        </div>
+      ) : null}
+      {completo && enjambre ? (
+        enjambre.ok ? (
+          <InvestigacionEnVivo pasos={enjambre.pasos}>
+            <PersonaReport a={respuestas} e={investigarPersona(respuestas, catalog)} when={consultedAt(r.consultado)} rut={r.rut ?? ""} enjambre={enjambre} />
+          </InvestigacionEnVivo>
+        ) : <PersonaReport a={respuestas} e={investigarPersona(respuestas, catalog)} when={consultedAt(r.consultado)} rut={r.rut ?? ""} enjambre={null} />
+      ) : null}
     </>
   );
 }
 
-function PersonaReport({ a, e, when, rut }: { a: PersonaAnswers; e: ExpedientePersona; when: string | null; rut: string }) {
+const ESTADO_REV = { aplica: "Te aplica", no_aplica: "No te aplica", por_confirmar: "Por confirmar con documentos", informativo: "Para tu información" } as const;
+const horaCl = (iso: string) => new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago" }).format(new Date(iso));
+
+function PersonaReport({ a, e, when, rut, enjambre }: { a: PersonaAnswers; e: ExpedientePersona; when: string | null; rut: string; enjambre: EnjambreResult | null }) {
+  const enj = enjambre && enjambre.ok ? enjambre : null;
+  const verif = new Map((enj?.fuentes ?? []).map((f) => [f.url, f]));
   const sol = solucionPersona(a, e);
   const [relato, setRelato] = useState(sol?.relato ?? "");
   const servicios = e.prioridades.filter((n) => n.servicio?.disponible);
@@ -317,6 +347,35 @@ function PersonaReport({ a, e, when, rut }: { a: PersonaAnswers; e: ExpedientePe
         <CasoForm rut={rut} razon="" relato={relato} setRelato={setRelato} etiqueta="Empezar"
           titulo="¿Quieres que ENQORA lo resuelva contigo?" boton="Quiero esta solución"
           ayuda="Tu caso ya va escrito con lo que nos contaste: agrega lo que quieras. Un profesional lo revisa y te envía el precio total antes de empezar." />
+      ) : null}
+
+      {enj ? (
+        <section className="cora-eval enjambre" aria-label="Lo que revisaron los agentes">
+          <span className="report-tag">Lo que revisaron los agentes ({enj.revisiones.length} normas · {enj.fuentes.filter((f) => f.ok).length} de {enj.fuentes.length} fuentes verificadas en vivo)</span>
+          <ul>
+            {enj.revisiones.map((r) => {
+              const v = r.fuente.url ? verif.get(r.fuente.url) : undefined;
+              return (
+                <li key={r.norma + r.reviso}>
+                  <b>{r.agente} · {r.reviso}</b> <span className={`report-note enj-${r.estado}`}>· {ESTADO_REV[r.estado]}</span>
+                  <span>{r.resultado}</span>
+                  <span className="report-note">
+                    Fuente: {r.fuente.url ? <a href={r.fuente.url} target="_blank" rel="noopener noreferrer">{r.fuente.titulo}</a> : r.fuente.titulo}
+                    {r.fuente.articulo ? ` (${r.fuente.articulo})` : ""}
+                    {v ? (v.ok ? ` · ✓ publicada, comprobada el ${horaCl(v.comprobada)}` : ` · no se pudo comprobar ahora (${v.estado})`) : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {enj.novedades.length ? (
+            <>
+              <span className="report-tag">Novedades verificadas por el equipo ENQORA</span>
+              <ul>{enj.novedades.map((n) => <li key={n.source_url}><a href={n.source_url} target="_blank" rel="noopener noreferrer"><b>{n.title}</b></a><span>{n.summary}</span></li>)}</ul>
+            </>
+          ) : null}
+          <span className="report-note">Por privacidad, ningún agente consultó fuentes con tu RUT. Lo que depende de tus datos (deudas exactas, declaraciones presentadas, citaciones) se confirma con tus documentos y tu autorización.</span>
+        </section>
       ) : null}
 
       <h4 className="lookup-acts-title">Por qué te proponemos esto</h4>

@@ -12,6 +12,7 @@ import { analizarReglas } from "@/lib/cora/caso";
 import { PLAYBOOKS, RULES } from "@/lib/knowledge";
 import { isNaturalPersonRut } from "@/lib/rut";
 import { solucionPersona } from "@/lib/cora/solucion-persona";
+import { enjambrePersona, fuentesDe } from "@/lib/cora/enjambre-persona";
 import { investigarPersona, PREGUNTAS_PERSONA, preguntaVisible, type PersonaAnswers } from "@/lib/cora/personas";
 import { estadoDocumento, renderPreview, resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 
@@ -190,6 +191,27 @@ prueba("Deudas de más de 3 años: revisar la prescripción ANTES de pagar con l
 prueba("Condonación TGR (empresas) advierte revisar la prescripción", () => {
   const o = oportunidades({ regimen: "pro_pyme_general", tramo: "5", trabajadores: 0, hoy }).find((x) => x.id === "tgr_condonacion");
   assert.ok(o?.confirmar.some((c) => /prescritas/.test(c)));
+});
+
+prueba("Enjambre: persona sin movimiento con deudas antiguas", () => {
+  const a = { venta: "inactivo", declara: "no", futuro: "cerrar", deudas: "si", antiguedad: "antiguas", contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" } as PersonaAnswers;
+  const r = enjambrePersona(a, hoy);
+  const por = (n: string) => r.find((x) => x.norma === n);
+  assert.equal(por("presuncion_termino_giro")?.estado, "no_aplica");
+  assert.equal(por("prescripcion_tributaria")?.estado, "por_confirmar");
+  assert.equal(por("tgr_condonacion")?.estado, "aplica");
+  assert.match(por("tgr_condonacion")!.resultado, /quedan 157 días/);
+  assert.ok(por("f29_sin_movimiento") && por("termino_giro_sii") && por("termino_giro"));
+  const f = fuentesDe(r);
+  assert.equal(new Set(f.map((x) => x.url)).size, f.length);
+  assert.ok(f.every((x) => x.url.startsWith("https://")));
+});
+prueba("Enjambre: toda revisión cita una regla con fuente", () => {
+  for (const venta of ["facturas", "honorarios", "ambas", "sin_inicio", "inactivo"] as const) {
+    const r = enjambrePersona({ venta, declara: "no_se", futuro: "no_se", deudas: "no_se", contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" } as PersonaAnswers, hoy);
+    assert.ok(r.length > 0, venta);
+    for (const x of r) assert.ok(x.fuente.titulo.length > 5, x.norma);
+  }
 });
 
 // ---------- Documentos legales ----------
