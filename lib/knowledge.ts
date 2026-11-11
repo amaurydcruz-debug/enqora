@@ -6,7 +6,7 @@ import type { AgentKey } from "@/lib/mirror";
 // mínimo) NO se escriben aquí: el agente debe pedirlas o verificarlas en la fuente oficial.
 // Al cambiar una norma: actualizar este archivo, KNOWLEDGE_VERSION y docs/ENQORA-AGENTES.md.
 
-export const KNOWLEDGE_VERSION = "2026-11-09";
+export const KNOWLEDGE_VERSION = "2026-11-10";
 
 export type Source = { titulo: string; articulo?: string; vigencia?: string; url?: string };
 export type Rule = { tema: string; regla: string; fuente: Source };
@@ -122,6 +122,11 @@ export const RULES: Record<string, Rule> = {
     regla: "Personas naturales y mipymes con deudas fiscales en mora vencidas al 31-12-2025: pago al contado con condonación de 100% de intereses y 80% de multas; convenio de hasta 48 cuotas con 95% de intereses y 75% de multas, pie mínimo de 10% del capital y hasta 3 convenios por contribuyente. Plazo: 180 días corridos desde el 17-10-2026 (hasta el 15-04-2027), sin prórroga. Si no se paga una cuota a tiempo, el beneficio se revoca. Se solicita en la plataforma de la TGR (tgr.gob.cl/reconstruccion).",
     fuente: { titulo: "TGR · Ley de Reconstrucción: facilidades de pago para MiPymes", vigencia: "17-10-2026 al 15-04-2027", url: "https://tgr.gob.cl/2026/10/19/ley-de-reconstruccion-tgr-aplica-facilidades-de-pago-a-deudores-cae-mipymes-y-personas-naturales/noticias/" },
   },
+  prescripcion_tributaria: {
+    tema: "Prescripción de impuestos y de su cobro (Código Tributario, arts. 200 y 201)",
+    regla: "El SII puede revisar y liquidar dentro de 3 años desde que debió pagarse el impuesto; 6 años si la declaración no se presentó o fue maliciosamente falsa. En los mismos plazos prescribe la acción del Fisco para cobrar impuestos, intereses, sanciones y recargos. Se interrumpe por reconocimiento u obligación escrita (por ejemplo, firmar un convenio de pago), por la notificación administrativa de un giro o liquidación y por el requerimiento judicial. No opera sola: la declara la Tesorería o un tribunal. Por eso, antes de pagar o firmar un convenio por deudas antiguas, se revisa la prescripción deuda por deuda. Además, por la Ley 21.713 la Tesorería declaró de oficio prescritas deudas giradas hasta el 31-12-2013 (Res. Ex. 1.223 de 2025), con excepciones.",
+    fuente: { titulo: "Código Tributario (DL 830), arts. 200 y 201; TGR Res. Ex. 1.223 (DO 24-04-2025)", vigencia: "Vigente", url: "https://www.diariooficial.interior.gob.cl/publicaciones/2025/04/24/44132/01/2635680.pdf" },
+  },
   sence_franquicia: {
     tema: "Franquicia tributaria de capacitación SENCE (Ley 21.850)",
     regla: "Las empresas de primera categoría pueden descontar del impuesto a la renta el costo de capacitaciones autorizadas por SENCE. La Ley 21.850 redujo el tope de 1% a 0,7% de la planilla anual de remuneraciones y fijó copagos según la renta del trabajador: cobertura de 80% hasta 25 UTM, 50% entre 25 y 50 UTM y 15% sobre 50 UTM. Confirmar en SENCE desde qué fecha rigen el tope y los copagos. Requisito habitual: planilla imponible mayor a 35 UTM mensuales y cotizaciones pagadas.",
@@ -160,13 +165,14 @@ export const PLAYBOOKS: Playbook[] = [
     senales: ["deudas con la Tesorería", "giros o convenios impagos", "embargo o cobranza de la TGR", "multas e intereses acumulados"],
     pasos: [
       "Pedir al cliente el certificado de deuda fiscal de la Tesorería (lo obtiene con su clave; ENQORA nunca la pide) y separar las deudas vencidas al 31-12-2025 de las posteriores.",
+      "ANTES de pagar o firmar convenio: revisar deuda por deuda si el cobro prescribió (3 años, o 6 si no se declaró; interrupciones por giro notificado, convenio, pago o demanda). Las deudas prescritas no se pagan: se pide que se declaren prescritas (LEG-04). Firmar un convenio las reconocería.",
       "Confirmar que el cliente es persona natural o mipyme y que no ha usado los 3 convenios permitidos.",
       "Calcular, por cada deuda, el monto a pagar al contado (100% de intereses y 80% de multas condonados) y en convenio (95% y 75%, pie mínimo de 10% del capital, hasta 48 cuotas).",
       "Comparar ambas alternativas con la caja del cliente: el convenio se revoca si se atrasa una cuota.",
       "Acompañar la solicitud en la plataforma de la TGR antes del 15-04-2027 y registrar el comprobante como evidencia del ahorro (intereses y multas condonados).",
     ],
-    normas: ["tgr_condonacion", "multa_97_2", "interes_53"],
-    preguntar: ["¿Tienes el certificado de deuda fiscal actualizado?", "¿Prefieres pagar al contado o en cuotas? ¿Cuánto puedes pagar de pie?", "¿Tienes convenios vigentes o anteriores con la Tesorería?"],
+    normas: ["tgr_condonacion", "prescripcion_tributaria", "multa_97_2", "interes_53"],
+    preguntar: ["¿Tienes el certificado de deuda fiscal actualizado?", "¿De qué años son las deudas? ¿Te notificaron giros, firmaste convenios o hubo demandas de cobro?", "¿Prefieres pagar al contado o en cuotas? ¿Cuánto puedes pagar de pie?", "¿Tienes convenios vigentes o anteriores con la Tesorería?"],
     riesgo: "alto",
   },
   {

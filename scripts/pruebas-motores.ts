@@ -155,7 +155,7 @@ prueba("Persona sin movimiento con deuda TGR que quiere cerrar: condonación, de
     { code: "CON-03", module: "contabilidad", name: "Regularización", price_from: 10000, market_price: null, welcome_pct: null, welcome_months: null },
     { code: "FOR-03", module: "formaliza", name: "Término de giro", price_from: 10000, market_price: null, welcome_pct: null, welcome_months: null },
   ];
-  const a = { venta: "inactivo", declara: "no", futuro: "cerrar", deudas: "si", contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" } as PersonaAnswers;
+  const a = { venta: "inactivo", declara: "no", futuro: "cerrar", deudas: "si", antiguedad: "recientes", contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" } as PersonaAnswers;
   const e = investigarPersona(a, cat as never, hoy);
   const codigos = e.prioridades.map((n) => n.servicio?.codigo);
   assert.deepEqual([...codigos].sort(), ["CON-03", "CON-06", "FOR-03"]);
@@ -170,6 +170,26 @@ prueba("Persona sin movimiento con deuda TGR que quiere cerrar: condonación, de
   // Si quiere retomar, el último paso es la contabilidad mensual y no el término de giro.
   const ret = solucionPersona({ ...a, futuro: "retomar" }, investigarPersona({ ...a, futuro: "retomar" }, cat as never, hoy), hoy)!;
   assert.ok(!ret.pasos.some((p) => /término de giro/i.test(p.titulo)));
+});
+
+prueba("Deudas de más de 3 años: revisar la prescripción ANTES de pagar con la condonación", () => {
+  const a = { venta: "inactivo", declara: "no", futuro: "cerrar", deudas: "si", antiguedad: "antiguas", contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" } as PersonaAnswers;
+  assert.ok(PREGUNTAS_PERSONA.filter((q) => preguntaVisible(q.key, a)).some((q) => q.key === "antiguedad"));
+  const e = investigarPersona(a, [], hoy);
+  assert.ok(e.necesidades.some((n) => n.id === "p_prescripcion"));
+  const sol = solucionPersona(a, e, hoy)!;
+  const t = sol.pasos.map((p) => p.titulo);
+  const iPresc = t.findIndex((x) => /prescritas/.test(x));
+  const iPago = t.findIndex((x) => /^Pagas solo lo que no prescribió/.test(x));
+  assert.ok(iPresc > 0 && iPago > iPresc, t.join(" | "));
+  assert.match(sol.relato, /prescritas antes de pagar/);
+  // Con deudas recientes no se agrega la revisión de prescripción.
+  const r = { ...a, antiguedad: "recientes" } as PersonaAnswers;
+  assert.ok(!investigarPersona(r, [], hoy).necesidades.some((n) => n.id === "p_prescripcion"));
+});
+prueba("Condonación TGR (empresas) advierte revisar la prescripción", () => {
+  const o = oportunidades({ regimen: "pro_pyme_general", tramo: "5", trabajadores: 0, hoy }).find((x) => x.id === "tgr_condonacion");
+  assert.ok(o?.confirmar.some((c) => /prescritas/.test(c)));
 });
 
 // ---------- Documentos legales ----------
