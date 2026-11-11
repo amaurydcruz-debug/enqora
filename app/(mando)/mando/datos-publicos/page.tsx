@@ -114,15 +114,20 @@ export default async function PublicDataPage({ searchParams }: { searchParams: P
           <>
             <h3>Últimas ejecuciones</h3>
             <ul className="ref-list" role="list">
-              {runs.map((r) => (
-                <li key={r.id}>
-                  <span className="ref-main">
-                    <b>{fmt(r.ran_at)} · {r.origin === "manual" ? "manual" : "automática"}{r.dataset ? ` · ${DATASETS[r.dataset]}` : ""}</b>
-                    <small>{r.rows_loaded ? `${r.rows_loaded.toLocaleString("es-CL")} filas · ` : ""}{r.detail ?? RESULT[r.result]?.text ?? ""}</small>
-                  </span>
-                  <span className={`status status-${RESULT[r.result]?.tone ?? "muted"}`}>{RESULT[r.result]?.label ?? r.result}</span>
-                </li>
-              ))}
+              {runs.map((r, i) => {
+                // Un tramo «Avanzando» que ya tiene ejecuciones posteriores no sigue en marcha: es historia de la carga.
+                const pasado = (r.result === "continua" || r.result === "ocupado") && i > 0;
+                const res = pasado ? { label: "Tramo hecho", tone: "muted", text: "Tramo de una carga que ya continuó." } : RESULT[r.result];
+                return (
+                  <li key={r.id}>
+                    <span className="ref-main">
+                      <b>{fmt(r.ran_at)} · {r.origin === "manual" ? "manual" : "automática"}{r.dataset ? ` · ${DATASETS[r.dataset]}` : ""}</b>
+                      <small>{r.rows_loaded ? `${r.rows_loaded.toLocaleString("es-CL")} filas · ` : ""}{r.detail ?? res?.text ?? ""}</small>
+                    </span>
+                    <span className={`status status-${res?.tone ?? "muted"}`}>{res?.label ?? r.result}</span>
+                  </li>
+                );
+              })}
             </ul>
           </>
         ) : <p className="muted-line">El conector aún no se ha ejecutado. Pulsa «Sincronizar ahora» para la primera carga.</p>}
