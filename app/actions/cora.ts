@@ -2,6 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
+import { after } from "next/server";
 import type { PublicCompany } from "@/app/actions/public";
 import { llamarHerramienta } from "@/lib/ai/gateway";
 import { investigar } from "@/lib/cora/director";
@@ -22,7 +23,8 @@ import { createClient } from "@/lib/supabase/server";
 // límite de consultas por visitante de la base de datos. Nada se guarda.
 
 // motivo: por qué se usó el motor de reglas (diagnóstico visible para el equipo y en los registros de Vercel).
-type Origen = { origen: "ia" | "reglas"; motivo?: string; evidencias: Evidencia[]; web: HallazgoWeb[] };
+// robot: estado del robot investigador en los portales oficiales para este RUT (ninguna, en_curso, lista).
+type Origen = { origen: "ia" | "reglas"; motivo?: string; evidencias: Evidencia[]; web: HallazgoWeb[]; robot?: string };
 export type CoraResult =
   | ({ ok: true; fase: "turno"; turno: Turno } & Origen)
   | ({ ok: true; fase: "informe"; informe: Informe } & Origen)
@@ -60,6 +62,8 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
       supabase.rpc("research_public_findings", { p_rut: rut }), registroEmpresas(supabase, rut), mercadoPublico(rut),
     ]);
     const oficiales = [registro, compras].filter((x): x is HallazgoWeb => !!x);
+    // Primera vuelta de la consulta: si no hay investigación reciente en los portales, el robot sale solo.
+    const robot = Object.keys(respuestas).length === 0 && input.fase === "turno" ? await lanzarRobot(supabase, rut, p.razon_social ?? null, h) : undefined;
     const web = [...oficiales, ...sanearHallazgos(webRaw).filter((w) => !oficiales.some((o) => o.portal === w.portal))];
     const exp = investigar(p, catalog, respuestas, new Date(), web);
     const ev = evidenciasDe(exp, respuestas);
@@ -71,7 +75,7 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
       const informe = ia.input ? validarInforme(ia.input, ev, ids) : null;
       const motivo = informe ? undefined : ia.motivo ?? "validador";
       if (motivo) console.error("[ENQORA CORA] informe por reglas:", motivo);
-      return informe ? { ok: true, fase: "informe", informe, origen: "ia", evidencias: ev, web } : { ok: true, fase: "informe", informe: informeReglas(exp, ev), origen: "reglas", motivo, evidencias: ev, web };
+      return informe ? { ok: true, fase: "informe", informe, origen: "ia", evidencias: ev, web, robot } : { ok: true, fase: "informe", informe: informeReglas(exp, ev), origen: "reglas", motivo, evidencias: ev, web, robot };
     }
 
     const disp = preguntasDisponibles(exp, respuestas);
@@ -80,7 +84,7 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
     const turno = ia.input ? validarTurno(ia.input, ev, dispIds) : null;
     const motivo = turno ? undefined : ia.motivo ?? "validador";
     if (motivo) console.error("[ENQORA CORA] turno por reglas:", motivo);
-    return turno ? { ok: true, fase: "turno", turno, origen: "ia", evidencias: ev, web } : { ok: true, fase: "turno", turno: turnoReglas(exp, ev, respuestas), origen: "reglas", motivo, evidencias: ev, web };
+    return turno ? { ok: true, fase: "turno", turno, origen: "ia", evidencias: ev, web, robot } : { ok: true, fase: "turno", turno: turnoReglas(exp, ev, respuestas), origen: "reglas", motivo, evidencias: ev, web, robot };
   } catch (e) {
     console.error("[ENQORA CORA]", e instanceof Error ? e.message : e);
     return { ok: false, error: "CORA no pudo completar la consulta. Intenta nuevamente." };
@@ -95,4 +99,42 @@ async function estratega(prompt: string, tool: { name: string; description: stri
   const system = `Eres CORA, el estratega de inteligencia empresarial de ENQORA (Chile). Tu trabajo es descubrir valor que el cliente aún no ve, a partir de evidencia.\n\n${MANUAL}`;
   const r = await llamarHerramienta({ system, prompt, tool, datos: "publicos", maxTokens: 3000, timeoutMs: 45_000, validar });
   return { input: r.input, motivo: r.motivo };
+}
+
+// Encola la investigación en los portales (si corresponde) y la lanza en segundo plano. Devuelve el estado.
+async function lanzarRobot(supabase: Awaited<ReturnType<typeof createClient>>, rut: string, razon: string | null, h: Headers): Promise<string> {
+  const service = process.env.ENQORA_SERVICE_TOKEN;
+  const secret = process.env.CRON_SECRET;
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!service || !secret || !host) return "ninguna";
+  const { data, error } = await supabase.rpc("svc_research_enqueue", { p_token: service, p_rut: rut, p_razon: razon });
+  if (error || !data) return "ninguna";
+  const r = data as { estado: string; id?: string };
+  if (r.estado === "nueva" && r.id) {
+    const proto = h.get("x-forwarded-proto") ?? "https";
+    after(async () => {
+      await fetch(`${proto}://${host}/api/cron/investigador`, {
+        method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
+        body: JSON.stringify({ run: r.id }), cache: "no-store", signal: AbortSignal.timeout(15_000),
+      }).catch(() => undefined);
+    });
+    return "en_curso";
+  }
+  return r.estado === "en_curso" ? "en_curso" : r.estado === "reciente" ? "lista" : "ninguna";
+}
+
+// Consulta los resultados del robot para un RUT de empresa (la pantalla pregunta cada 20 s mientras trabaja).
+export async function hallazgosRobotAction(rutIn: string): Promise<{ robot: string; web: HallazgoWeb[] }> {
+  try {
+    const rut = normalizeRut(String(rutIn ?? ""));
+    if (!rut || !isValidRut(rut) || Number(rut.split("-")[0]) < 50_000_000) return { robot: "ninguna", web: [] };
+    const supabase = await createClient();
+    const [{ data: estado }, { data: raw }] = await Promise.all([
+      supabase.rpc("research_public_status", { p_rut: rut }),
+      supabase.rpc("research_public_findings", { p_rut: rut }),
+    ]);
+    return { robot: typeof estado === "string" ? estado : "ninguna", web: sanearHallazgos(raw) };
+  } catch {
+    return { robot: "ninguna", web: [] };
+  }
 }
