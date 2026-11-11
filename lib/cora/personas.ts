@@ -17,6 +17,7 @@ export type PersonaAnswers = NaturalAnswers & {
   declara?: "si" | "no" | "no_se";
   futuro?: "retomar" | "cerrar" | "no_se";
   deudas?: "si" | "no" | "no_se";
+  antiguedad?: "antiguas" | "recientes" | "no_se"; // de cuándo son las deudas (prescripción)
 };
 
 // Preguntas que solo aplican según lo ya respondido (una persona sin movimiento no responde sobre su local o su marca).
@@ -24,6 +25,7 @@ export function preguntaVisible(key: keyof PersonaAnswers, a: Partial<PersonaAns
   const inactivo = a.venta === "inactivo";
   if (key === "declara" || key === "futuro") return inactivo;
   if (key === "deudas") return a.venta !== "sin_inicio";
+  if (key === "antiguedad") return a.venta !== "sin_inicio" && a.deudas === "si";
   if (key === "contador") return a.venta !== "sin_inicio" && !inactivo;
   if (["trabajadores", "lugar", "cuentas", "crecer", "marca"].includes(key)) return !inactivo;
   return true;
@@ -47,7 +49,12 @@ export const PREGUNTAS_PERSONA: { key: keyof PersonaAnswers; q: string; porque: 
   { key: "crecer", q: "¿Quieres crecer en los próximos 12 meses (más ventas, socios o contratar)?", porque: "Si quieres crecer, conviene revisar tu estructura y los programas de apoyo vigentes.", options: [["si", "Sí"], ["no", "No"], ["no_se", "No lo sé"]] },
   { key: "marca", q: "¿Tu negocio tiene un nombre o marca que quieras proteger?", porque: "Una marca registrada en INAPI es un activo de tu negocio.", options: [["si", "Sí"], ["no", "No"]] },
   { key: "deudas", q: "¿Tienes deudas con la Tesorería (impuestos, multas o giros sin pagar)?", porque: "Hasta el 15 de abril de 2027, la Ley 21.850 permite pagarlas con condonación de intereses y multas.", options: [["si", "Sí"], ["no", "No"], ["no_se", "No lo sé"]] },
+  { key: "antiguedad", q: "¿De cuándo son esas deudas?", porque: "Las deudas tributarias prescriben: en general a los 3 años desde que debieron pagarse, o a los 6 si no se declararon. Antes de pagar hay que revisarlo.", options: [["antiguas", "Algunas tienen más de 3 años"], ["recientes", "Todas son de los últimos 3 años"], ["no_se", "No lo sé"]] },
 ];
+
+// Puede haber deudas prescritas: hay que revisarlo antes de pagar o firmar un convenio (que reconoce la deuda).
+export const revisarPrescripcion = (a: Partial<PersonaAnswers>) =>
+  a.venta !== "sin_inicio" && ((a.deudas === "si" && a.antiguedad !== "recientes") || a.deudas === "no_se");
 
 // Estados de la evaluación de situación: nunca se califica de incumplimiento sin evidencia.
 export type EstadoSituacion = "confirmado" | "pendiente" | "no_consultado" | "requiere_documentos";
@@ -95,8 +102,18 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
     add({ id: "p_tgr", prioridad: "alta", estado: a.deudas === "si" ? "declarado" : "requiere_documentacion",
       encontro: a.deudas === "si" ? "Declaras deudas con la Tesorería." : "No sabes si tienes deudas con la Tesorería.",
       consecuencias: "Las deudas fiscales siguen sumando intereses y multas mientras no se paguen o se convengan.",
-      hacer: "Obtener tu certificado de deuda en tgr.cl (gratis, con tu clave) y evaluar pagarlo con la condonación de la Ley 21.850, solo para deudas vencidas al 31 de diciembre de 2025 y hasta el 15 de abril de 2027.",
+      hacer: revisarPrescripcion(a)
+        ? "Obtener tu certificado de deuda en tgr.cl (gratis, con tu clave), revisar primero qué deudas podrían estar prescritas y pagar solo las demás con la condonación de la Ley 21.850 (deudas vencidas al 31 de diciembre de 2025, hasta el 15 de abril de 2027)."
+        : "Obtener tu certificado de deuda en tgr.cl (gratis, con tu clave) y evaluar pagarlo con la condonación de la Ley 21.850, solo para deudas vencidas al 31 de diciembre de 2025 y hasta el 15 de abril de 2027.",
       servicio: svc("tgr", "CON-06", "Regularización de deudas fiscales con condonación (Ley 21.850)", "contabilidad", "Calcular contado frente a convenio y acompañarte en la Tesorería.") });
+  }
+  // Prescripción (Código Tributario, arts. 200 y 201): se revisa ANTES de pagar o firmar un convenio.
+  if (revisarPrescripcion(a)) {
+    add({ id: "p_prescripcion", prioridad: "alta", estado: "requiere_documentacion",
+      encontro: a.deudas === "no_se" ? "No sabes si tienes deudas ni de cuándo serían." : a.antiguedad === "antiguas" ? "Declaras que algunas de tus deudas tienen más de 3 años." : "No sabes de cuándo son tus deudas.",
+      consecuencias: "Si pagas o firmas un convenio por una deuda que podría estar prescrita, la reconoces por escrito y puedes perder la prescripción.",
+      hacer: "Antes de pagar, revisar deuda por deuda si el cobro prescribió (en general 3 años desde que debió pagarse, o 6 si no se declaró) y, si corresponde, pedir que se declare prescrita.",
+      servicio: svc("prescripcion", "LEG-04", "Revisión y solicitud de prescripción de deudas fiscales", "profesionales", "Revisar qué deudas prescribieron antes de pagar.") });
   }
   if (inactivo && a.declara !== "si") {
     add({ id: "p_declaraciones", prioridad: "alta", estado: a.declara === "no" ? "declarado" : "requiere_documentacion",
@@ -198,6 +215,8 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
   // Evaluación de situación (cuatro estados; sin etiquetas de incumplimiento).
   const situacion: ExpedientePersona["situacion"] = [
     { tema: "Actividad económica", estado: "confirmado", detalle: inactivo ? "Declaras inicio de actividades sin movimiento actual y sin término de giro." : inicio ? "Declaras actividad iniciada ante el SII." : "Declaras que aún no inicias actividades." },
+    ...(revisarPrescripcion(a) ? [{ tema: "Prescripción de deudas antiguas", estado: "requiere_documentos" as EstadoSituacion,
+      detalle: "Se revisa deuda por deuda con el certificado de deuda y los movimientos de tu cuenta en la Tesorería, antes de pagar nada." }] : []),
     ...(inicio && a.deudas ? [{ tema: "Deudas con la Tesorería", estado: (a.deudas === "no_se" ? "requiere_documentos" : "confirmado") as EstadoSituacion,
       detalle: a.deudas === "si" ? "Declaras que tienes deudas: el monto se confirma con el certificado de deuda." : a.deudas === "no" ? "Declaras que no tienes deudas." : "Se confirma con el certificado de deuda de la Tesorería." }] : []),
     ...(inactivo ? [{ tema: "Declaraciones (F29 y renta)", estado: (a.declara === "si" ? "confirmado" : "requiere_documentos") as EstadoSituacion,
@@ -235,13 +254,14 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
       supuestos: "Montos ilustrativos; tu deuda real sale del certificado de la Tesorería.",
       formula: "Al contado: se condona 100% de los intereses y 80% de las multas. En convenio de hasta 48 cuotas: 95% y 75%.",
       resultado: `Al contado se condonan ${pesos(500_000 + 800_000)} de ${pesos(1_500_000)} (pagas ${pesos(200_000)} más el capital del impuesto).`,
-      confirmar: "Que las deudas sean fiscales y estén vencidas al 31 de diciembre de 2025. Si se atrasa una cuota del convenio, el beneficio se revoca.",
+      confirmar: "Que las deudas sean fiscales, estén vencidas al 31 de diciembre de 2025 y no estén prescritas (si lo están, no conviene pagarlas: pagar o firmar convenio reconoce la deuda). Si se atrasa una cuota del convenio, el beneficio se revoca.",
     });
   }
 
   // Plan de acción: máximo tres prioridades, sin repetir servicio.
   const vistos = new Set<string>();
-  const prioridades = [...necesidades].sort((x, y) => y.urgencia - x.urgencia)
+  // La revisión de prescripción va primero: decide qué se paga y qué no.
+  const prioridades = [...necesidades].sort((x, y) => Number(y.id === "p_prescripcion") - Number(x.id === "p_prescripcion") || y.urgencia - x.urgencia)
     .filter((n) => { const k = n.servicio?.id ?? n.id; if (vistos.has(k)) return false; vistos.add(k); return true; }).slice(0, 3);
 
   return {

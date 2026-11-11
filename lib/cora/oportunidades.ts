@@ -59,7 +59,7 @@ export function oportunidades(e: EntradaOportunidades): Oportunidad[] {
       por_que: tramoValido ? "Por su tamaño de ventas, la empresa está dentro de las mipymes que pueden usar este beneficio." : "Aplica a personas naturales y mipymes.",
       beneficio: "Si la empresa tiene deudas fiscales vencidas al 31 de diciembre de 2025, puede pagarlas con condonación del 100% de los intereses y el 80% de las multas al contado, o del 95% y el 75% en un convenio de hasta 48 cuotas (pie mínimo del 10% del capital).",
       ejemplo: `Por cada ${clp(1_000_000)} de multas pagadas al contado se condonan ${clp(800_000)}.`,
-      confirmar: ["Que existan deudas fiscales vencidas al 31 de diciembre de 2025 (certificado de deuda de la Tesorería, que obtiene la propia empresa)", "Si conviene pagar al contado o en convenio (si se atrasa una cuota, el beneficio se revoca)"],
+      confirmar: ["Que existan deudas fiscales vencidas al 31 de diciembre de 2025 (certificado de deuda de la Tesorería, que obtiene la propia empresa)", "Que las deudas no estén prescritas: pagar o firmar un convenio reconoce la deuda, por eso las antiguas se revisan antes (Código Tributario, arts. 200 y 201)", "Si conviene pagar al contado o en convenio (si se atrasa una cuota, el beneficio se revoca)"],
       plazo: "Hasta el 15 de abril de 2027 (180 días corridos desde el 17 de octubre de 2026), sin prórroga.",
       fuente: { titulo: "TGR · Ley de Reconstrucción: facilidades de pago para MiPymes", url: "https://tgr.gob.cl/2026/10/19/ley-de-reconstruccion-tgr-aplica-facilidades-de-pago-a-deudores-cae-mipymes-y-personas-naturales/noticias/" },
       verificado: "2026-11-09",
