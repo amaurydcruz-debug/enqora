@@ -20,6 +20,8 @@ export const REGIMES = {
   pro_pyme_transparente: "Pro Pyme Transparente (14 D N°8)",
   general_semi_integrado: "Régimen General Semi Integrado (14 A)",
   renta_presunta: "Renta Presunta (art. 34)",
+  honorarios: "Persona natural con boletas de honorarios (2ª categoría)",
+  sin_inicio: "Persona natural sin inicio de actividades",
   otro: "Otro",
   por_definir: "Por definir",
 } as const;

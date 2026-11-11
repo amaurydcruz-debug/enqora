@@ -9,7 +9,7 @@ import { siteUrl } from "@/lib/supabase/env";
 import { setActiveCompany } from "@/lib/companies";
 import { isRegime, isRole } from "@/lib/company-constants";
 import { dbCode, dbMessage } from "@/lib/db-errors";
-import { isValidRut, normalizeRut } from "@/lib/rut";
+import { isNaturalPersonRut, isValidRut, normalizeRut } from "@/lib/rut";
 import { safeNext } from "@/lib/safe-next";
 
 export type CompanyFormState = { error?: string; ok?: string; link?: string } | undefined;
@@ -34,7 +34,10 @@ export async function createCompanyAction(_: CompanyFormState, fd: FormData): Pr
   const regime = text(fd, "tax_regime", 40);
 
   if (!rut || !isValidRut(rut)) return { error: "El RUT no es válido. Revisa el número y el dígito verificador." };
-  if (legalName.length < 2) return { error: "Ingresa la razón social de la empresa." };
+  const natural = isNaturalPersonRut(rut);
+  // Persona natural: solo su propio RUT (ENQORA no trabaja con el RUT de una persona sin que sea ella misma).
+  if (natural && fd.get("own_rut") !== "on") return { error: "Como persona natural, confirma que el RUT es tuyo. No se puede registrar el RUT de otra persona." };
+  if (legalName.length < 2) return { error: natural ? "Ingresa tu nombre completo." : "Ingresa la razón social de la empresa." };
   if (!isRegime(regime)) return { error: "Selecciona un régimen tributario." };
 
   const supabase = await createClient();

@@ -37,3 +37,9 @@ export function formatRut(value: string): string {
   const body = v.slice(0, -1).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   return `${body}-${v.slice(-1)}`;
 }
+
+// Los RUT de personas naturales son menores a 50.000.000; los de personas jurídicas, mayores.
+export function isNaturalPersonRut(value: string): boolean {
+  const rut = normalizeRut(value);
+  return !!rut && isValidRut(rut) && Number(rut.split("-")[0]) < 50_000_000;
+}

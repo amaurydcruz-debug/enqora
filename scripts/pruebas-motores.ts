@@ -10,6 +10,7 @@ import { operacion, type Run } from "@/lib/agentes/operacion";
 import { runCalculator } from "@/lib/tax-calc";
 import { analizarReglas } from "@/lib/cora/caso";
 import { PLAYBOOKS, RULES } from "@/lib/knowledge";
+import { isNaturalPersonRut } from "@/lib/rut";
 import { estadoDocumento, renderPreview, resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 
 let ok = 0;
@@ -124,6 +125,21 @@ prueba("Ruta de trabajo de la condonación con normas existentes", () => {
   const p = PLAYBOOKS.find((x) => x.id === "tgr_condonacion");
   assert.ok(p);
   for (const n of p!.normas) assert.ok(RULES[n], n);
+});
+
+// ---------- Persona natural ----------
+prueba("RUT menor a 50 millones = persona natural; 76.xxx = empresa", () => {
+  assert.equal(isNaturalPersonRut("11.111.111-1"), true);
+  assert.equal(isNaturalPersonRut("76.086.428-5"), false);
+  assert.equal(isNaturalPersonRut("11.111.111-2"), false);
+});
+prueba("Honorarios o sin inicio de actividades: sin postergación de IVA, con condonación TGR", () => {
+  for (const regimen of ["honorarios", "sin_inicio"]) {
+    const o = ids(oportunidades({ regimen, tramo: null, trabajadores: 0, hoy }));
+    assert.ok(!o.includes("postergacion_iva"), regimen);
+    assert.ok(o.includes("tgr_condonacion"), regimen);
+    assert.ok(!o.includes("confirmar_regimen"), regimen);
+  }
 });
 
 // ---------- Documentos legales ----------
