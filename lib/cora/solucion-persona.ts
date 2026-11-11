@@ -75,7 +75,7 @@ export function solucionPersona(a: PersonaAnswers, e: ExpedientePersona, today =
     if (deuda) pasos.push({ titulo: prescripcion ? "Pagas solo lo que no prescribió, con la condonación" : "Pagas tu deuda con la condonación", quien: "ambos", servicio: tgr,
       detalle: "Te acompañamos en tgr.cl a pagar al contado o firmar el convenio con condonación de la Ley 21.850. Tú pagas y aceptas el convenio con tu clave; ENQORA nunca paga ni firma por ti." });
     if (a.futuro !== "retomar") pasos.push({ titulo: a.futuro === "cerrar" ? "Cerramos el negocio" : "Si decides cerrar: término de giro", quien: "enqora", servicio: cierre,
-      detalle: "Preparamos y presentamos el término de giro ante el SII, y lo seguimos hasta la resolución. Desde ahí dejas de tener obligaciones mensuales por ese negocio." });
+      detalle: `Preparamos y presentamos el término de giro ante el SII, y lo seguimos hasta la resolución. Desde ahí dejas de tener obligaciones mensuales por ese negocio.${a.deudas === "si" ? " Con deudas tributarias vigentes el SII no lo cierra por ti (presunción de la Ley 21.713): hay que hacerlo." : ""}` });
     if (a.futuro !== "cerrar") pasos.push({ titulo: a.futuro === "retomar" ? "Retomas con la contabilidad al día" : "Si decides retomar: contabilidad al día", quien: "enqora", servicio: retomar,
       detalle: "Llevamos tu F29 y tu renta cada mes para que no vuelvan a acumularse multas." });
 
