@@ -20,7 +20,7 @@ export type SyncReport = {
   detalle?: string;
 };
 
-const BATCH = 1000;
+const BATCH = 2000;
 // Un ZIP puede traer varios archivos con la misma nómina (p. ej., un archivo por año comercial 2020 a 2024).
 // Se cargan todos, del año más reciente al más antiguo, y el cursor codifica archivo y línea:
 // cursor = índice del archivo × ARCHIVO + línea dentro del archivo. La base conserva el año más reciente de cada RUT.
@@ -120,6 +120,9 @@ async function processImport(
   let sent = cursor;
   let rows: Record<string, unknown>[] = [];
   let total = 0;
+  const t0 = Date.now();
+  let llegada = 0; // segundos que tomó llegar al cursor (diagnóstico)
+  const detalle = () => `${llegada ? `${llegada} s para llegar al avance guardado · ` : ""}${Math.round((Date.now() - t0) / 1000)} s de tramo`;
   const flush = async () => {
     if (line === sent) return;
     const { data, error } = await supabase.rpc("svc_import_public_rows", {
@@ -169,14 +172,15 @@ async function processImport(
         line++;
         if (line - base <= desde) {
           // Avance rápido hasta el cursor; si el tiempo se agota antes, la próxima ejecución sigue igual.
-          if (line % 50_000 === 0 && Date.now() > deadline) return { estado: "continua", conjunto: ds, filas: 0, cursor };
+          if (line % 50_000 === 0 && Date.now() > deadline) return { estado: "continua", conjunto: ds, filas: 0, cursor, detalle: `No alcanzó a llegar al avance guardado (${detalle()})` };
           continue;
         }
+        if (desde && !llegada) llegada = Math.max(1, Math.round((Date.now() - t0) / 1000));
         const row = toRow(ds, map, raw);
         if (row) rows.push(row);
         if (line - sent >= BATCH) {
           await flush();
-          if (Date.now() > deadline) return { estado: "continua", conjunto: ds, filas: total, cursor: sent };
+          if (Date.now() > deadline) return { estado: "continua", conjunto: ds, filas: total, cursor: sent, detalle: detalle() };
         }
       }
       if (!header) throw new Error(`El archivo «${chosen.name}» de la nómina venía vacío.`);

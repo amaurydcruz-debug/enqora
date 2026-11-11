@@ -150,8 +150,40 @@ async function* rangoReanudable(url: string, e: ZipEntry, desde: number, hasta: 
   }
 }
 
+// Descarga en paralelo por tramos de 4 MB (hasta 6 a la vez) y entrega los bytes EN ORDEN al descompresor.
+// Cada carga de la nómina debe volver a leer el archivo desde el inicio hasta su cursor (el formato ZIP no
+// permite saltar): con una sola conexión lenta, pasado cierto avance todo el tiempo se iba en llegar al cursor
+// y la carga se estancaba. Con varias conexiones a la vez, llegar al cursor toma una fracción del tiempo.
+// Cada tramo se reintenta solo (hasta 6 veces) si el SII corta la conexión.
+const TRAMO = 4 * 1024 * 1024;
+const PARALELO = 6;
+async function tramoCompleto(url: string, e: ZipEntry, desde: number, hasta: number, signal: AbortSignal): Promise<Buffer> {
+  const partes: Buffer[] = [];
+  for await (const b of rangoReanudable(url, e, desde, hasta, signal)) partes.push(b);
+  return Buffer.concat(partes);
+}
+async function* rangoParalelo(url: string, e: ZipEntry, desde: number, hasta: number, signal: AbortSignal): AsyncGenerator<Buffer> {
+  const cola: Promise<Buffer>[] = [];
+  let siguiente = desde;
+  const pedir = () => {
+    if (siguiente > hasta) return;
+    const fin = Math.min(hasta, siguiente + TRAMO - 1);
+    const p = tramoCompleto(url, e, siguiente, fin, signal);
+    p.catch(() => undefined); // el error se entrega cuando le toque su turno
+    cola.push(p);
+    siguiente = fin + 1;
+  };
+  for (let i = 0; i < PARALELO; i++) pedir();
+  while (cola.length) {
+    const b = await cola.shift()!;
+    pedir();
+    yield b;
+  }
+}
+
 // Líneas (Latin-1) de un archivo del ZIP. Al cortar la lectura se cancela la descarga.
-export async function* entryLines(source: Source, e: ZipEntry, signal: AbortSignal): AsyncGenerator<string> {
+// paralelo: descarga en varias conexiones (para leer archivos completos); false para leer solo el inicio.
+export async function* entryLines(source: Source, e: ZipEntry, signal: AbortSignal, paralelo = true): AsyncGenerator<string> {
   if (e.method !== 0 && e.method !== 8) throw new Error(`Compresión ZIP no soportada en «${e.name}».`);
   const controller = new AbortController();
   const onAbort = () => controller.abort();
@@ -161,7 +193,7 @@ export async function* entryLines(source: Source, e: ZipEntry, signal: AbortSign
     raw = Readable.from([source.full.subarray(e.offset, Math.min(source.full.length, e.offset + 30 + 65_535 * 2 + e.compSize))]);
   } else {
     const end = Math.min((source.total ?? Infinity) - 1, e.offset + 30 + 65_535 * 2 + e.compSize);
-    raw = Readable.from(rangoReanudable(source.url, e, e.offset, end, controller.signal));
+    raw = Readable.from(paralelo ? rangoParalelo(source.url, e, e.offset, end, controller.signal) : rangoReanudable(source.url, e, e.offset, end, controller.signal));
   }
   const local = new LocalEntry(e.compSize);
   raw.on("error", (err) => local.destroy(err));
@@ -239,7 +271,7 @@ export async function entryBuffer(source: Source, e: ZipEntry, signal: AbortSign
 
 // Primera línea con contenido (para reconocer el encabezado de cada archivo del ZIP).
 export async function firstLine(source: Source, e: ZipEntry, signal: AbortSignal): Promise<string> {
-  const it = entryLines(source, e, signal);
+  const it = entryLines(source, e, signal, false);
   try {
     for await (const l of it) if (l.trim()) return l;
     return "";
