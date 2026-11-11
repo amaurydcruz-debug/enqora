@@ -9,7 +9,10 @@ import { escuchar, soporteVoz, useModoVoz } from "@/lib/voz/navegador";
 
 // «Cuéntanos tu caso»: el cliente relata (escribiendo o dictando), elige cómo quiere la respuesta y recibe
 // qué documentos tener a mano. El equipo responde con una cotización por el canal elegido.
-export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo = "Conozcamos qué quieres conseguir con tu empresa." }: { rut: string; razon: string; relato: string; setRelato: (v: string) => void; objetivos?: typeof OBJETIVOS; titulo?: string }) {
+export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo = "Conozcamos qué quieres conseguir con tu empresa.", ayuda, boton = "Enviar", etiqueta = "Siguiente paso" }: {
+  rut: string; razon: string; relato: string; setRelato: (v: string) => void; objetivos?: typeof OBJETIVOS; titulo?: string;
+  ayuda?: string; boton?: string; etiqueta?: string;
+}) {
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [state, action] = useActionState<CasoState, FormData>(enviarCasoAction, null);
   const [canal, setCanal] = useState<"whatsapp" | "correo">("whatsapp");
@@ -47,7 +50,7 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo
 
   return (
     <form id="cora-caso" action={action} className="cora-caso">
-      <span className="eyebrow">Siguiente paso</span>
+      <span className="eyebrow">{etiqueta}</span>
       <b>{titulo}</b>
       {objetivos.length ? (
         <div className="natural-opts" role="group" aria-label="Tus objetivos">
@@ -61,7 +64,7 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo
           })}
         </div>
       ) : null}
-      <span className="report-note">Elige uno o más y, si quieres, cuéntanos el detalle. Un profesional te responde con una propuesta.</span>
+      <span className="report-note">{ayuda ?? "Elige uno o más y, si quieres, cuéntanos el detalle. Un profesional te responde con una propuesta."}</span>
       <input type="hidden" name="rut" value={rut} />
       <input type="hidden" name="razon_social" value={razon} />
       <label className="sr-only" htmlFor="caso-relato">Tu caso</label>
@@ -92,7 +95,7 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo
         <input type="checkbox" name="consentimiento" required /> <span>Autorizo a ENQORA a usar estos datos solo para responder mi solicitud (<Link href="/privacidad">privacidad</Link>).</span>
       </label>
       {state && !state.ok ? <p className="lookup-error" role="alert">{state.error}</p> : null}
-      <SubmitButton className="btn-inline" pendingText="Enviando…">Enviar</SubmitButton>
+      <SubmitButton className="btn-inline" pendingText="Enviando…">{boton}</SubmitButton>
       <span className="report-note">Te respondemos con una propuesta y su cotización en un plazo de 24 horas hábiles. Sin costo ni compromiso.</span>
     </form>
   );

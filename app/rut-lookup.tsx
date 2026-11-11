@@ -7,6 +7,7 @@ import { CasoForm } from "@/app/cora-caso";
 import { PriceLine } from "@/app/diagnostico-360";
 import { objetivosOrdenados } from "@/lib/cora/caso";
 import { ConsultaEstrategica } from "@/app/consulta-estrategica";
+import { QUIEN, solucionPersona } from "@/lib/cora/solucion-persona";
 import { ESTADO_SITUACION, investigarPersona, PREGUNTAS_PERSONA, preguntaVisible, type ExpedientePersona, type PersonaAnswers } from "@/lib/cora/personas";
 import { EnqoraClockLoader } from "@/components/clock-loader";
 import type { Catalog } from "@/lib/initial-report";
@@ -273,20 +274,52 @@ function NaturalFlow({ r }: { r: PublicCompany }) {
           </fieldset>
         ) : null}
       </div>
-      {completo ? <PersonaReport e={investigarPersona(respuestas, catalog)} when={consultedAt(r.consultado)} rut={r.rut ?? ""} /> : null}
+      {completo ? <PersonaReport a={respuestas} e={investigarPersona(respuestas, catalog)} when={consultedAt(r.consultado)} rut={r.rut ?? ""} /> : null}
     </>
   );
 }
 
-function PersonaReport({ e, when, rut }: { e: ExpedientePersona; when: string | null; rut: string }) {
-  const [relato, setRelato] = useState("");
+function PersonaReport({ a, e, when, rut }: { a: PersonaAnswers; e: ExpedientePersona; when: string | null; rut: string }) {
+  const sol = solucionPersona(a, e);
+  const [relato, setRelato] = useState(sol?.relato ?? "");
   const servicios = e.prioridades.filter((n) => n.servicio?.disponible);
   return (
     <div className="report cora">
       <div className="report-head">
-        <span className="eyebrow">CORA Personas · tu orientación</span>
+        <span className="eyebrow">CORA Personas · tu solución</span>
         <small>{when ? `Generado el ${when}` : null} · según tus respuestas y la normativa vigente · no se guarda</small>
       </div>
+
+      {sol ? (
+        <section className="cora-solucion" aria-label="Tu solución">
+          <span className="report-tag">Tu solución</span>
+          <h4>{sol.titulo}</h4>
+          <p className="sol-resultado"><b>Al terminar:</b> {sol.resultado}</p>
+          {sol.plazo ? <p className="sol-plazo"><b>Plazo que manda: {sol.plazo.fecha}.</b> {sol.plazo.texto}</p> : null}
+          <ol className="sol-pasos">
+            {sol.pasos.map((p, i) => (
+              <li key={i}>
+                <div className="sol-paso-head"><b>{p.titulo}</b><span className={`sol-quien sol-${p.quien}`}>{QUIEN[p.quien]}</span></div>
+                <span>{p.detalle}</span>
+                {p.gratis ? <small className="report-note">Gratis en los portales oficiales.</small> : null}
+                {p.servicio ? <small className="report-note">Servicio ENQORA: {p.servicio.nombre}</small> : null}
+              </li>
+            ))}
+          </ol>
+          <dl className="cora-identidad">
+            <div><dt>Lo que traes tú</dt><dd>{sol.tuTraes.join(" · ")}</dd></div>
+            <div><dt>Costo</dt><dd>{sol.costo}</dd></div>
+          </dl>
+        </section>
+      ) : null}
+
+      {sol ? (
+        <CasoForm rut={rut} razon="" relato={relato} setRelato={setRelato} etiqueta="Empezar"
+          titulo="¿Quieres que ENQORA lo resuelva contigo?" boton="Quiero esta solución"
+          ayuda="Tu caso ya va escrito con lo que nos contaste: agrega lo que quieras. Un profesional lo revisa y te envía el precio total antes de empezar." />
+      ) : null}
+
+      <h4 className="lookup-acts-title">Por qué te proponemos esto</h4>
 
       <section className="cora-carta" aria-label="Tu perfil tributario">
         <span className="report-tag">Tu perfil tributario (según lo que nos dijiste)</span>
@@ -348,7 +381,7 @@ function PersonaReport({ e, when, rut }: { e: ExpedientePersona; when: string | 
         </>
       ) : null}
 
-      <CasoForm rut={rut} razon="" relato={relato} setRelato={setRelato} objetivos={objetivosOrdenados(e.prioridades.map((n) => n.necesidad))} titulo="Descubramos qué necesita tu negocio: ¿qué quieres conseguir?" />
+      {!sol ? <CasoForm rut={rut} razon="" relato={relato} setRelato={setRelato} objetivos={objetivosOrdenados(e.prioridades.map((n) => n.necesidad))} titulo="Descubramos qué necesita tu negocio: ¿qué quieres conseguir?" /> : null}
       <div className="lookup-deep">
         <b>Tu expediente personal</b>
         <span>Con tu cuenta ENQORA, y con tu autorización, un profesional confirma esta orientación con tu Carpeta Tributaria y tus fechas quedan en un calendario con alertas. ENQORA nunca te pedirá tu clave del SII.</span>

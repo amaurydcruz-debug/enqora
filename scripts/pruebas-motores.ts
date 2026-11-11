@@ -11,6 +11,7 @@ import { runCalculator } from "@/lib/tax-calc";
 import { analizarReglas } from "@/lib/cora/caso";
 import { PLAYBOOKS, RULES } from "@/lib/knowledge";
 import { isNaturalPersonRut } from "@/lib/rut";
+import { solucionPersona } from "@/lib/cora/solucion-persona";
 import { investigarPersona, PREGUNTAS_PERSONA, preguntaVisible, type PersonaAnswers } from "@/lib/cora/personas";
 import { estadoDocumento, renderPreview, resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 
@@ -160,6 +161,15 @@ prueba("Persona sin movimiento con deuda TGR que quiere cerrar: condonación, de
   assert.deepEqual([...codigos].sort(), ["CON-03", "CON-06", "FOR-03"]);
   assert.ok(e.impacto.some((i) => i.titulo.includes("Ley 21.850")));
   assert.ok(e.obligaciones.some((o) => o.cuando === "15 de abril de 2027"));
+  const sol = solucionPersona(a, e, hoy)!;
+  assert.match(sol.titulo, /^Cerrar tu negocio pagando tu deuda/);
+  assert.deepEqual(sol.pasos.map((p) => p.quien), ["tu", "enqora", "enqora", "ambos", "enqora"]);
+  assert.equal(sol.plazo?.fecha, "15 de abril de 2027");
+  assert.match(sol.costo, /^Desde \$30\.000/);
+  assert.match(sol.relato, /término de giro/);
+  // Si quiere retomar, el último paso es la contabilidad mensual y no el término de giro.
+  const ret = solucionPersona({ ...a, futuro: "retomar" }, investigarPersona({ ...a, futuro: "retomar" }, cat as never, hoy), hoy)!;
+  assert.ok(!ret.pasos.some((p) => /término de giro/i.test(p.titulo)));
 });
 
 // ---------- Documentos legales ----------
