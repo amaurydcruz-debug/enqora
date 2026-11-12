@@ -3,7 +3,7 @@ import { flushDeliveries } from "@/lib/notify-delivery";
 import { createClient } from "@/lib/supabase/server";
 
 // Tarea diaria de Vercel (vercel.json → crons): facturación (vencimientos, renovaciones, fin de
-// suscripciones), vencimiento de mandatos y envío de avisos pendientes.
+// suscripciones), vencimiento de mandatos, vigilancia de casos (sin responsable o vencidos) y envío de avisos pendientes.
 // Vercel envía «Authorization: Bearer CRON_SECRET». Sin CRON_SECRET y ENQORA_SERVICE_TOKEN no se ejecuta.
 export const dynamic = "force-dynamic";
 
@@ -19,6 +19,9 @@ export async function GET(request: NextRequest) {
     console.error("[ENQORA facturación diaria]", error.message);
     return NextResponse.json({ ok: false }, { status: 500 });
   }
+  // Vigilancia de casos: sin responsable por más de 24 h y vencidos (0045). Un aviso por caso y por día.
+  const { data: casos, error: casosErr } = await supabase.rpc("svc_casos_vigilar", { p_token: service });
+  if (casosErr) console.error("[ENQORA vigilancia de casos]", casosErr.message);
   await flushDeliveries(request.nextUrl.origin, true);
-  return NextResponse.json({ ok: true, resultado: data });
+  return NextResponse.json({ ok: true, resultado: data, casos: casos ?? null });
 }
