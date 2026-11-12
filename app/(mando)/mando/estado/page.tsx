@@ -67,7 +67,11 @@ export default async function SystemStatusPage() {
   if (!isSupervisorRole(role)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: auditData }] = await Promise.all([supabase.rpc("system_status"), supabase.rpc("audit_stats")]);
+  const [{ data, error }, { data: auditData }, { data: entregasData }] = await Promise.all([
+    supabase.rpc("system_status"), supabase.rpc("audit_stats"), supabase.rpc("avisos_entregas", { p_dias: 7 }),
+  ]);
+  // Entregas de avisos por canal, últimos 7 días (0051).
+  const entregas = (Array.isArray(entregasData) ? entregasData : []) as { canal: string; enviados: number; pendientes: number; fallidos: number; omitidos: number; ultimo_envio: string | null; ultimo_error: string | null }[];
   const a = auditData as { auditorias: number; aprobadas: number; con_observaciones: number; escaladas: number; fallidas: number; aceptadas_con_excepcion: number } | null;
   const s = data as Status | null;
 
@@ -131,6 +135,15 @@ export default async function SystemStatusPage() {
               <div><dt>Equipo activo</dt><dd>{n(s.equipo_activo)}</dd></div>
               <div><dt>Avisos pendientes de envío</dt><dd>{n(s.avisos_pendientes)}</dd></div>
               <div><dt>Avisos fallidos (7 días)</dt><dd>{n(s.avisos_fallidos_7d)}</dd></div>
+              {entregas.map((e) => (
+                <div key={e.canal}>
+                  <dt>{e.canal === "email" ? "Correo" : "WhatsApp"} (7 días)</dt>
+                  <dd>
+                    {n(e.enviados)} enviados · {n(e.pendientes)} pendientes · {n(e.fallidos)} fallidos · {n(e.omitidos)} omitidos
+                    {e.ultimo_error ? <small className="muted-line"> · último problema: {e.ultimo_error}</small> : null}
+                  </dd>
+                </div>
+              ))}
               <div><dt>Agentes IA (30 días)</dt><dd>{n(s.agentes_30d.ejecuciones)} ejecuciones · {n(s.agentes_30d.fallidas)} fallidas · {n(s.agentes_30d.tokens)} tokens</dd></div>
               {a ? <div><dt>Auditorías (30 días)</dt><dd>{n(a.auditorias)} · {n(a.aprobadas)} sin observaciones · {n(a.con_observaciones)} con observaciones · {n(a.escaladas)} escaladas · {n(a.fallidas)} fallidas</dd></div> : null}
               {a ? <div><dt>Aceptadas con excepción</dt><dd>{n(a.aceptadas_con_excepcion)}</dd></div> : null}
