@@ -167,8 +167,8 @@ export const FUENTES: Fuente[] = [
     id: "inapi_datos", pais: "CL", organismo: "INAPI", nombre: "Datos abiertos de marcas (presentadas y registradas desde 2009)",
     url: "https://tramites.inapi.cl/OpenData/TrademarkOpenData", secciones: ["marca"], nivel: "A",
     metodo: "Descarga oficial de datos abiertos (reemplaza al buscador con CAPTCHA)", campos: ["solicitudes de marca", "marcas registradas", "titular (por confirmar)", "clases (por confirmar)"],
-    restricciones: "Falta confirmar formato, columnas (si trae nombre o RUT del titular) y condiciones de uso antes de conectarla.",
-    frecuencia: "Por confirmar", estado: "por_investigar", verificada: "2026-11-07", nota: "Prioridad 1: resuelve la consulta de marcas sin CAPTCHA.",
+    restricciones: "dabiertos.inapi.cl no permite acceso automatizado (robots.txt, 11-11-2026) y no responde desde Vercel. Vía: descarga manual por una persona (licencia de uso libre) y carga en ENQORA, o permiso formal de INAPI (correo y solicitud por Ley de Transparencia).",
+    frecuencia: "Por confirmar", estado: "por_investigar", verificada: "2026-11-11", nota: "Prioridad 1: resuelve la consulta de marcas sin CAPTCHA. Falta ver un archivo para conocer sus columnas.",
   },
   {
     id: "sma_sea", pais: "CL", organismo: "Superintendencia del Medio Ambiente (SNIFA)", nombre: "Fiscalización y sanciones ambientales",

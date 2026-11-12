@@ -22,6 +22,8 @@ export async function GET(request: NextRequest) {
   // Vigilancia de casos: sin responsable por más de 24 h y vencidos (0045). Un aviso por caso y por día.
   const { data: casos, error: casosErr } = await supabase.rpc("svc_casos_vigilar", { p_token: service });
   if (casosErr) console.error("[ENQORA vigilancia de casos]", casosErr.message);
+  // Investigaciones del robot que quedaron colgadas: se cierran como fallidas (0048).
+  await supabase.rpc("svc_research_vencer", { p_token: service }).then(() => undefined, () => undefined);
   await flushDeliveries(request.nextUrl.origin, true);
   return NextResponse.json({ ok: true, resultado: data, casos: casos ?? null });
 }

@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 export const metadata: Metadata = { title: "CORA · Investigador web" };
 export const dynamic = "force-dynamic";
 
-type Run = { id: string; rut: string; razon_social: string | null; modo: string; status: string; created_at: string; started_at: string | null; finished_at: string | null; metrics: Record<string, unknown> | null; error: string | null };
+type Run = { id: string; rut: string; razon_social: string | null; modo: string; status: string; origen?: string; created_at: string; started_at: string | null; finished_at: string | null; metrics: Record<string, unknown> | null; error: string | null };
 type Ev = { id: string; run_id: string; portal: string; procedure_version: string; query: Record<string, string>; url: string; consulted_at: string; status: string; result: { tablas?: { headers: string[]; rows: string[][] }[]; coincidencias_exactas?: number; aciertos_totales?: number; titulo?: string } | null; screenshot_path: string | null; duration_ms: number | null; detail: string | null };
 
 const STATUS: Record<string, [string, string]> = {
@@ -106,7 +106,7 @@ export default async function InvestigadorPage({ searchParams }: { searchParams:
                 <span className="ref-main">
                   <b><Link href={`/mando/investigador?run=${r.id}`}>{r.modo === "entorno" ? "Prueba de entorno" : `${r.razon_social ?? ""} · ${r.rut}`}</Link></b>
                   <small className="muted-line">
-                    {fmt(r.created_at)}
+                    {fmt(r.created_at)}{r.origen === "consulta" ? " · automática (consulta pública)" : " · lanzada por el equipo"}
                     {r.metrics ? ` · ${Object.entries(r.metrics).map(([k, v]) => `${k}: ${String(v)}`).join(" · ")}` : ""}
                     {r.error ? ` · ${r.error}` : ""}
                   </small>
