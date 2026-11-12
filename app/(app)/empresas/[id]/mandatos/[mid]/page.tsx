@@ -22,6 +22,9 @@ export default async function MandatePrintPage({ params }: { params: Promise<{ i
   const m = row as Mandate;
   const { data: co } = await supabase.from("companies").select("legal_name, rut").eq("id", id).maybeSingle();
   const company = co as { legal_name: string; rut: string } | null;
+  // Texto oficial: la plantilla de mandato aprobada por el estudio jurídico, con los datos de este mandato (0046).
+  const { data: tx } = await supabase.rpc("mandato_texto", { p_mandate: mid });
+  const oficial = (tx as { texto: string | null; version: number | null; huella: string | null; revisado_por: string | null } | null) ?? null;
 
   return (
     <div className="page narrow print-page">
@@ -46,9 +49,21 @@ export default async function MandatePrintPage({ params }: { params: Promise<{ i
         </dl>
         <section className="mandate-text">
           <h2 className="sub-title">Texto del mandato</h2>
-          <p className="pre">{m.scope}</p>
-          <h2 className="sub-title">Trámites permitidos</h2>
-          <p className="pre">{m.procedures}</p>
+          {oficial?.texto ? (
+            <>
+              <p className="pre">{oficial.texto}</p>
+              <p className="diag-note">
+                Plantilla de mandato{oficial.version ? ` v${oficial.version}` : ""}{oficial.revisado_por ? `, revisada por ${oficial.revisado_por}` : ""}.
+                {oficial.huella ? ` Huella del texto aceptado (SHA-256): ${oficial.huella}` : ""}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="pre">{m.scope}</p>
+              <h2 className="sub-title">Trámites permitidos</h2>
+              <p className="pre">{m.procedures}</p>
+            </>
+          )}
           <p>
             Este mandato no faculta para solicitar ni usar la ClaveÚnica ni la clave tributaria del mandante, y puede revocarse en
             cualquier momento. Fuera de los trámites y del plazo indicados, el mandatario no tiene facultades.

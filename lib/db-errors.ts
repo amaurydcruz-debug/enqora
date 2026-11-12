@@ -77,7 +77,7 @@ const MESSAGES: Record<string, string> = {
   ENQ_SIN_RUBRO: "La empresa aún no indica su tipo de negocio. Completa el perfil de la empresa o elige un rubro.",
   ENQ_AGENTE_OCUPADO: "Este agente ya está trabajando en el caso. Espera a que termine.",
   ENQ_FALTAN_DOCUMENTOS_LEGALES: "Antes de ejecutar el trabajo, la empresa debe firmar los documentos legales del caso (sección «Documentos legales»).",
-  ENQ_DOCUMENTO_NO_APROBADO: "Este documento aún no está aprobado tras la revisión jurídica. Todavía no se puede firmar.",
+  ENQ_DOCUMENTO_NO_APROBADO: "El texto legal (documento o plantilla de mandato) aún no está aprobado tras la revisión jurídica: apruébalo en Centro de Mando → Documentos legales.",
   ENQ_DOCUMENTO_CAMBIO: "El documento cambió mientras lo leías. Revisa la versión actual antes de firmar.",
   ENQ_YA_FIRMADO: "Este documento ya está firmado para esta empresa o este caso.",
   ENQ_DOCUMENTO_NO_EDITABLE: "Esta versión ya salió de borrador y no se puede editar. Crea una versión nueva.",
