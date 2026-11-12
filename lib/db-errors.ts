@@ -67,7 +67,7 @@ const MESSAGES: Record<string, string> = {
   ENQ_SIN_CORRECCION: "Esta ejecución no tiene observaciones de auditoría que corregir.",
   ENQ_LIMITE_CORRECCIONES: "Ya se hicieron dos rondas de corrección. La propuesta debe revisarla la supervisión.",
   ENQ_CASO_SIN_RESOLVER: "El aprendizaje se registra cuando el caso está en verificación o cerrado.",
-  ENQ_APRENDIZAJE_IDENTIFICA: "El aprendizaje no puede incluir el nombre ni el RUT de la empresa. Descríbelo de forma anónima.",
+  ENQ_APRENDIZAJE_IDENTIFICA: "El aprendizaje no puede incluir el nombre ni el RUT de la empresa, ni correos, teléfonos o RUT de nadie. Descríbelo de forma anónima.",
   ENQ_VIGILANCIA_FALLIDA: "La vigilancia normativa no se completó (revisa la clave de la API de Claude). Intenta nuevamente.",
   ENQ_SIN_REFERENCIAS: "Faltan referencias de mercado verificadas para sugerir un precio (mínimo según la política comercial).",
   ENQ_ASESOR_PRECIOS: "El asesor de precios no pudo completar la búsqueda. Intenta nuevamente en unos minutos.",

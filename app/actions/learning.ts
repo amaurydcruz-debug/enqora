@@ -60,6 +60,7 @@ export async function reviewUpdateAction(fd: FormData) {
     p_client_visible: fd.get("client_visible") === "on",
     p_modules: modules.length ? modules : null,
     p_rubros: rubros.length ? rubros : null,
+    p_vigente_hasta: /^\d{4}-\d{2}-\d{2}$/.test(text(fd, "vigente_hasta", 10)) ? text(fd, "vigente_hasta", 10) : null,
   });
   revalidatePath("/mando/vigilancia");
   go("/mando/vigilancia", error, Number(data) > 0 ? `novedad_avisada_${Number(data)}` : "novedad_revisada");

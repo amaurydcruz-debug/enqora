@@ -17,8 +17,9 @@ export const maxDuration = 60;
 type Update = {
   id: string; title: string; summary: string; institution: string | null; kind: string; source_url: string;
   published_on: string | null; impact: string | null; modules: string[]; rubros: string[]; status: string;
-  client_visible: boolean; detected_by: string; review_note: string | null; created_at: string;
+  client_visible: boolean; detected_by: string; review_note: string | null; created_at: string; vigente_hasta: string | null;
 };
+type Ultima = { fecha: string; ok: boolean; motivo: string | null; busquedas: number; fallidas_30d: number } | null;
 
 const KINDS: Record<string, string> = {
   ley: "Ley", reglamento: "Reglamento", circular: "Circular", resolucion: "Resolución", beneficio: "Beneficio", tramite: "Trámite", plazo: "Plazo", otro: "Otro",
@@ -26,7 +27,9 @@ const KINDS: Record<string, string> = {
 const STATUS: Record<string, [string, string]> = {
   detectada: ["badge-gold", "Por verificar"], verificada: ["badge-ok", "Verificada"], aplicada: ["badge-ok", "Aplicada a la base ENQORA"], descartada: ["badge-muted", "Descartada"],
 };
-const fmt = (d: string | null) => (d ? new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeZone: "America/Santiago" }).format(new Date(d)) : "—");
+// Las fechas sin hora (AAAA-MM-DD) se leen a mediodía para que no se corran un día por la zona horaria.
+const fmt = (d: string | null) => (d ? new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeZone: "America/Santiago" }).format(new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T12:00:00-03:00` : d)) : "—");
+const hoyCL = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
 
 function Avisos({ aviso }: { aviso?: string }) {
   if (!aviso) return null;
@@ -46,7 +49,12 @@ export default async function WatchPage({ searchParams }: { searchParams: Promis
   const supervisor = isSupervisorRole(role);
   const sp = await searchParams;
   const supabase = await createClient();
-  const { data } = await supabase.from("regulatory_updates").select("*").order("created_at", { ascending: false }).limit(100);
+  const [{ data }, { data: ultimaData }] = await Promise.all([
+    supabase.from("regulatory_updates").select("*").order("created_at", { ascending: false }).limit(100),
+    supabase.rpc("vigilancia_ultima"),
+  ]);
+  const ultima = (ultimaData ?? null) as Ultima;
+  const hoy = hoyCL();
   const updates = (data ?? []) as Update[];
   const pending = updates.filter((u) => u.status === "detectada");
   const done = updates.filter((u) => u.status !== "detectada");
@@ -58,6 +66,7 @@ export default async function WatchPage({ searchParams }: { searchParams: Promis
         <span className={`badge ${STATUS[u.status]?.[0] ?? "badge-muted"}`}>{STATUS[u.status]?.[1] ?? u.status}</span>
         <span className="badge badge-muted">{KINDS[u.kind] ?? u.kind}</span>
         {u.client_visible ? <span className="badge badge-ok">Visible para clientes</span> : null}
+        {u.vigente_hasta ? <span className={`badge ${u.vigente_hasta < hoy ? "badge-muted" : "badge-gold"}`}>{u.vigente_hasta < hoy ? `Vencida el ${fmt(u.vigente_hasta)}` : `Vigente hasta ${fmt(u.vigente_hasta)}`}</span> : null}
         <small>{u.institution ?? ""} · publicada {fmt(u.published_on)} · {u.detected_by === "vigilancia" ? "detectada por el agente" : "registrada por el equipo"} el {fmt(u.created_at)}</small>
       </div>
       <b>{u.title}</b>
@@ -87,6 +96,7 @@ export default async function WatchPage({ searchParams }: { searchParams: Promis
           <textarea name="note" className="input" rows={2} maxLength={1000} placeholder="Qué verificaste en la fuente (obligatorio para descartar)" aria-label="Nota de revisión" />
           <div className="comment-actions">
             <label className="check-inline"><input type="checkbox" name="client_visible" defaultChecked={u.client_visible} /> Mostrar a clientes</label>
+            <label className="check-inline">Vigente hasta <input type="date" name="vigente_hasta" className="input input-sm" defaultValue={u.vigente_hasta ?? ""} aria-label="Vigente hasta (si tiene plazo)" /></label>
             <div className="inline-form">
               <select name="status" className="input input-sm" defaultValue={u.status === "detectada" ? "verificada" : u.status} aria-label="Decisión">
                 <option value="verificada">Verificada</option>
@@ -122,7 +132,18 @@ export default async function WatchPage({ searchParams }: { searchParams: Promis
         <ul className="watch-groups">
           {WATCH_GROUPS.map((g) => <li key={g.key}><b>{g.titulo}</b><small>{g.consulta}</small></li>)}
         </ul>
-        <p className="muted-line">Cada semana se revisan dos grupos, rotando. Esta semana: {next}. Las novedades verificadas se entregan a los agentes en cada caso del servicio correspondiente; las marcadas «aplicadas» ya se incorporaron a la base normativa del sistema.</p>
+        {ultima && !ultima.ok ? (
+          <Notice kind="error">
+            La última revisión del agente ({new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(ultima.fecha))}) falló: {ultima.motivo ?? "sin detalle"}. Ejecútala de nuevo o revisa Operación de agentes.
+          </Notice>
+        ) : (
+          <p className="muted-line">
+            {ultima
+              ? `Última revisión del agente: ${new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(ultima.fecha))} · completada (${ultima.busquedas} búsquedas en fuentes oficiales)${ultima.fallidas_30d ? ` · ${ultima.fallidas_30d} falla(s) en 30 días` : ""}.`
+              : "Aún no hay ejecuciones registradas del agente (se registran desde la migración 0049)."}
+          </p>
+        )}
+        <p className="muted-line">Cada semana se revisan dos grupos, rotando. Esta semana: {next}. Las novedades verificadas se entregan a los agentes en cada caso del servicio correspondiente; las marcadas «aplicadas» ya se incorporaron a la base normativa del sistema. Si una novedad tiene plazo (un beneficio, una condonación), indica «vigente hasta»: al vencer deja de mostrarse a clientes y agentes.</p>
         {supervisor ? (
           <form action={runWatchAction} className="panel-actions">
             <SubmitButton variant="ghost" className="btn-inline" pendingText="Revisando fuentes oficiales…">Ejecutar vigilancia ahora</SubmitButton>
