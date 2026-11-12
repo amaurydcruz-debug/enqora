@@ -45,13 +45,34 @@ export type FieldTask = {
   lawyer_id: string | null; lawyer_note: string | null; lawyer_at: string | null; gestor_id: string | null; gestor_fee: number | null;
   assigned_at: string | null; eta: string | null; arrived_at: string | null; done_at: string | null; receipt: string | null;
   result: string | null; verified_by: string | null; verified_at: string | null; payout_id: string | null; created_at: string; updated_at: string;
+  docs_ok_at?: string | null;
 };
 
 export type MiEncargo = {
   id: string; folio: string; estado: FieldStatus; tipo: string; oficina: string; direccion: string; comuna: string | null;
   instrucciones: string | null; vence: string | null; pago: number | null; eta: string | null; asignado: string | null;
   guia: string | null; empresa: string; documentos: { id: string; nombre: string; custodia: string }[];
+  archivos?: number; descarga_autorizada?: boolean;
 };
+
+// Registro de gestores (0054): solo un gestor registrado y activo recibe encargos.
+export type FieldAgent = {
+  id: string; user_id: string | null; full_name: string; run: string | null; email: string; phone: string | null;
+  address: string | null; comuna: string | null; coverage: string[]; status: "invitado" | "activo" | "suspendido" | "retirado";
+  invite_expires: string | null; consent_at: string | null; note: string | null; created_at: string;
+};
+
+export const AGENT_STATUS: Record<FieldAgent["status"], { label: string; tone: Tone }> = {
+  invitado: { label: "Invitado · aún no instala la app", tone: "gold" },
+  activo: { label: "Activo", tone: "ok" },
+  suspendido: { label: "Suspendido", tone: "risk" },
+  retirado: { label: "Retirado", tone: "muted" },
+};
+
+export type FieldFile = { id: string; task_id: string; document_id: string; file_name: string; created_at: string };
+
+// Versión del aviso de tratamiento de datos que acepta el gestor al activarse.
+export const GESTOR_PRIVACIDAD_VERSION = "2026-11";
 
 export const clp = (n: number | null | undefined) => (n == null ? "—" : `$${n.toLocaleString("es-CL")}`);
 export const hora = (iso: string | null) =>

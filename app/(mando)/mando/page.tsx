@@ -38,8 +38,8 @@ export default async function CommandCenterPage({
 }) {
   const role = await myStaffRole();
   if (!role) notFound();
-  // El gestor de terreno trabaja desde su bandeja de encargos (0053).
-  if (role === "field_agent") redirect("/mando/terreno");
+  // El gestor de terreno trabaja desde su propia app (0054).
+  if (role === "field_agent") redirect("/gestor");
   const supervisor = isSupervisorRole(role);
   const canApprove = role !== "ai_agent";
   const sp = await searchParams;
