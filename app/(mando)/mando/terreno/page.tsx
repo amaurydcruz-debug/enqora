@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { crearEncargoAction, gestorEncargoAction, liquidacionAction, tarifaTipoAction } from "@/app/actions/terreno";
+import { notFound, redirect } from "next/navigation";
+import { crearEncargoAction, estadoGestorAction, liquidacionAction, tarifaTipoAction } from "@/app/actions/terreno";
+import { InvitarGestor, RegistrarGestor } from "./gestores";
 import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
 import { messageForCode } from "@/lib/db-errors";
@@ -9,7 +10,7 @@ import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 import {
   atrasado, clp, COLUMNAS, FIELD_STATUS, hora, INSTITUTIONS,
-  type FieldTask, type FieldTaskType, type MiEncargo,
+  AGENT_STATUS, type FieldAgent, type FieldTask, type FieldTaskType,
 } from "@/lib/terreno";
 
 export const metadata: Metadata = { title: "Despacho en terreno" };
@@ -20,11 +21,11 @@ const AVISOS: Record<string, string> = {
   liq_aprobar: "Liquidación aprobada. Se avisó al gestor.",
   liq_pagada: "Pago registrado.",
   liq_anular: "Liquidación anulada: sus encargos vuelven a quedar por liquidar.",
-  g_rechazar: "Devolviste el encargo. Vuelve a la bandeja de despacho, sin ningún efecto para ti.",
+  gestor_estado: "Estado del gestor actualizado.",
 };
 
 type Payout = { id: string; gestor_id: string; period: string; tasks: number; total: number; status: string; paid_reference: string | null };
-type Gestor = { id: string; nombre: string; hasta: string | null; activos: number };
+type Gestor = { id: string; nombre: string; comuna: string | null; cobertura: string[]; activos: number };
 
 // Centro de Mando → Despacho en terreno.
 // · Gestor de terreno: ve solo sus encargos activos, con el pago, la oficina y los documentos que lleva.
@@ -38,98 +39,8 @@ export default async function TerrenoPage({ searchParams }: { searchParams: Prom
   const aviso = sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null;
   const error = messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null;
 
-  // ---------- Vista del gestor ----------
-  if (role === "field_agent") {
-    const [{ data }, { data: liqData }] = await Promise.all([
-      supabase.rpc("mis_encargos_terreno"),
-      supabase.from("field_payouts").select("id, gestor_id, period, tasks, total, status, paid_reference").order("period", { ascending: false }).limit(6),
-    ]);
-    const mios = (Array.isArray(data) ? data : []) as MiEncargo[];
-    const liqs = (liqData ?? []) as Payout[];
-    return (
-      <div className="page narrow">
-        <header className="hero">
-          <div className="hero-main">
-            <span className="eyebrow">Gestor de terreno</span>
-            <h1>Mis encargos</h1>
-            <p className="hero-lead">
-              Cada encargo muestra el pago antes de aceptarlo. Puedes rechazarlo sin ningún efecto. Al aceptar, indica en cuánto llegas;
-              el cliente ve tu avance. Nunca firmes ni pagues por un cliente.
-            </p>
-          </div>
-        </header>
-        {aviso}{error}
-        {mios.length ? (
-          <ul className="terreno-list" role="list">
-            {mios.map((e) => (
-              <li key={e.id} className="card terreno-card">
-                <div className="terreno-head">
-                  <span className={`status status-${FIELD_STATUS[e.estado]?.tone ?? "muted"}`}>{FIELD_STATUS[e.estado]?.label ?? e.estado}</span>
-                  <b className="mono">{e.folio}</b>
-                  <span className="terreno-pago">{clp(e.pago)}</span>
-                </div>
-                <h2 className="card-title">{e.tipo}</h2>
-                <p><b>{e.oficina}</b><br />{e.direccion}{e.comuna ? `, ${e.comuna}` : ""}</p>
-                <p className="muted-line">Para {e.empresa}{e.vence ? ` · vence ${e.vence.split("-").reverse().join("-")}` : ""}{e.eta ? ` · llegada estimada ${hora(e.eta)}` : ""}</p>
-                {e.instrucciones ? <p className="pre">{e.instrucciones}</p> : null}
-                {e.guia ? <p className="muted-line">{e.guia}</p> : null}
-                <Link href={`/mando/terreno/${e.id}`} className="btn-inline btn-sm btn btn-ghost">Ver documentos y detalle</Link>
-                {e.estado === "asignado" ? (
-                  <div className="terreno-actions">
-                    <form action={gestorEncargoAction} className="inline-form">
-                      <input type="hidden" name="task_id" value={e.id} />
-                      <input type="hidden" name="accion" value="aceptar" />
-                      <select name="minutos" className="input input-sm" defaultValue="30" aria-label="Llego en">
-                        {[15, 30, 45, 60, 90, 120, 180].map((m) => <option key={m} value={m}>Llego en {m < 60 ? `${m} min` : `${m / 60} h`}</option>)}
-                      </select>
-                      <SubmitButton className="btn-inline btn-sm" pendingText="…">Aceptar y salir</SubmitButton>
-                    </form>
-                    <form action={gestorEncargoAction} className="inline-form">
-                      <input type="hidden" name="task_id" value={e.id} />
-                      <input type="hidden" name="accion" value="rechazar" />
-                      <input name="nota" className="input input-sm" maxLength={300} placeholder="Motivo (opcional)" aria-label="Motivo" />
-                      <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Rechazar</SubmitButton>
-                    </form>
-                  </div>
-                ) : e.estado === "en_camino" ? (
-                  <div className="terreno-actions">
-                    <form action={gestorEncargoAction}>
-                      <input type="hidden" name="task_id" value={e.id} />
-                      <input type="hidden" name="accion" value="llegue" />
-                      <SubmitButton className="btn-inline" pendingText="…">Llegué a la oficina</SubmitButton>
-                    </form>
-                    <form action={gestorEncargoAction} className="inline-form">
-                      <input type="hidden" name="task_id" value={e.id} />
-                      <input type="hidden" name="accion" value="eta" />
-                      <select name="minutos" className="input input-sm" defaultValue="15" aria-label="Nueva hora">
-                        {[10, 15, 30, 45, 60, 90].map((m) => <option key={m} value={m}>Llego en {m} min</option>)}
-                      </select>
-                      <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Actualizar hora</SubmitButton>
-                    </form>
-                  </div>
-                ) : (
-                  <p className="muted-line">Cuando termines, abre el detalle para registrar el comprobante.</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <section className="card"><p className="muted-line">No tienes encargos activos. Te avisaremos cuando te asignen uno.</p></section>
-        )}
-        <section className="card">
-          <h2>Mis liquidaciones</h2>
-          {liqs.length ? (
-            <ul className="ref-list" role="list">
-              {liqs.map((l) => (
-                <li key={l.id}><span className="ref-main"><b>{l.period.slice(5, 7)}-{l.period.slice(0, 4)}</b><small className="muted-line">{l.tasks} encargo(s) verificados · {clp(l.total)}</small></span>
-                  <span className={`status status-${l.status === "pagada" ? "ok" : l.status === "aprobada" ? "gold" : "muted"}`}>{l.status}</span></li>
-              ))}
-            </ul>
-          ) : <p className="muted-line">Aún no tienes liquidaciones. Solo cuentan los encargos verificados por el equipo.</p>}
-        </section>
-      </div>
-    );
-  }
+  // El gestor trabaja desde su propia app (0054).
+  if (role === "field_agent") redirect("/gestor");
 
   // ---------- Vista del equipo ----------
   const admin = role === "enqora_admin";
@@ -139,11 +50,11 @@ export default async function TerrenoPage({ searchParams }: { searchParams: Prom
     supabase.from("field_task_types").select("*").order("code"),
     supervisor ? supabase.rpc("gestores_disponibles") : Promise.resolve({ data: [] }),
     admin ? supabase.from("field_payouts").select("id, gestor_id, period, tasks, total, status, paid_reference").order("created_at", { ascending: false }).limit(20) : Promise.resolve({ data: [] }),
-    admin ? supabase.rpc("team_overview") : Promise.resolve({ data: [] }),
+    supervisor ? supabase.from("field_agents").select("*").order("full_name") : Promise.resolve({ data: [] }),
   ]);
-  // Para liquidar: todos los gestores, tengan o no acceso hoy.
-  const todosGestores = ((Array.isArray(teamData) ? teamData : []) as { user_id: string; email: string | null; full_name: string | null; role: string }[])
-    .filter((m) => m.role === "field_agent").map((m) => ({ id: m.user_id, nombre: m.full_name || m.email || "Gestor" }));
+  const registro = (teamData ?? []) as FieldAgent[];
+  // Para liquidar: todos los gestores con cuenta, estén o no activos hoy.
+  const todosGestores = registro.filter((g) => g.user_id).map((g) => ({ id: g.user_id as string, nombre: g.full_name }));
   const tasks = (tData ?? []) as FieldTask[];
   const types = (tyData ?? []) as FieldTaskType[];
   const tipo = new Map(types.map((t) => [t.code, t]));
@@ -223,13 +134,44 @@ export default async function TerrenoPage({ searchParams }: { searchParams: Prom
       </section>
 
       {supervisor ? (
-        <section className="card">
-          <h2>Gestores con acceso hoy ({gestores.length})</h2>
-          {gestores.length ? (
+        <section className="card" id="gestores">
+          <h2>Gestores de terreno ({registro.filter((g) => g.status === "activo").length} activos)</h2>
+          <p className="muted-line">
+            Solo un gestor registrado aquí y activo recibe encargos. Regístralo, envíale su enlace personal (por WhatsApp o correo) y, al abrirlo,
+            instala la app ENQORA Gestor, crea su cuenta con segundo factor y acepta el tratamiento de sus datos. No ve nada del Centro de Mando.
+          </p>
+          {registro.length ? (
             <ul className="ref-list" role="list">
-              {gestores.map((g) => <li key={g.id}><span className="ref-main"><b>{g.nombre}</b><small className="muted-line">{g.activos} encargo(s) en curso · acceso hasta {hora(g.hasta)}</small></span></li>)}
+              {registro.map((g) => (
+                <li key={g.id}>
+                  <span className="ref-main">
+                    <b>{g.full_name}</b>
+                    <small className="muted-line">
+                      {g.email}{g.phone ? ` · ${g.phone}` : ""}{g.comuna ? ` · vive en ${g.comuna}` : ""}{g.coverage.length ? ` · cubre ${g.coverage.join(", ")}` : ""}
+                      {g.status === "activo" ? ` · ${gestores.find((x) => x.id === g.user_id)?.activos ?? 0} encargo(s) en curso` : ""}
+                    </small>
+                  </span>
+                  <span className="inline-form">
+                    <span className={`status status-${AGENT_STATUS[g.status].tone}`}>{AGENT_STATUS[g.status].label}</span>
+                    {g.status === "invitado" ? <InvitarGestor id={g.id} nombre={g.full_name} /> : null}
+                    {g.status === "activo" ? (
+                      <form action={estadoGestorAction}><input type="hidden" name="agent_id" value={g.id} /><input type="hidden" name="estado" value="suspendido" />
+                        <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Suspender</SubmitButton></form>
+                    ) : null}
+                    {g.status === "suspendido" && g.user_id ? (
+                      <form action={estadoGestorAction}><input type="hidden" name="agent_id" value={g.id} /><input type="hidden" name="estado" value="activo" />
+                        <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Reactivar</SubmitButton></form>
+                    ) : null}
+                    {g.status !== "retirado" ? (
+                      <form action={estadoGestorAction}><input type="hidden" name="agent_id" value={g.id} /><input type="hidden" name="estado" value="retirado" />
+                        <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Retirar</SubmitButton></form>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
             </ul>
-          ) : <p className="muted-line">No hay gestores con acceso hoy. Créales un pase del día en Equipo (rol «Gestor presencial»).</p>}
+          ) : <p className="muted-line">Aún no hay gestores registrados.</p>}
+          <RegistrarGestor />
         </section>
       ) : null}
 

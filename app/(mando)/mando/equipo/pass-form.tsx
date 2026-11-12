@@ -8,7 +8,6 @@ import { SubmitButton } from "@/components/submit-button";
 const ROLES: [string, string][] = [
   ["accountant_pro", "Contador autorizado"],
   ["lawyer_pro", "Abogado autorizado"],
-  ["field_agent", "Gestor presencial"],
   ["ops_director", "Director de operaciones"],
 ];
 
