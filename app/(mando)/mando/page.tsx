@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Emblem } from "@/components/emblems";
 import { IconArrowRight, IconUsers } from "@/components/icons";
 import { ModuleIcon } from "@/components/module-icons";
@@ -38,6 +38,8 @@ export default async function CommandCenterPage({
 }) {
   const role = await myStaffRole();
   if (!role) notFound();
+  // El gestor de terreno trabaja desde su bandeja de encargos (0053).
+  if (role === "field_agent") redirect("/mando/terreno");
   const supervisor = isSupervisorRole(role);
   const canApprove = role !== "ai_agent";
   const sp = await searchParams;
