@@ -9,6 +9,7 @@ import { authMessage } from "@/lib/auth-errors";
 import { safeNext } from "@/lib/safe-next";
 import { clearRecovery, hasRecovery } from "@/lib/recovery";
 import { logSecurityEvent } from "@/lib/security";
+import { PRIVACIDAD_VERSION, TERMINOS_VERSION } from "@/lib/legal-versions";
 
 export type FormState = { error?: string; ok?: string } | undefined;
 
@@ -40,7 +41,8 @@ export async function signUpAction(_: FormState, fd: FormData): Promise<FormStat
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { emailRedirectTo: `${siteUrl()}/auth/confirm` },
+    // Versión de los Términos y la Privacidad aceptados: la base la registra al crear la cuenta (0044).
+    options: { emailRedirectTo: `${siteUrl()}/auth/confirm`, data: { terminos_version: TERMINOS_VERSION, privacidad_version: PRIVACIDAD_VERSION } },
   });
   if (error) return { error: authMessage(error) };
 

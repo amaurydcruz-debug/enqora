@@ -6,6 +6,8 @@ import { Accordion } from "@/components/accordion";
 import { Emblem } from "@/components/emblems";
 import { IconAlert, IconDevice, IconKey, IconLogout } from "@/components/icons";
 import { signOutAction } from "@/app/actions/auth";
+import { requestDataRightAction } from "@/app/actions/security";
+import { DERECHO_ESTADO, DERECHOS } from "@/lib/legal-versions";
 import {
   acknowledgeAlertsAction,
   forgetDeviceAction,
@@ -27,6 +29,7 @@ const fmt = (iso?: string | null) =>
     : "—";
 
 const AVISOS: Record<string, string> = {
+  derecho_solicitado: "Recibimos tu solicitud sobre tus datos personales. Te responderemos dentro del plazo legal y te avisaremos aquí.",
   sesion: "Sesión cerrada. Ese dispositivo deberá ingresar de nuevo.",
   sesiones: "Cerramos todas las demás sesiones. Solo queda abierta esta.",
   dispositivo: "Dispositivo olvidado. Si vuelve a ingresar, te avisaremos.",
@@ -71,6 +74,12 @@ export default async function SecurityPage({
   const supabase = await createClient();
   const user = await currentUser();
 
+  const [consRes, derechosRes] = await Promise.all([
+    supabase.rpc("mis_consentimientos"),
+    supabase.from("data_rights_requests").select("id, tipo, detalle, estado, vence, prorrogada, respuesta, created_at").order("created_at", { ascending: false }).limit(20),
+  ]);
+  const consentimientos = (consRes.data ?? []) as { documento: string; version: string; aceptado_at: string }[];
+  const derechos = (derechosRes.data ?? []) as { id: string; tipo: string; detalle: string | null; estado: string; vence: string; prorrogada: boolean; respuesta: string | null; created_at: string }[];
   const [factorsRes, sessionsRes, devicesRes, eventsRes] = await Promise.all([
     supabase.auth.mfa.listFactors(),
     supabase.rpc("my_sessions"),
@@ -309,6 +318,59 @@ export default async function SecurityPage({
                 ) : (
                   <p className="empty-inline">Sin actividad registrada todavía.</p>
                 )}
+              </div>
+            ),
+          },
+          {
+            id: "datos",
+            title: "Tus datos personales",
+            description: "Qué aceptaste al crear tu cuenta y tus derechos sobre tus datos (acceso, rectificación, supresión, oposición, portabilidad y bloqueo).",
+            emblem: <Emblem name="seguridad" />,
+            content: (
+              <div className="setting-body">
+                {consentimientos.length ? (
+                  <ul className="ref-list" role="list">
+                    {consentimientos.map((c) => (
+                      <li key={c.documento + c.aceptado_at}>
+                        <span className="ref-main">
+                          <b>{c.documento === "terminos" ? "Términos del servicio" : "Política de privacidad"}</b>
+                          <small>Versión del {c.version} · aceptada el {new Intl.DateTimeFormat("es-CL", { dateStyle: "long", timeZone: "America/Santiago" }).format(new Date(c.aceptado_at))}</small>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="empty-inline">Tu cuenta se creó antes de que ENQORA registrara la versión aceptada. Las condiciones vigentes están en Términos y Privacidad.</p>}
+                <form action={requestDataRightAction} className="setting-form">
+                  <div className="field">
+                    <label htmlFor="tipo">¿Qué quieres pedir?</label>
+                    <select id="tipo" name="tipo" className="input" required defaultValue="acceso">
+                      {Object.entries(DERECHOS).map(([k, d]) => <option key={k} value={k}>{d.label}: {d.help}</option>)}
+                    </select>
+                  </div>
+                  <div className="field">
+                    <label htmlFor="detalle">Detalle (opcional)</label>
+                    <textarea id="detalle" name="detalle" className="input" maxLength={2000} rows={3} placeholder="Por ejemplo: qué dato corregir o para qué fin te opones." />
+                  </div>
+                  <SubmitButton pendingText="Enviando…">Enviar solicitud</SubmitButton>
+                  <p className="muted-line">ENQORA responde dentro de 30 días corridos (prorrogables una vez). Es gratis.</p>
+                </form>
+                {derechos.length ? (
+                  <ul className="ref-list" role="list">
+                    {derechos.map((d) => (
+                      <li key={d.id}>
+                        <span className="ref-main">
+                          <b>{DERECHOS[d.tipo]?.label ?? d.tipo}</b>
+                          <small>
+                            Pedida el {new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeZone: "America/Santiago" }).format(new Date(d.created_at))}
+                            {d.estado === "recibida" || d.estado === "en_curso" ? ` · plazo hasta el ${d.vence.split("-").reverse().join("-")}${d.prorrogada ? " (prorrogado)" : ""}` : ""}
+                            {d.respuesta ? ` · Respuesta: ${d.respuesta}` : ""}
+                          </small>
+                        </span>
+                        <span className={`status status-${DERECHO_ESTADO[d.estado]?.tone ?? "muted"}`}>{DERECHO_ESTADO[d.estado]?.label ?? d.estado}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
               </div>
             ),
           },
