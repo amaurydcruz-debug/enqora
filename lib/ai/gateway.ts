@@ -1,4 +1,5 @@
 import "server-only";
+import { registrarUsoIA, type ModuloIA } from "@/lib/ai/uso";
 
 // ENQORA AI Gateway: un solo punto para hablar con los modelos de IA, sin depender de un proveedor.
 // Cada módulo pide «responde llamando a esta herramienta» y el gateway elige el proveedor, traduce el formato,
@@ -30,6 +31,8 @@ export type Pedido = {
   validar?: (input: unknown) => boolean;
   // Fuerza un proveedor (laboratorio de evaluación).
   solo?: Proveedor;
+  // Módulo que llama: queda en el registro de uso de IA (0049). Sin él, la llamada no se registra.
+  modulo?: ModuloIA;
 };
 
 // Uso: tokens consumidos (entrada y salida), sumando reintentos y proveedores probados. Campo adicional y opcional:
@@ -83,6 +86,18 @@ export function proveedoresDisponibles(): { proveedor: Proveedor; modelo: string
 }
 
 export async function llamarHerramienta(pedido: Pedido): Promise<Respuesta> {
+  const t0 = Date.now();
+  const r = await llamar(pedido);
+  if (pedido.modulo) {
+    await registrarUsoIA({
+      modulo: pedido.modulo, proveedor: r.proveedor ?? r.intentos.at(-1)?.proveedor, modelo: r.modelo ?? r.intentos.at(-1)?.modelo,
+      entrada: r.uso?.entrada, salida: r.uso?.salida, ms: Date.now() - t0, ok: !!r.input, motivo: r.input ? undefined : r.motivo,
+    });
+  }
+  return r;
+}
+
+async function llamar(pedido: Pedido): Promise<Respuesta> {
   const candidatos = pedido.solo ? (configurado(pedido.solo) ? [pedido.solo] : []) : orden(pedido.datos);
   const intentos: Intento[] = [];
   if (!candidatos.length) return { input: null, motivo: "sin_proveedor", intentos };

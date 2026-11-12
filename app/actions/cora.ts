@@ -97,7 +97,7 @@ export async function consultaCoraAction(input: { rut: string; respuestas: Recor
 // Nunca lanza: devuelve la salida o el motivo del fallo (sin_proveedor, http_XXX, tiempo, sin_herramienta, validador, red).
 async function estratega(prompt: string, tool: { name: string; description: string; input_schema: unknown }, validar: (x: unknown) => boolean): Promise<{ input: unknown | null; motivo?: string }> {
   const system = `Eres CORA, el estratega de inteligencia empresarial de ENQORA (Chile). Tu trabajo es descubrir valor que el cliente aún no ve, a partir de evidencia.\n\n${MANUAL}`;
-  const r = await llamarHerramienta({ system, prompt, tool, datos: "publicos", maxTokens: 3000, timeoutMs: 45_000, validar });
+  const r = await llamarHerramienta({ system, prompt, tool, datos: "publicos", modulo: "consulta_estrategica", maxTokens: 3000, timeoutMs: 45_000, validar });
   return { input: r.input, motivo: r.motivo };
 }
 

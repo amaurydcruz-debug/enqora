@@ -81,7 +81,7 @@ async function evaluarCaso(c: Caso, proveedor: Proveedor, modo: Modo): Promise<R
     ? `Reglas verificadas de ENQORA (úsalas como fuente):\n${c.reglas.map((k) => `- ${RULES[k].regla} (${RULES[k].fuente.titulo})`).join("\n")}\n\n`
     : "";
   const t0 = Date.now();
-  const r = await llamarHerramienta({ system: SYSTEM, prompt: `${contexto}Pregunta: ${c.pregunta}`, tool: TOOL, datos: "publicos", solo: proveedor, maxTokens: 800, timeoutMs: 40_000 });
+  const r = await llamarHerramienta({ system: SYSTEM, prompt: `${contexto}Pregunta: ${c.pregunta}`, tool: TOOL, datos: "publicos", modulo: "laboratorio", solo: proveedor, maxTokens: 800, timeoutMs: 40_000 });
   const ms = Date.now() - t0;
   const base = { id: c.id, pregunta: c.pregunta, esperado: esp.texto, ms };
   if (!r.input) return { ...base, obtenido: "Sin respuesta", correcto: false, explicacion: "", error: r.motivo };

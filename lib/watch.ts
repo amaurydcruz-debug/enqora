@@ -1,6 +1,7 @@
 import "server-only";
 import { OFFICIAL_DOMAINS } from "@/lib/agents";
 import { KNOWLEDGE_VERSION } from "@/lib/knowledge";
+import { medirAnthropic } from "@/lib/ai/uso";
 
 // Agente de vigilancia normativa (M16). Revisa fuentes oficiales chilenas y propone novedades
 // (leyes, circulares, plazos, trámites y beneficios). Solo PROPONE: la supervisión verifica cada
@@ -77,14 +78,17 @@ export async function runWatch(signal: AbortSignal, date = new Date()): Promise<
     { role: "user", content: groups.map((g, i) => `${i + 1}. ${g.titulo}: ${g.consulta}`).join("\n") },
   ];
   const tools = [TOOL, { type: process.env.ANTHROPIC_WEB_SEARCH?.trim() || "web_search_20250305", name: "web_search", max_uses: 8, allowed_domains: OFFICIAL_DOMAINS }];
+  const modelo = process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
+  const medidor = medirAnthropic("vigilancia_normativa", modelo);
   const call = async (toolChoice: unknown) => {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       signal,
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5", max_tokens: 6000, system, tools, tool_choice: toolChoice, messages }),
+      body: JSON.stringify({ model: modelo, max_tokens: 6000, system, tools, tool_choice: toolChoice, messages }),
     });
     const data = (await res.json().catch(() => ({}))) as ApiResponse;
+    medidor.sumar(data as Parameters<typeof medidor.sumar>[0]);
     if (!res.ok) throw new Error(`API ${res.status}: ${data.error?.type ?? "error"}`);
     return data;
   };
@@ -113,9 +117,11 @@ export async function runWatch(signal: AbortSignal, date = new Date()): Promise<
         return false;
       }
     });
+    await medidor.fin(true);
     return { ok: true, items: official.slice(0, 12), groups: names };
   } catch (e) {
     const name = e instanceof Error ? e.name : "";
+    await medidor.fin(false, e instanceof Error ? e.message : "error");
     return { ok: false, items: [], groups: names, error: name === "TimeoutError" || name === "AbortError" ? "Tiempo de espera agotado" : e instanceof Error ? e.message.slice(0, 200) : "Error" };
   }
 }

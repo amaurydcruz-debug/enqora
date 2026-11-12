@@ -1,4 +1,5 @@
 import type { ModuleKey } from "@/lib/cases";
+import { medirAnthropic } from "@/lib/ai/uso";
 
 // Hoja de vida tributaria a partir de la Carpeta Tributaria Electrónica (CTE) que genera la propia
 // empresa en sii.cl. La IA SOLO transcribe lo que dice el documento; las alertas y sugerencias las
@@ -120,13 +121,16 @@ export async function extractTaxFolder(pdf: ArrayBuffer, signal: AbortSignal): P
     ],
   }];
   let use: { type: string; name?: string; input?: unknown } | undefined;
+  const modelo = process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
+  const medidor = medirAnthropic("carpeta_tributaria", modelo);
+  try {
   for (let intento = 0; intento < 2 && !use; intento++) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       signal,
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5",
+        model: modelo,
         max_tokens: 12000,
         system: EXTRACT_SYSTEM,
         tools: [EXTRACT_TOOL],
@@ -135,6 +139,7 @@ export async function extractTaxFolder(pdf: ArrayBuffer, signal: AbortSignal): P
       }),
     });
     const data = (await res.json().catch(() => ({}))) as ApiResponse;
+    medidor.sumar(data as Parameters<typeof medidor.sumar>[0]);
     if (!res.ok) throw new Error(`No se pudo leer el documento (${res.status}${data.error?.type ? `: ${data.error.type}` : ""}${data.error?.message ? ` · ${data.error.message.slice(0, 160)}` : ""}).`);
     use = data.content?.find((b) => b.type === "tool_use" && b.name === EXTRACT_TOOL.name);
     if (!use) {
@@ -142,6 +147,11 @@ export async function extractTaxFolder(pdf: ArrayBuffer, signal: AbortSignal): P
       messages.push({ role: "user", content: "Registra ahora la transcripción con registrar_carpeta." });
     }
   }
+  } catch (e) {
+    await medidor.fin(false, e instanceof Error ? e.message : "error");
+    throw e;
+  }
+  await medidor.fin(!!use?.input, use?.input ? undefined : "sin_herramienta");
   if (!use?.input || typeof use.input !== "object") throw new Error("La lectura del documento no devolvió datos.");
   return sanitize(use.input as Partial<Extract>);
 }

@@ -52,7 +52,7 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
   const ia = await llamarHerramienta({
     system: "Eres CORA, de ENQORA (Chile). Ordenas el caso de un dueño de empresa para que un profesional lo cotice. Tono cercano y seguro, en segunda persona. Nunca pidas claves (ClaveÚnica, clave del SII, bancos). No prometas resultados ni plazos legales.",
     prompt: `Empresa: ${razon || "no indicada"}${rut ? ` (RUT ${rut})` : ""}.\nCaso relatado por el cliente:\n"""${relato}"""\n\nÁreas posibles: ${CATEGORIAS_CASO.join(", ")}.\nDocumentos posibles: ${Object.entries(DOCUMENTOS).map(([k, d]) => `${k} (${d.nombre})`).join("; ")}.`,
-    tool: TOOL, datos: "privados", maxTokens: 700, timeoutMs: 30_000, validar: (x) => !!validarAnalisis(x),
+    tool: TOOL, datos: "privados", modulo: "caso_publico", maxTokens: 700, timeoutMs: 30_000, validar: (x) => !!validarAnalisis(x),
   });
   const analisis = (ia.input ? validarAnalisis(ia.input) : null) ?? analizarReglas(relato);
 

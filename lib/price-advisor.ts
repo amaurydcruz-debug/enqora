@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { medirAnthropic } from "@/lib/ai/uso";
 
 // Asesor de precios ENQORA (M20). Busca en fuentes públicas chilenas los precios que otros
 // proveedores PUBLICAN por un trámite o servicio comparable. Solo transcribe lo que ve: cada
@@ -61,29 +62,39 @@ export async function researchPrices(s: ServiceToResearch, signal: AbortSignal):
     content: `Servicio ENQORA: ${s.name} (${s.code}).\nAlcance: ${s.scope}\nUnidad de cobro: ${s.unit}.\nBusca entre 4 y 10 precios publicados comparables en Chile.`,
   }];
   const tools = [TOOL, { type: process.env.ANTHROPIC_WEB_SEARCH?.trim() || "web_search_20250305", name: "web_search", max_uses: 6, user_location: { type: "approximate", country: "CL" } }];
+  const modelo = process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
+  const medidor = medirAnthropic("asesor_precios", modelo);
   const call = async (toolChoice: unknown) => {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST", signal,
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5", max_tokens: 6000, system, tools, tool_choice: toolChoice, messages }),
+      body: JSON.stringify({ model: modelo, max_tokens: 6000, system, tools, tool_choice: toolChoice, messages }),
     });
     const data = (await res.json().catch(() => ({}))) as ApiResponse;
+    medidor.sumar(data as Parameters<typeof medidor.sumar>[0]);
     if (!res.ok) throw new Error(`No se pudo consultar el asesor (${res.status}${data.error?.type ? `: ${data.error.type}` : ""}).`);
     return data;
   };
   const find = (d: ApiResponse) => d.content?.find((b) => b.type === "tool_use" && b.name === TOOL.name);
-  let data = await call({ type: "auto" });
-  for (let i = 0; i < 3 && data.stop_reason === "pause_turn"; i++) {
-    messages.push({ role: "assistant", content: data.content ?? [] });
-    data = await call({ type: "auto" });
-  }
-  let use = find(data);
-  if (!use) {
-    messages.push({ role: "assistant", content: data.content?.length ? data.content : [{ type: "text", text: "(sin respuesta)" }] });
-    messages.push({ role: "user", content: "Registra ahora solo los precios verificados con registrar_precios." });
-    data = await call({ type: "auto" }); // el modelo no admite forzar la herramienta (tool_choice «tool»)
+  let use: ReturnType<typeof find>;
+  try {
+    let data = await call({ type: "auto" });
+    for (let i = 0; i < 3 && data.stop_reason === "pause_turn"; i++) {
+      messages.push({ role: "assistant", content: data.content ?? [] });
+      data = await call({ type: "auto" });
+    }
     use = find(data);
+    if (!use) {
+      messages.push({ role: "assistant", content: data.content?.length ? data.content : [{ type: "text", text: "(sin respuesta)" }] });
+      messages.push({ role: "user", content: "Registra ahora solo los precios verificados con registrar_precios." });
+      data = await call({ type: "auto" }); // el modelo no admite forzar la herramienta (tool_choice «tool»)
+      use = find(data);
+    }
+  } catch (e) {
+    await medidor.fin(false, e instanceof Error ? e.message : "error");
+    throw e;
   }
+  await medidor.fin(!!use, use ? undefined : "sin_herramienta");
   const raw = (use?.input as { precios?: unknown })?.precios;
   const items = Array.isArray(raw) ? raw : [];
   const out: FoundPrice[] = [];
