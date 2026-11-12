@@ -1,7 +1,9 @@
 "use server";
 
 import { createHash } from "node:crypto";
+import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { acuseSolicitud } from "@/lib/notify-delivery";
 import { llamarHerramienta } from "@/lib/ai/gateway";
@@ -14,7 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 // solicitud queda en la bandeja del equipo, que responde con una cotización por el canal elegido.
 // El relato es información privada del cliente: solo va a los proveedores de IA autorizados para datos privados.
 
-export type CasoState = { ok: true; analisis: AnalisisCaso; canal: "correo" | "whatsapp" } | { ok: false; error: string } | null;
+export type CasoState = { ok: true; analisis: AnalisisCaso; canal: "correo" | "whatsapp"; codigo: string | null } | { ok: false; error: string } | null;
 
 const TOOL = {
   name: "ordenar_caso",
@@ -58,7 +60,7 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
   const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "desconocido";
   const client = createHash("sha256").update(`enqora-lookup:${ip}`).digest("hex").slice(0, 32);
   const supabase = await createClient({ headers: { "x-enqora-client": client } });
-  const { error } = await supabase.rpc("crear_solicitud_caso", {
+  const { data: solId, error } = await supabase.rpc("crear_solicitud_caso", {
     p: { nombre, canal, contacto, relato, rut, razon_social: razon || null, consentimiento: true, analisis },
   });
   if (error) {
@@ -73,10 +75,23 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
     const e = await acuseSolicitud(canal, contacto, nombre).catch((x) => (x instanceof Error ? x.message : "error"));
     if (e) console.warn("[ENQORA Caso] acuse no enviado:", e);
   });
-  return { ok: true, analisis, canal };
+  // Código de la solicitud (trazabilidad): la persona lo ve y queda unido a su cuenta y su caso.
+  const { data: codigo } = solId ? await supabase.rpc("solicitud_codigo", { p_id: solId }) : { data: null };
+  return { ok: true, analisis, canal, codigo: typeof codigo === "string" ? codigo : null };
 }
 
 // Equipo ENQORA: cambia el estado de una solicitud (en revisión, cotizada, cerrada) con una nota opcional.
+// Equipo ENQORA: vincula una solicitud con un caso por su folio (p. ej., llegó por WhatsApp).
+export async function vincularSolicitudAction(form: FormData): Promise<void> {
+  const id = String(form.get("id") ?? "");
+  const folio = String(form.get("folio") ?? "").trim().slice(0, 30);
+  if (!/^[0-9a-f-]{36}$/.test(id) || !folio) redirect("/mando/solicitudes?error=ENQ_DATOS_INVALIDOS");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("staff_vincular_solicitud", { p_id: id, p_folio: folio });
+  revalidatePath("/mando/solicitudes");
+  redirect(`/mando/solicitudes${error ? `?error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}` : "?aviso=vinculada"}`);
+}
+
 export async function estadoSolicitudAction(form: FormData): Promise<void> {
   const { revalidatePath } = await import("next/cache");
   const id = String(form.get("id") ?? "");

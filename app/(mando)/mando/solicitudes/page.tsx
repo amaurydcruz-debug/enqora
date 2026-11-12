@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { estadoSolicitudAction } from "@/app/actions/caso";
+import { estadoSolicitudAction, vincularSolicitudAction } from "@/app/actions/caso";
 import { SubmitButton } from "@/components/submit-button";
 import { DOCUMENTOS, nombreCategoria, type AnalisisCaso } from "@/lib/cora/caso";
 import { formatRut } from "@/lib/rut";
@@ -14,6 +14,7 @@ export const dynamic = "force-dynamic";
 type Solicitud = {
   id: string; creada: string; rut: string | null; razon_social: string | null; nombre: string; canal: "correo" | "whatsapp"; contacto: string;
   relato: string; analisis: Partial<AnalisisCaso>; estado: "nueva" | "en_revision" | "cotizada" | "cerrada"; nota: string | null;
+  referencia?: string | null; folio?: string | null; case_id?: string | null; con_cuenta?: boolean;
 };
 const ESTADO: Record<Solicitud["estado"], string> = { nueva: "Nueva", en_revision: "En revisión", cotizada: "Cotizada", cerrada: "Cerrada" };
 const TONO: Record<Solicitud["estado"], string> = { nueva: "gold", en_revision: "muted", cotizada: "ok", cerrada: "muted" };
@@ -22,9 +23,9 @@ const horas = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 3
 
 // Centro de Mando → Solicitudes: los casos que cuentan los visitantes después de la consulta pública.
 // Compromiso con el cliente: cotización en 24 horas hábiles por el canal que eligió.
-export default async function SolicitudesPage({ searchParams }: { searchParams: Promise<{ estado?: string }> }) {
+export default async function SolicitudesPage({ searchParams }: { searchParams: Promise<{ estado?: string; aviso?: string; error?: string }> }) {
   if (!(await myStaffRole())) notFound();
-  const { estado } = await searchParams;
+  const { estado, aviso, error: errorCode } = await searchParams;
   const filtro = estado && estado in ESTADO ? estado : null;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("solicitudes_caso_listar", { p_estado: filtro });
@@ -43,6 +44,8 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
           </p>
         </div>
       </header>
+      {aviso === "vinculada" ? <p className="muted-line" role="status">✓ Solicitud vinculada al caso. Su relato quedó en la bitácora interna del caso.</p> : null}
+      {errorCode ? <p className="lookup-error" role="alert">{errorCode === "ENQ_NO_ENCONTRADO" ? "No encontramos un caso con ese folio." : "No pudimos vincular la solicitud."}</p> : null}
 
       <nav className="inline-form" aria-label="Filtrar por estado">
         <Link href="/mando/solicitudes" className={`btn btn-inline btn-sm ${filtro ? "btn-ghost" : "btn-gold"}`}>Todas</Link>
@@ -76,7 +79,19 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
               {s.analisis?.categorias?.length ? <span className="muted-line">Área sugerida: {s.analisis.categorias.map(nombreCategoria).join(" y ")}{s.analisis.origen === "reglas" ? " (por reglas)" : ""}</span> : null}
               {s.analisis?.documentos?.length ? <span className="muted-line">Documentos a pedir: {s.analisis.documentos.map((d) => DOCUMENTOS[d]?.nombre ?? d).join(" · ")}</span> : null}
               {s.nota ? <span className="muted-line">Nota del equipo: {s.nota}</span> : null}
+              <span className="muted-line">
+                {s.referencia ? <>Código <b className="mono">{s.referencia}</b> · </> : null}
+                {s.con_cuenta ? "Ya tiene cuenta ENQORA" : "Sin cuenta ENQORA aún"}
+                {s.folio && s.case_id ? <> · Caso <Link href={`/casos/${s.case_id}`}>{s.folio}</Link></> : " · Sin caso vinculado"}
+              </span>
             </div>
+            {!s.case_id ? (
+              <form action={vincularSolicitudAction} className="inline-form" style={{ flexWrap: "wrap", marginTop: 6 }}>
+                <input type="hidden" name="id" value={s.id} />
+                <input name="folio" className="input input-sm" placeholder="Folio del caso (ENQ-2026-00015)" maxLength={30} required aria-label="Folio del caso" />
+                <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="Vinculando…">Vincular al caso</SubmitButton>
+              </form>
+            ) : null}
             <form action={estadoSolicitudAction} className="inline-form" style={{ flexWrap: "wrap", marginTop: 10 }}>
               <input type="hidden" name="id" value={s.id} />
               <select name="estado" className="input input-sm" defaultValue={s.estado} aria-label="Estado">

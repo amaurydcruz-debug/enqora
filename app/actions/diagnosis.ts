@@ -69,6 +69,8 @@ export async function saveOnboardingAction(_: OnboardingState, fd: FormData): Pr
     p_description: text(fd, "description"),
   });
   if (e2 || !data) return { error: dbMessage(e2) };
+  // Trazabilidad: si la persona envió antes una solicitud desde la portada, se une a este caso.
+  await supabase.rpc("vincular_solicitud_caso", { p_case: data }).then(() => undefined, () => undefined);
   revalidatePath("/panel");
   redirect(`/casos/${data}?aviso=diagnostico_solicitado`);
 }
