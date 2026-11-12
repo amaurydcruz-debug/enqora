@@ -18,7 +18,7 @@ export default async function GestorLayout({ children }: { children: React.React
     <div className="gestor-shell">
       <header className="gestor-top">
         <Link href="/gestor" className="gestor-brand" aria-label="ENQORA Gestor, inicio">
-          <img src="/brand/enqora-icon-192.png" alt="" width={32} height={32} />
+          <img src="/brand/enqora-reloj-192.png" alt="" width={34} height={34} />
           <span>ENQORA <b>Gestor</b></span>
         </Link>
         {user ? <SignOutLink label="Salir" /> : null}

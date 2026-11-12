@@ -25,7 +25,11 @@ export function InstallApp({ nombre = "ENQORA Gestor" }: { nombre?: string }) {
   if (installed) return <p className="alert alert-ok" role="status">App {nombre} instalada en este teléfono.</p>;
   return (
     <div className="install-app">
-      <p><b>1. Instala la app {nombre}</b> (una sola vez). Queda como un ícono en tu pantalla de inicio.</p>
+      <div className="install-head">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/brand/enqora-reloj-192.png" alt="" width={56} height={56} />
+        <p><b>1. Instala la app {nombre}</b> (una sola vez). Queda este ícono en tu pantalla de inicio.</p>
+      </div>
       {evt ? (
         <button type="button" className="btn btn-gold" onClick={async () => { await evt.prompt(); const r = await evt.userChoice; if (r.outcome === "accepted") setInstalled(true); setEvt(null); }}>
           Instalar {nombre}
