@@ -80,6 +80,8 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   // Servicio elegido en la puerta de entrada antes de registrarse.
   const intent = categoryByKey((await cookies()).get(INTENT_COOKIE)?.value);
   const supabase = await createClient();
+  // Trazabilidad: las solicitudes enviadas desde la portada con el mismo correo quedan unidas a esta cuenta.
+  await supabase.rpc("vincular_mis_solicitudes").then(() => undefined, () => undefined);
   const user = await currentUser();
   const { active } = await activeCompany();
   if (intent && active && active.role !== "viewer") redirect("/comenzar/continuar");

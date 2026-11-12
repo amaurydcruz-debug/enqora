@@ -33,6 +33,14 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo
           </>
         ) : null}
         <b>Un profesional ENQORA revisa tu caso y te envía la cotización por {state.canal === "correo" ? "correo" : "WhatsApp"} en un plazo de 24 horas hábiles.</b>
+        {state.codigo ? (
+          <span>
+            Tu código de solicitud: <b className="mono">{state.codigo}</b>.{" "}
+            {state.canal === "correo"
+              ? "Si creas tu cuenta ENQORA con este mismo correo, tu solicitud queda unida a tu cuenta y a tu caso automáticamente."
+              : "Guárdalo: si creas tu cuenta ENQORA, el equipo lo usa para unir tu solicitud a tu caso."}
+          </span>
+        ) : null}
         <span className="report-note">
           Los documentos los subes de forma segura en tu espacio ENQORA, nunca por WhatsApp. ENQORA jamás te pedirá tu ClaveÚnica ni tu clave del SII.
         </span>
