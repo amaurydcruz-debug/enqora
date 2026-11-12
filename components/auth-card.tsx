@@ -13,7 +13,7 @@ export function AuthCard({
   return (
     <main className="auth-shell">
       <section className="auth-card">
-        <img src="/brand/enqora-logo.webp" alt="ENQORA — Inteligencia contable y tributaria" className="auth-logo" width={1200} height={500} />
+        <img src="/brand/enqora-logo.webp" alt="ENQORA — Inteligencia contable y tributaria" className="auth-logo" width={949} height={302} />
         <h1 className="auth-title">{title}</h1>
         {subtitle ? <p className="auth-sub">{subtitle}</p> : null}
         {children}

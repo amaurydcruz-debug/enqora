@@ -8,7 +8,7 @@ export function LegalPage({ title, lead, children }: { title: string; lead: stri
   return (
     <div className="legal-shell">
       <header className="legal-top">
-        <Link href="/" aria-label="ENQORA, inicio"><img src="/brand/enqora-logo.webp" alt="ENQORA" className="legal-logo" width={1200} height={500} /></Link>
+        <Link href="/" aria-label="ENQORA, inicio"><img src="/brand/enqora-logo.webp" alt="ENQORA" className="legal-logo" width={949} height={302} /></Link>
         <nav className="legal-links" aria-label="Información legal">
           <Link href="/terminos">Términos del servicio</Link>
           <Link href="/privacidad">Privacidad</Link>
