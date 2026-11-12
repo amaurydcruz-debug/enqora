@@ -67,9 +67,10 @@ export default async function SystemStatusPage() {
   if (!isSupervisorRole(role)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }] = await Promise.all([
+  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }] = await Promise.all([
     supabase.rpc("system_status"), supabase.rpc("audit_stats"), supabase.rpc("avisos_entregas", { p_dias: 7 }),
     supabase.rpc("migraciones_estado"),
+    supabase.from("field_task_types").select("code", { count: "exact", head: true }),
   ]);
   // Entregas de avisos por canal, últimos 7 días (0051).
   const entregas = (Array.isArray(entregasData) ? entregasData : []) as { canal: string; enviados: number; pendientes: number; fallidos: number; omitidos: number; ultimo_envio: string | null; ultimo_error: string | null }[];
@@ -82,6 +83,7 @@ export default async function SystemStatusPage() {
     ...(s ? Object.entries(s.migraciones) : []),
     ...(migData && typeof migData === "object" ? Object.entries(migData as Record<string, boolean>) : []),
     ...(migError ? [["0052", false] as [string, boolean]] : []),
+    ["0053", !m53Error] as [string, boolean], // Despacho en terreno
   ].sort(([x], [y]) => x.localeCompare(y));
   const missingMigrations = migrations.filter(([, ok]) => !ok).map(([k]) => k);
   const lastMigration = migrations.at(-1)?.[0] ?? "0016";

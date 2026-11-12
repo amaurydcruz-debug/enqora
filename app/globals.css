@@ -3012,3 +3012,15 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .enjambre .enj-por_confirmar { color: var(--warn); }
 .robot-estado { display: flex; gap: 8px; align-items: baseline; color: var(--gold-bright); margin-top: 6px; }
 .person-who .is-warn { color: var(--gold-bright); }
+
+/* Despacho en terreno (0053) */
+.terreno-board { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.terreno-col .card-title small { color: var(--text-3); font-weight: 400; }
+.terreno-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.terreno-mini { display: grid; gap: 4px; padding: 10px 12px; border: 1px solid var(--line, rgba(255,255,255,0.08)); border-radius: 10px; text-decoration: none; color: inherit; }
+.terreno-mini:hover, .terreno-mini:focus-visible { border-color: var(--gold-bright); }
+.terreno-mini small { color: var(--text-3); }
+.terreno-card { display: grid; gap: 8px; }
+.terreno-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.terreno-pago { margin-left: auto; font-weight: 700; color: var(--gold-bright); font-size: 1.1rem; }
+.terreno-actions { display: grid; gap: 8px; }

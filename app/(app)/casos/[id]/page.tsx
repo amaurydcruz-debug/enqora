@@ -402,6 +402,8 @@ export default async function CasePage({
         return `registró el pago del cobro ${e.metadata?.folio ?? ""}`;
       case "actuacion":
         return `${ACTUACION_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó un trámite"} «${e.metadata?.titulo ?? ""}»`;
+      case "terreno":
+        return `informó sobre el trámite en terreno ${e.metadata?.encargo ?? ""}: ${e.body ?? ""}`;
       case "legal":
         return `firmó «${e.metadata?.titulo ?? ""}»${e.metadata?.version ? ` (versión ${e.metadata.version})` : ""}`;
       case "autorizacion":
