@@ -125,6 +125,9 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const profile: Profile = typeof answers.etapa === "string" && ["idea", "constitucion"].includes(answers.etapa) ? "idea" : "pyme";
   const { data: newsRows } = active
     ? await supabase.from("regulatory_updates").select("id, title, summary, institution, kind, source_url, published_on, rubros")
+        // Explícito: un integrante del equipo que también es cliente vería por RLS las novedades sin verificar.
+        .in("status", ["verificada", "aplicada"]).eq("client_visible", true)
+        .or(`vigente_hasta.is.null,vigente_hasta.gte.${new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date())}`)
         .order("reviewed_at", { ascending: false }).limit(20)
     : { data: [] };
   const news = ((newsRows ?? []) as { id: string; title: string; summary: string; institution: string | null; kind: string; source_url: string; published_on: string | null; rubros: string[] }[])
