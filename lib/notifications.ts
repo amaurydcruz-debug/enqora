@@ -2,7 +2,7 @@
 
 export type Notification = {
   id: number;
-  category: "casos" | "cotizaciones" | "pagos" | "mandatos" | "equipo";
+  category: "casos" | "cotizaciones" | "pagos" | "mandatos" | "equipo" | "cuenta";
   title: string;
   body: string | null;
   link: string | null;
@@ -23,6 +23,7 @@ export const CATEGORIES: Record<Notification["category"], { label: string; help:
   cotizaciones: { label: "Cotizaciones y planes", help: "Cotizaciones y propuestas por revisar.", emblem: "contabilidad" },
   pagos: { label: "Cobros y pagos", help: "Cobros nuevos, vencidos y pagos confirmados.", emblem: "pagos" },
   mandatos: { label: "Mandatos", help: "Mandatos por firmar, vigentes, observados o vencidos.", emblem: "autorizaciones" },
+  cuenta: { label: "Mi cuenta y mis datos", help: "Respuestas a tus solicitudes sobre datos personales y avisos de la cuenta.", emblem: "seguridad" },
   equipo: { label: "Trabajo del equipo", help: "Solicitudes, aprobaciones y respuestas de clientes.", emblem: "proximas", staffOnly: true },
 };
 
