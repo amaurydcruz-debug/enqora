@@ -68,29 +68,41 @@ export async function sendWhatsAppTemplate(to: string, template: string, params:
 
 let lastRun = 0;
 
-// Envía hasta 20 avisos pendientes. Se llama después de responder (after) y en la tarea diaria.
+// Canales configurados en Vercel. Un canal sin configurar no se reclama: sus envíos quedan pendientes
+// (no se gastan los 5 intentos) hasta que se configure, o vencen a los 3 días como «omitido».
+export const canalesActivos = (): ("email" | "whatsapp")[] => [
+  ...(process.env.RESEND_API_KEY ? (["email"] as const) : []),
+  ...(whatsappEnabled() ? (["whatsapp"] as const) : []),
+];
+
+// Envía los avisos pendientes de a 20. Se llama después de responder (after) en la app, el Centro de Mando y
+// las solicitudes públicas, y en la tarea diaria (force), que vacía la cola en hasta 10 vueltas.
 export async function flushDeliveries(origin?: string, force = false) {
   const token = process.env.ENQORA_SERVICE_TOKEN;
-  if (!token) return;
+  const canales = canalesActivos();
+  if (!token || !canales.length) return;
   const now = Date.now();
   if (!force && now - lastRun < 15000) return;
   lastRun = now;
   try {
     const supabase = await createClient();
-    const { data, error } = await supabase.rpc("claim_deliveries", { p_token: token, p_limit: 20 });
-    if (error || !Array.isArray(data) || !data.length) return;
     const base = site(origin);
-    for (const d of data as Delivery[]) {
-      let problem: string | null;
-      try {
-        problem =
-          d.channel === "email"
-            ? await sendEmail(d, base)
-            : await sendWhatsAppTemplate(d.recipient, process.env.WHATSAPP_TEMPLATE || "enqora_aviso", [d.title, `${base}${d.link ?? ""}`]);
-      } catch (e) {
-        problem = e instanceof Error ? e.message.slice(0, 200) : "Error de envío";
+    for (let vuelta = 0; vuelta < (force ? 10 : 1); vuelta++) {
+      const { data, error } = await supabase.rpc("claim_deliveries", { p_token: token, p_limit: 20, p_channels: canales });
+      if (error || !Array.isArray(data) || !data.length) return;
+      for (const d of data as Delivery[]) {
+        let problem: string | null;
+        try {
+          problem =
+            d.channel === "email"
+              ? await sendEmail(d, base)
+              : await sendWhatsAppTemplate(d.recipient, process.env.WHATSAPP_TEMPLATE || "enqora_aviso", [d.title, `${base}${d.link ?? ""}`]);
+        } catch (e) {
+          problem = e instanceof Error ? e.message.slice(0, 200) : "Error de envío";
+        }
+        await supabase.rpc("finish_delivery", { p_token: token, p_delivery: d.id, p_ok: !problem, p_error: problem });
       }
-      await supabase.rpc("finish_delivery", { p_token: token, p_delivery: d.id, p_ok: !problem, p_error: problem });
+      if (data.length < 20) return;
     }
   } catch (e) {
     console.error("[ENQORA avisos]", e instanceof Error ? e.message : e);

@@ -97,12 +97,14 @@ export default async function NotificationsPage({ searchParams }: { searchParams
             <legend>Qué avisos recibir fuera de la aplicación</legend>
             {cats.map((k) => (
               <label key={k} className="check-inline pref-cat">
-                <input type="checkbox" name="cat" value={k} defaultChecked={!prefs.muted.includes(k)} />
+                {k === "cuenta"
+                  ? <input type="checkbox" checked disabled readOnly aria-describedby="cuenta-siempre" />
+                  : <input type="checkbox" name="cat" value={k} defaultChecked={!prefs.muted.includes(k)} />}
                 <span><b>{CATEGORIES[k].label}</b> <small>{CATEGORIES[k].help}</small></span>
               </label>
             ))}
           </fieldset>
-          <p className="muted-line">En la aplicación siempre verás todos tus avisos. Las alertas de seguridad de tu cuenta se envían siempre por correo.</p>
+          <p className="muted-line" id="cuenta-siempre">En la aplicación siempre verás todos tus avisos. Los avisos de «Mi cuenta y mis datos» (seguridad y respuestas sobre tus datos personales) se envían siempre por correo, aunque lo apagues.</p>
           <div className="panel-actions"><SubmitButton className="btn-inline" pendingText="Guardando…">Guardar preferencias</SubmitButton></div>
         </form>
 

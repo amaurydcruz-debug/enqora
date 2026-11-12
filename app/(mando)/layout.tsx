@@ -1,12 +1,15 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { AppNav, type NavItem } from "@/components/app-nav";
 import { IconLogout, IconShield } from "@/components/icons";
 import { SignOutLink } from "@/components/sign-out-link";
 import { UserMenu } from "@/components/user-menu";
 import { STAFF_ROLES } from "@/lib/cases";
+import { flushDeliveries } from "@/lib/notify-delivery";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient, currentUser } from "@/lib/supabase/server";
 
@@ -28,6 +31,10 @@ export default async function MandoLayout({ children }: { children: React.ReactN
   // Cuentas de clientes: el Centro de Mando no existe para ellas.
   if (!role) redirect("/equipo/sin-acceso");
   const supervisor = isSupervisorRole(role);
+  // Después de responder: envía los avisos que generan las acciones del equipo (vigilancia, aprobaciones, cobros…).
+  const h = await headers();
+  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host") ?? ""}`;
+  after(() => flushDeliveries(origin));
   const displayName = (me as { full_name: string | null } | null)?.full_name || user.email || "";
 
   const items: NavItem[] = [
