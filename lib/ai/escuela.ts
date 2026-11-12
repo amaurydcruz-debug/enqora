@@ -256,7 +256,7 @@ async function alumno(m: Mision, p: Perspectiva, proveedor: Proveedor, estrategi
   const system = `Eres un alumno de la Escuela Tributaria de ENQORA, especialista en Chile. Tu enfoque: ${PERSPECTIVAS[p].nombre}. ${PERSPECTIVAS[p].enfoque}
 Trabajas solo: no conoces las propuestas de otros alumnos. Declara tus cálculos para que los ejecute el motor contable. Si falta un dato indispensable o la premisa es incorrecta, indica falta_dato = true y explica qué falta; no inventes tasas ni montos.`;
   const t0 = Date.now();
-  const r = await llamarHerramienta({ system, prompt: `${contexto(m, estrategias)}\n\nMisión: ${m.problema}`, tool: TOOL_ALUMNO, datos: "publicos", solo: proveedor, maxTokens: 1200, timeoutMs: 60_000 });
+  const r = await llamarHerramienta({ system, prompt: `${contexto(m, estrategias)}\n\nMisión: ${m.problema}`, tool: TOOL_ALUMNO, datos: "publicos", modulo: "escuela", solo: proveedor, maxTokens: 1200, timeoutMs: 60_000 });
   const ms = Date.now() - t0;
   const base = { perspectiva: p, proveedor: r.proveedor, modelo: r.modelo, tokens: tokens(r.uso), uso: r.uso, ms };
   if (!r.input) return { ...base, valor: null, falta_dato: false, dato_faltante: "", calculos: [], fundamento: "", correcto: false, error: r.motivo };
@@ -285,7 +285,7 @@ Regla de ENQORA: no se suponen datos. Si una propuesta señala que el enunciado 
 Califica cada propuesta de 0 a 10 y anota sus errores. No puedes cambiar las reglas de ENQORA: solo puedes proponer una lección, que una persona revisará.`;
   const prompt = `${contexto(m, estrategias)}\n\nMisión: ${m.problema}\n\n${orden.map((x, k) => describir(x.a, k + 1)).join("\n\n")}`;
   const t0 = Date.now();
-  const r = await llamarHerramienta({ system, prompt, tool: TOOL_TRIBUNAL, datos: "publicos", solo: proveedor, maxTokens: 1500, timeoutMs: 60_000 });
+  const r = await llamarHerramienta({ system, prompt, tool: TOOL_TRIBUNAL, datos: "publicos", modulo: "escuela", solo: proveedor, maxTokens: 1500, timeoutMs: 60_000 });
   const ms = Date.now() - t0;
   if (!r.input) return { proveedor: r.proveedor, modelo: r.modelo, valor: null, falta_dato: false, fundamento: "", leccion: "", tokens: tokens(r.uso), uso: r.uso, ms, error: r.motivo, notas: [] as { idx: number; puntaje: number; errores: string }[] };
   const o = r.input as Record<string, unknown>;
@@ -304,7 +304,7 @@ Califica cada propuesta de 0 a 10 y anota sus errores. No puedes cambiar las reg
 async function agenteIndividual(m: Mision, proveedor: Proveedor, esp: { numero: number | null }) {
   const system = "Eres un asistente contable y tributario experto en Chile. Respondes con precisión. Si falta un dato indispensable para calcular con certeza (por ejemplo, una tasa vigente que no te entregaron), no lo supongas: indica falta_dato = true.";
   const t0 = Date.now();
-  const r = await llamarHerramienta({ system, prompt: `${contexto(m, [])}\n\nPregunta: ${m.problema}`, tool: TOOL_AGENTE, datos: "publicos", solo: proveedor, maxTokens: 800, timeoutMs: 60_000 });
+  const r = await llamarHerramienta({ system, prompt: `${contexto(m, [])}\n\nPregunta: ${m.problema}`, tool: TOOL_AGENTE, datos: "publicos", modulo: "escuela", solo: proveedor, maxTokens: 800, timeoutMs: 60_000 });
   const ms = Date.now() - t0;
   const costo = r.uso ? costoUsd(proveedor, r.uso) : null;
   if (!r.input) return { valor: null, falta_dato: false, explicacion: "", correcto: false, tokens: tokens(r.uso), ms, costo, error: r.motivo };

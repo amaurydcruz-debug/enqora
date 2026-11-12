@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { costoUsd } from "@/lib/ai/gateway";
+import { costoUsd, type Proveedor } from "@/lib/ai/gateway";
+import { MODULOS_IA } from "@/lib/ai/uso";
 import { agentName } from "@/lib/agents";
 import { operacion, type AuditRow, type ProposalRow, type Run } from "@/lib/agentes/operacion";
 import { createClient } from "@/lib/supabase/server";
@@ -27,13 +28,20 @@ export default async function AgentesPage({ searchParams }: { searchParams: Prom
   const desde = new Date(Date.now() - dias * 86_400_000).toISOString();
   const supabase = await createClient();
 
-  const [runsRes, propRes, audRes, learnRes, escRes] = await Promise.all([
+  const [runsRes, propRes, audRes, learnRes, escRes, usoRes] = await Promise.all([
     supabase.from("agent_runs").select("id, case_id, agent, status, model, input_tokens, output_tokens, error, created_at").gte("created_at", desde).order("created_at", { ascending: false }).limit(3000),
     supabase.from("agent_proposals").select("run_id, status, created_at").gte("created_at", desde).limit(10000),
     supabase.from("agent_audits").select("run_id, status, decision, input_tokens, output_tokens, created_at").gte("created_at", desde).limit(5000),
     supabase.from("case_learnings").select("id", { count: "exact", head: true }).eq("status", "borrador"),
     supabase.rpc("escuela_resumen"),
+    supabase.rpc("ia_uso_resumen", { p_dias: dias }),
   ]);
+  // Uso de IA de TODOS los módulos (0049): consulta pública, carpetas, precios, vigilancia, agentes, laboratorio, escuela.
+  type UsoFila = { modulo: string; proveedor: string; modelo: string; llamadas: number; fallidas: number; entrada: number; salida: number; busquedas: number; ms_promedio: number; ultima: string; ultimo_motivo: string | null };
+  const uso = (Array.isArray(usoRes.data) ? usoRes.data : []) as UsoFila[];
+  const usoCosto = (u: UsoFila) => (["anthropic", "hf", "openai"].includes(u.proveedor) ? costoUsd(u.proveedor as Proveedor, { entrada: Number(u.entrada), salida: Number(u.salida) }) : null);
+  const usoTotal = uso.reduce((t, u) => ({ llamadas: t.llamadas + u.llamadas, fallidas: t.fallidas + u.fallidas, tokens: t.tokens + Number(u.entrada) + Number(u.salida), costo: t.costo + (usoCosto(u) ?? 0) }), { llamadas: 0, fallidas: 0, tokens: 0, costo: 0 });
+  const conPrecio = uso.some((u) => usoCosto(u) !== null);
   const runs = (runsRes.data ?? []) as Run[];
   const op = operacion(runs, (propRes.data ?? []) as ProposalRow[], (audRes.data ?? []) as AuditRow[]);
   const costo = costoUsd("anthropic", { entrada: op.total.tokens_entrada, salida: op.total.tokens_salida });
@@ -85,6 +93,42 @@ export default async function AgentesPage({ searchParams }: { searchParams: Prom
             ))}
           </ul>
         ) : <p className="muted-line">Sin alertas en el período.</p>}
+      </section>
+
+      <section className="card">
+        <h2>Uso de IA en toda la plataforma</h2>
+        <p className="muted-line">
+          Cada llamada a un modelo, en cualquier módulo: {miles(usoTotal.llamadas)} llamadas, {miles(usoTotal.fallidas)} fallidas, {miles(usoTotal.tokens)} tokens
+          {conPrecio ? ` · US$ ${usoTotal.costo.toFixed(2)} según ENQORA_IA_PRECIOS` : " · sin ENQORA_IA_PRECIOS el costo se muestra en tokens"}. Solo se registran cifras: nunca preguntas, respuestas ni documentos.
+        </p>
+        {usoRes.error ? (
+          <p className="muted-line">Falta ejecutar la migración 0049_uso_ia.sql en Supabase.</p>
+        ) : uso.length ? (
+          <div className="table-scroll">
+            <table className="table">
+              <thead>
+                <tr><th>Módulo</th><th>Proveedor · modelo</th><th>Llamadas</th><th>Fallidas</th><th>Tokens</th><th>Búsquedas web</th><th>Tiempo medio</th><th>{conPrecio ? "Costo" : "Último error"}</th></tr>
+              </thead>
+              <tbody>
+                {uso.map((u) => {
+                  const c = usoCosto(u);
+                  return (
+                    <tr key={`${u.modulo}-${u.proveedor}`}>
+                      <td>{MODULOS_IA[u.modulo] ?? u.modulo}</td>
+                      <td>{u.proveedor} · {u.modelo}</td>
+                      <td>{miles(u.llamadas)}</td>
+                      <td>{miles(u.fallidas)}{u.llamadas ? ` (${pct(u.fallidas / u.llamadas)})` : ""}</td>
+                      <td>{miles(Number(u.entrada) + Number(u.salida))}</td>
+                      <td>{miles(u.busquedas)}</td>
+                      <td>{(u.ms_promedio / 1000).toFixed(1)} s</td>
+                      <td>{conPrecio ? (c !== null ? `US$ ${c.toFixed(2)}` : "—") : (u.ultimo_motivo ?? "—")}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className="muted-line">Sin llamadas de IA registradas en el período.</p>}
       </section>
 
       <section className="card">
