@@ -14,7 +14,7 @@ const SCRIPT = `
 const VERSION = ${JSON.stringify(VERSION)};
 const STATIC = "enqora-static-" + VERSION;
 const OFFLINE = "/sin-conexion";
-const PRECACHE = [OFFLINE, "/brand/enqora-logo.webp", "/brand/enqora-icon-192.png", "/brand/enqora-icon-512.png"];
+const PRECACHE = [OFFLINE, "/brand/enqora-logo.webp", "/brand/enqora-reloj-192.png", "/brand/enqora-reloj-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(STATIC).then((c) => c.addAll(PRECACHE.map((u) => new Request(u, { cache: "reload", credentials: "omit" })))));
