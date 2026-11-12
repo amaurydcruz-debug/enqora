@@ -3011,3 +3011,4 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .enjambre .enj-no_aplica { color: var(--text-3); }
 .enjambre .enj-por_confirmar { color: var(--warn); }
 .robot-estado { display: flex; gap: 8px; align-items: baseline; color: var(--gold-bright); margin-top: 6px; }
+.person-who .is-warn { color: var(--gold-bright); }

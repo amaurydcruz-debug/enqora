@@ -15,7 +15,7 @@ import { PassForm } from "./pass-form";
 
 export const metadata: Metadata = { title: "Equipo ENQORA" };
 
-type Member = { user_id: string; email: string | null; full_name: string | null; role: StaffRole; active: boolean; access_until: string | null; has_access: boolean };
+type Member = { user_id: string; email: string | null; full_name: string | null; role: StaffRole; active: boolean; access_until: string | null; has_access: boolean; casos_abiertos?: number };
 type Pass = { id: string; email: string; role: StaffRole; work_day: string; valid_from: string; valid_until: string; note: string | null; used_at: string | null; revoked_at: string | null };
 
 const AVISOS: Record<string, string> = {
@@ -123,6 +123,11 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
                       <span className="person-who">
                         <b>{m.full_name || m.email}</b>
                         {m.full_name ? <small>{m.email}</small> : null}
+                        {m.casos_abiertos ? (
+                          <small className={m.has_access ? undefined : "is-warn"}>
+                            {m.casos_abiertos} caso(s) abierto(s) como responsable{m.has_access ? "" : " · sin acceso: reasígnalos"}
+                          </small>
+                        ) : null}
                       </span>
                       <span className="person-tools">
                         <span className={`person-role${m.has_access ? "" : " is-off"}`}>

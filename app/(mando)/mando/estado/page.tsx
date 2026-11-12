@@ -67,16 +67,24 @@ export default async function SystemStatusPage() {
   if (!isSupervisorRole(role)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: auditData }, { data: entregasData }] = await Promise.all([
+  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }] = await Promise.all([
     supabase.rpc("system_status"), supabase.rpc("audit_stats"), supabase.rpc("avisos_entregas", { p_dias: 7 }),
+    supabase.rpc("migraciones_estado"),
   ]);
   // Entregas de avisos por canal, últimos 7 días (0051).
   const entregas = (Array.isArray(entregasData) ? entregasData : []) as { canal: string; enviados: number; pendientes: number; fallidos: number; omitidos: number; ultimo_envio: string | null; ultimo_error: string | null }[];
   const a = auditData as { auditorias: number; aprobadas: number; con_observaciones: number; escaladas: number; fallidas: number; aceptadas_con_excepcion: number } | null;
   const s = data as Status | null;
 
-  const migrations = s ? Object.entries(s.migraciones) : [];
+  // 0002–0016 vienen de system_status; 0017 en adelante, de migraciones_estado (0052). Si la 0052 no está
+  // pegada, se informa como faltante para que se vea qué pegar.
+  const migrations = [
+    ...(s ? Object.entries(s.migraciones) : []),
+    ...(migData && typeof migData === "object" ? Object.entries(migData as Record<string, boolean>) : []),
+    ...(migError ? [["0052", false] as [string, boolean]] : []),
+  ].sort(([x], [y]) => x.localeCompare(y));
   const missingMigrations = migrations.filter(([, ok]) => !ok).map(([k]) => k);
+  const lastMigration = migrations.at(-1)?.[0] ?? "0016";
 
   const config: Check[] = [
     { label: "Dirección pública del sitio", ok: has("NEXT_PUBLIC_SITE_URL"), required: true, help: "Falta NEXT_PUBLIC_SITE_URL (p. ej., https://enqora.cl). Se usa en correos, enlaces y buscadores." },
@@ -126,7 +134,7 @@ export default async function SystemStatusPage() {
             <div className="status-head">
               <h2>Base de datos</h2>
               <span className={`badge ${missingMigrations.length || !a ? "badge-risk" : "badge-ok"}`}>
-                {missingMigrations.length || !a ? `Faltan ${[...missingMigrations, ...(a ? [] : ["0016"])].join(", ")}` : `Migraciones 0002–0016 aplicadas`}
+                {missingMigrations.length || !a ? `Faltan ${[...new Set([...missingMigrations, ...(a ? [] : ["0016"])])].join(", ")}` : `Migraciones 0002–${lastMigration} aplicadas`}
               </span>
             </div>
             <dl className="data-grid">
