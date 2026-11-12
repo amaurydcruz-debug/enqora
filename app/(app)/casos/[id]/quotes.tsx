@@ -64,6 +64,9 @@ export function Quotes({
                   <span className={`status status-${QUOTE_STATUSES[st]?.tone ?? "muted"}`}>{QUOTE_STATUSES[st]?.label ?? st}</span>
                 </div>
 
+                {q.es_prueba ? (
+                  <p className="lookup-error" role="note">Cotización de prueba: no es un precio real de ENQORA y no se paga con dinero real.</p>
+                ) : null}
                 <div className="quote-price">
                   <span className="quote-final">{clp(q.final_price)}</span>
                   <span className="quote-final-note">

@@ -100,6 +100,7 @@ export type PriceAdvice = {
 };
 
 export type Quote = {
+  es_prueba?: boolean; // hecha con una tarifa de prueba (0047): no es un precio real y no se paga con dinero real
   id: string;
   case_id: string;
   service_id: string;

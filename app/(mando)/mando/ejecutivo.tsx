@@ -14,7 +14,8 @@ export async function VistaEjecutiva({ aprobaciones }: { aprobaciones: number })
   const desde = new Date(Date.now() - DIAS * 86_400_000).toISOString();
   const [casosR, cobrosR, calR, ahoR, empR, empNuevasR, solR, runsR, propR, audR] = await Promise.all([
     supabase.from("cases").select("id, module, status, created_at, closed_at, due_date, responsible_id").limit(10000),
-    supabase.from("charges").select("amount, status, due_date, paid_at").limit(10000),
+    // Los cobros de prueba (tarifas [PRUEBA], 0047) no cuentan en las finanzas.
+    supabase.from("charges").select("amount, status, due_date, paid_at").eq("es_prueba", false).limit(10000),
     supabase.from("case_ratings").select("case_id, resuelto, satisfaccion, created_at").gte("created_at", desde).limit(5000),
     supabase.from("case_savings").select("monto, estado").limit(10000),
     supabase.from("companies").select("id", { count: "exact", head: true }),
