@@ -9,7 +9,8 @@ import { ejecutivo } from "@/lib/mando/ejecutivo";
 import { operacion, type Run } from "@/lib/agentes/operacion";
 import { runCalculator } from "@/lib/tax-calc";
 import { analizarReglas } from "@/lib/cora/caso";
-import { PLAYBOOKS, RULES } from "@/lib/knowledge";
+import { knowledgeFor, PLAYBOOKS, RULES } from "@/lib/knowledge";
+import { contextoAviso, leerAvisoSII } from "@/lib/cora/avisos-sii";
 import { isNaturalPersonRut } from "@/lib/rut";
 import { solucionPersona } from "@/lib/cora/solucion-persona";
 import { enjambrePersona, fuentesDe } from "@/lib/cora/enjambre-persona";
@@ -278,6 +279,32 @@ prueba("Agentes: alerta por fallas y por baja aceptación", () => {
   const titulos = op.alertas.map((a) => a.titulo).join(" | ");
   assert.match(titulos, /40% de ejecuciones fallidas/);
   assert.match(titulos, /solo 14% de sus propuestas/);
+});
+
+// ---------- Lector de avisos del SII (caso real DJ 1947) ----------
+prueba("Aviso SII: reconoce la DJ 1947 y la conecta con la ruta aprendida", () => {
+  const aviso = `Junto con saludar, le informamos que como usted desarrolla actividades de primera categoría, debe dar cumplimiento a diferentes obligaciones tributarias, por lo que se encuentra obligado a presentar la(s) Declaración(es) Jurada(s) N° 1947 del AT 2026, y no la(s) ha presentado. Atentamente, Servicio de Impuestos Internos`;
+  const a = leerAvisoSII(aviso);
+  assert.equal(a.esAviso, true);
+  assert.deepEqual(a.djs, ["1947"]);
+  assert.equal(a.anioTributario, 2026);
+  assert.equal(a.playbooks[0]?.id, "propyme_transparente_sin_renta");
+  assert.match(contextoAviso(aviso), /primero la 1947, después el F22/);
+  assert.equal(contextoAviso("Quiero abrir una cafetería en Ñuñoa"), "");
+});
+
+prueba("Base de conocimiento: el caso real llega a los agentes con sus aprendizajes", () => {
+  const k = knowledgeFor("tributario");
+  assert.match(k, /DJ 1947/);
+  assert.match(k, /Aprendido de un caso real ENQORA/);
+  const caso = PLAYBOOKS.find((p) => p.id === "propyme_transparente_sin_renta");
+  assert.ok(caso?.origen?.aprendizajes.length);
+  for (const n of caso!.normas) assert.ok(RULES[n], `norma inexistente: ${n}`);
+});
+
+prueba("Enjambre: persona con negocio que no declara recibe la revisión de renta y DJ 1947", () => {
+  const rs = enjambrePersona({ venta: "facturas", declara: "no", deudas: "no", contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" } as never, new Date("2026-11-13T12:00:00-03:00"));
+  assert.ok(rs.some((r) => r.norma === "dj_1947"));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
