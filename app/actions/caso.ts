@@ -6,6 +6,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { acuseSolicitud, flushDeliveries } from "@/lib/notify-delivery";
+import { contextoAviso } from "@/lib/cora/avisos-sii";
 import { llamarHerramienta } from "@/lib/ai/gateway";
 import { analizarReglas, CATEGORIAS_CASO, DOCUMENTOS, validarAnalisis, type AnalisisCaso } from "@/lib/cora/caso";
 import { dbCode } from "@/lib/db-errors";
@@ -51,7 +52,7 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
 
   const ia = await llamarHerramienta({
     system: "Eres CORA, de ENQORA (Chile). Ordenas el caso de un dueño de empresa para que un profesional lo cotice. Tono cercano y seguro, en segunda persona. Nunca pidas claves (ClaveÚnica, clave del SII, bancos). No prometas resultados ni plazos legales.",
-    prompt: `Empresa: ${razon || "no indicada"}${rut ? ` (RUT ${rut})` : ""}.\nCaso relatado por el cliente:\n"""${relato}"""\n\nÁreas posibles: ${CATEGORIAS_CASO.join(", ")}.\nDocumentos posibles: ${Object.entries(DOCUMENTOS).map(([k, d]) => `${k} (${d.nombre})`).join("; ")}.`,
+    prompt: `Empresa: ${razon || "no indicada"}${rut ? ` (RUT ${rut})` : ""}.\nCaso relatado por el cliente:\n"""${relato}"""\n${contextoAviso(relato) ? `\n${contextoAviso(relato)}\nUsa esta ruta para el resumen y los documentos (sin montos ni plazos legales).\n` : ""}\nÁreas posibles: ${CATEGORIAS_CASO.join(", ")}.\nDocumentos posibles: ${Object.entries(DOCUMENTOS).map(([k, d]) => `${k} (${d.nombre})`).join("; ")}.`,
     tool: TOOL, datos: "privados", modulo: "caso_publico", maxTokens: 700, timeoutMs: 30_000, validar: (x) => !!validarAnalisis(x),
   });
   const analisis = (ia.input ? validarAnalisis(ia.input) : null) ?? analizarReglas(relato);

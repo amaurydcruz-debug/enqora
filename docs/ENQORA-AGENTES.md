@@ -107,3 +107,18 @@ Ejecutar un agente envía antecedentes del caso (incluidos RUT y razón social) 
   licitud, información a los titulares, transferencia internacional y contrato de encargo de tratamiento.
 - Incluirlo en la política de privacidad y en los términos del servicio.
 - Revisar las condiciones de uso de datos de la API comercial de Anthropic (por defecto no se usan para entrenar).
+
+## Casos reales como base de entrenamiento (KNOWLEDGE_VERSION 2026-11-13)
+
+Cada caso real que ENQORA resuelve se convierte en una ruta (`PLAYBOOKS` en `lib/knowledge.ts`), **anonimizada**: nunca nombres, RUT, montos ni documentos del cliente. El campo `origen` registra la fecha, si está en curso o resuelto, y los aprendizajes. Los agentes los reciben en su instrucción («Aprendido de un caso real ENQORA…»).
+
+Llega a tres lugares:
+- **Agentes de casos** (tributario, contable, financiero y estratégico) por `knowledgeFor`.
+- **«Tu caso» público:** `lib/cora/avisos-sii.ts` reconoce un aviso del SII pegado en el relato (DJ con su número, año tributario, F22, F29, citación) y le entrega a CORA la ruta conocida.
+- **Enjambre de CORA Personas:** la revisión «Renta anual: F22 y DJ 1947», para quien tiene un negocio y no está al día.
+
+| Caso | Estado | Aprendizajes clave |
+|---|---|---|
+| `propyme_transparente_sin_renta`: aviso del SII por la DJ 1947 no presentada (año tributario 2026) | En curso (nov-2026) | El aviso escondía también el F22 sin presentar. Orden: 1947 → F22. El cliente no entrega claves: envía capturas o el Excel del asistente, y ENQORA revisa antes de que envíe. |
+
+Al cerrar el caso: cambiar `estado` a `resuelto`, agregar lo aprendido (qué funcionó, multa real, si se condonó) y registrar además el aprendizaje en el Centro de Mando (cuatro ojos).

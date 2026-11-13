@@ -6,7 +6,7 @@ import type { AgentKey } from "@/lib/mirror";
 // mínimo) NO se escriben aquí: el agente debe pedirlas o verificarlas en la fuente oficial.
 // Al cambiar una norma: actualizar este archivo, KNOWLEDGE_VERSION y docs/ENQORA-AGENTES.md.
 
-export const KNOWLEDGE_VERSION = "2026-11-10";
+export const KNOWLEDGE_VERSION = "2026-11-13";
 
 export type Source = { titulo: string; articulo?: string; vigencia?: string; url?: string };
 export type Rule = { tema: string; regla: string; fuente: Source };
@@ -18,6 +18,8 @@ export type Playbook = {
   normas: string[];       // claves de RULES que aplican
   preguntar: string[];    // datos que hay que pedir al cliente si faltan
   riesgo: "bajo" | "medio" | "alto";
+  // Caso real de ENQORA convertido en ruta (anonimizado: nunca nombres ni RUT). Se actualiza al cerrar el caso.
+  origen?: { fecha: string; estado: "en_curso" | "resuelto"; aprendizajes: string[] };
 };
 
 const CT: Source = { titulo: "Código Tributario (DL 830)", url: "https://www.sii.cl/normativa_legislacion/codigo_tributario.pdf" };
@@ -147,6 +149,21 @@ export const RULES: Record<string, Rule> = {
     regla: "Las empresas de primera categoría pueden descontar del impuesto a la renta el costo de capacitaciones autorizadas por SENCE. La Ley 21.850 redujo el tope de 1% a 0,7% de la planilla anual de remuneraciones y fijó copagos según la renta del trabajador: cobertura de 80% hasta 25 UTM, 50% entre 25 y 50 UTM y 15% sobre 50 UTM. Confirmar en SENCE desde qué fecha rigen el tope y los copagos. Requisito habitual: planilla imponible mayor a 35 UTM mensuales y cotizaciones pagadas.",
     fuente: { titulo: "ChileAtiende · Franquicia tributaria SENCE; Ley 21.850", vigencia: "Tope y copagos según Ley 21.850 (fecha de aplicación por confirmar)", url: "https://www.chileatiende.gob.cl/fichas/44808-franquicia-tributaria" },
   },
+  dj_1947: {
+    tema: "DJ 1947 · régimen Pro Pyme Transparente (art. 14 D N°8 LIR)",
+    regla: "Quienes están en el régimen Pro Pyme Transparente presentan cada año la Declaración Jurada 1947: informa la base imponible que tributa con impuestos finales en manos de los dueños, los créditos y los PPM. Plazo año tributario 2026: 27-03-2026 si son sociedades con socios personas naturales; el empresario individual la presenta junto con su F22 (y se informa a sí mismo como propietario). Se hace en sii.cl → Mis Declaraciones Juradas → «Asistente de apoyo para presentar DJ», que propone ingresos y egresos desde el Registro de Compras y Ventas y los F29, y muestra el recuadro 22 del F22 (exportable a Excel). La 1947 alimenta la propuesta del F22: se presenta ANTES del F22; si no cuadran, el F22 queda observado.",
+    fuente: { titulo: "SII · ¿Qué DJ deben presentar los contribuyentes Pro Pyme Transparente para el AT 2026?", vigencia: "AT 2026 (act. 19-01-2026)", url: "https://www.sii.cl/preguntas_frecuentes/ddjj/001_135_8929.htm" },
+  },
+  dj_fuera_plazo: {
+    tema: "Declaraciones juradas no presentadas o fuera de plazo",
+    regla: "Una DJ presentada después del vencimiento tiene multa según la tabla del SII para el año tributario (depende del formulario, del número de registros informados y de los días de atraso). No presentarla deja al contribuyente como «no declarante» y el SII puede enviar avisos o citar. Las DJ incompletas o con errores se sancionan por el art. 109 CT. La multa la calcula el SII al presentar; después se puede pedir condonación en MiSII según la política vigente (verificar).",
+    fuente: { titulo: "SII · Multas por declaraciones juradas AT 2026", articulo: "Arts. 97 y 109 CT", vigencia: "AT 2026", url: "https://www.sii.cl/ayudas/ayudas_por_servicios/multas_ddjj_at2026.pdf" },
+  },
+  f22_plazos_2026: {
+    tema: "Plazos de la declaración de renta (F22) año tributario 2026",
+    regla: "F22 con pago: del 8 al 30 de abril de 2026. Sin pago o con devolución: hasta el 8 de mayo de 2026. Después, la declaración es fuera de plazo: con impuesto a pagar se aplica reajuste, multa del art. 97 N°2 e interés del art. 53 (ver multa_97_2 e interes_53); sin pago o con devolución, multa de 1 UTM a 1 UTA. Regularizar antes de una fiscalización es siempre más barato.",
+    fuente: { titulo: "SII · Noticia 06-05-2026: último plazo para declarar Renta", vigencia: "AT 2026", url: "https://www.sii.cl/noticias/2026/060526noti02smn.htm" },
+  },
   datos_personales: {
     tema: "Protección de datos personales",
     regla: "Ley 21.719 modifica la Ley 19.628 y crea la Agencia de Protección de Datos Personales; entra en vigencia el 1-12-2026. Exige base de licitud, deber de información, derechos de acceso, rectificación, supresión, oposición y portabilidad, medidas de seguridad y régimen de sanciones.",
@@ -159,6 +176,43 @@ export const RULES: Record<string, Rule> = {
 // ---------------------------------------------------------------------
 
 export const PLAYBOOKS: Playbook[] = [
+  {
+    id: "propyme_transparente_sin_renta",
+    caso: "Empresaria o empresario individual Pro Pyme Transparente que recibe un aviso del SII por la DJ 1947 no presentada y, al revisar, tampoco tiene su F22 del año",
+    senales: [
+      "correo del SII: «se encuentra obligado a presentar la(s) Declaración(es) Jurada(s) N° 1947»",
+      "régimen 14 D N°8 (Pro Pyme Transparente) en MiSII",
+      "Consulta de estado F22: «no cuentas con una Declaración de Renta para el periodo tributario»",
+      "persona natural con inicio de actividades en primera categoría",
+    ],
+    pasos: [
+      "Verificar que el aviso es auténtico: el SII no envía enlaces ni pide claves; revisar todo entrando directo a sii.cl.",
+      "Diagnóstico completo, no solo lo que dice el aviso: Consulta de estado del F22 del año (¿existe? ¿observado?), pagos pendientes y Carpeta Tributaria (régimen, empresario individual o sociedad, F29 del período). Un aviso por la 1947 suele esconder también el F22 sin presentar.",
+      "Orden obligatorio: primero la DJ 1947, después el F22. La 1947 calcula la base imponible (recuadro 22) que el SII usa para proponer el F22; al revés, el F22 queda observado.",
+      "DJ 1947 con el «Asistente de apoyo para presentar DJ»: el cliente lo abre con su clave; ENQORA revisa la «Propuesta Base Imponible» (ingresos, egresos, PPM, exportable a Excel) ANTES de enviar: ingresos completos, gastos bien clasificados, PPM de los F29. Empresario individual: se informa a sí mismo como propietario.",
+      "Enviar la 1947 y luego el F22 del mismo año tributario desde la Consulta de estado («realizar una declaración de renta para este periodo»); revisar la propuesta (recuadros 22 y 23) antes de enviar.",
+      "Cuantificar: con pago, reajuste + multa art. 97 N°2 + interés art. 53; con devolución o sin pago, multa 1 UTM a 1 UTA. La multa de la DJ la calcula el SII al presentar.",
+      "Pedir condonación de multas en MiSII con el texto que prepara ENQORA (presentación voluntaria, primera vez).",
+      "Cerrar el caso revisando otros años, F29 y demás DJ para dejar al cliente al día de una vez; registrar el aprendizaje.",
+    ],
+    normas: ["dj_1947", "dj_fuera_plazo", "f22_plazos_2026", "multa_97_2", "interes_53", "pro_pyme"],
+    preguntar: [
+      "¿Puedes enviar el correo del SII completo (sin claves) y una captura de la Consulta de estado del F22?",
+      "¿Tu negocio es como persona natural (empresario individual) o es una sociedad?",
+      "¿Puedes abrir el asistente de la DJ 1947 y enviar la «Propuesta Base Imponible» (o el Excel) sin enviarla todavía?",
+      "¿Tienes la Carpeta Tributaria Electrónica (gratis en sii.cl)?",
+    ],
+    riesgo: "alto",
+    origen: {
+      fecha: "2026-11",
+      estado: "en_curso",
+      aprendizajes: [
+        "El aviso del SII mencionaba solo la DJ 1947; la revisión mostró que también faltaba el F22 del año. Revisar siempre el estado del F22 antes de responder.",
+        "El cliente no necesita entregar claves: descarga y envía capturas o el Excel del asistente; ENQORA revisa antes de que envíe.",
+        "La consulta de estado del F22 ofrece «realizar una declaración»: no usarla antes de presentar la 1947.",
+      ],
+    },
+  },
   {
     id: "f29_atrasado",
     caso: "Empresa con uno o más F29 sin declarar o declarados fuera de plazo",
@@ -348,8 +402,8 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Cuantificar multas e intereses solo con las herramientas de cálculo y datos verificados.",
       "Comparar regímenes con escenarios y supuestos explícitos.",
     ],
-    reglas: ["f29_plazos", "multa_97_2", "interes_53", "iva_tasa", "iva_credito_24", "iva_servicios", "pro_pyme", "idpc_tasas", "tgr_condonacion", "retencion_honorarios", "inicio_actividades", "termino_giro", "prescripcion_200", "ley_21713"],
-    casos: ["f29_atrasado", "tgr_condonacion", "ventas_informales", "eleccion_regimen", "honorarios", "iva_servicios", "termino_giro"],
+    reglas: ["f29_plazos", "multa_97_2", "interes_53", "iva_tasa", "iva_credito_24", "iva_servicios", "pro_pyme", "idpc_tasas", "tgr_condonacion", "retencion_honorarios", "inicio_actividades", "termino_giro", "prescripcion_200", "ley_21713", "dj_1947", "dj_fuera_plazo", "f22_plazos_2026"],
+    casos: ["propyme_transparente_sin_renta", "f29_atrasado", "tgr_condonacion", "ventas_informales", "eleccion_regimen", "honorarios", "iva_servicios", "termino_giro"],
   },
   contable: {
     capacidades: [
@@ -357,8 +411,8 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Detectar notas de crédito omitidas, documentos atrasados y abonos sin respaldo.",
       "Proponer asientos y correcciones con su período correcto.",
     ],
-    reglas: ["iva_tasa", "iva_credito_24", "f29_plazos", "retencion_honorarios", "ley_21713"],
-    casos: ["cuadratura_iva", "abonos_sin_respaldo", "honorarios", "f29_atrasado"],
+    reglas: ["iva_tasa", "iva_credito_24", "f29_plazos", "retencion_honorarios", "ley_21713", "dj_1947"],
+    casos: ["propyme_transparente_sin_renta", "cuadratura_iva", "abonos_sin_respaldo", "honorarios", "f29_atrasado"],
   },
   legal: {
     capacidades: [
@@ -375,8 +429,8 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Construir escenarios de flujo y comparar alternativas con supuestos explícitos.",
       "Nunca inventar cifras: si falta un dato, lo pide.",
     ],
-    reglas: ["multa_97_2", "interes_53", "pro_pyme", "idpc_tasas", "tgr_condonacion", "sence_franquicia", "retencion_honorarios"],
-    casos: ["f29_atrasado", "tgr_condonacion", "eleccion_regimen"],
+    reglas: ["multa_97_2", "interes_53", "pro_pyme", "idpc_tasas", "tgr_condonacion", "sence_franquicia", "retencion_honorarios", "dj_fuera_plazo", "f22_plazos_2026"],
+    casos: ["propyme_transparente_sin_renta", "f29_atrasado", "tgr_condonacion", "eleccion_regimen"],
   },
   investigador: {
     capacidades: [
@@ -393,7 +447,7 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Proponer la ruta de trabajo y los servicios ENQORA que corresponden (sin fijar precios).",
     ],
     reglas: ["inicio_actividades", "pro_pyme", "idpc_tasas", "tgr_condonacion", "sence_franquicia", "ley_21713", "empresa_un_dia", "marcas", "datos_personales"],
-    casos: ["ventas_informales", "eleccion_regimen", "constitucion_spa", "registro_marca", "datos_personales"],
+    casos: ["propyme_transparente_sin_renta", "ventas_informales", "eleccion_regimen", "constitucion_spa", "registro_marca", "datos_personales"],
   },
 };
 
@@ -403,7 +457,7 @@ export function knowledgeFor(agent: AgentKey): string {
   const rules = p.reglas.map((k) => RULES[k]).filter(Boolean)
     .map((r) => `- ${r.tema}: ${r.regla} [Fuente: ${r.fuente.titulo}${r.fuente.articulo ? `, ${r.fuente.articulo}` : ""}${r.fuente.url ? `, ${r.fuente.url}` : ""}]`);
   const cases = PLAYBOOKS.filter((c) => p.casos.includes(c.id)).map((c) =>
-    `- ${c.caso} (riesgo ${c.riesgo}). Señales: ${c.senales.join("; ")}. Ruta: ${c.pasos.join(" → ")} Preguntar si falta: ${c.preguntar.join(" / ")}`);
+    `- ${c.caso} (riesgo ${c.riesgo}). Señales: ${c.senales.join("; ")}. Ruta: ${c.pasos.join(" → ")} Preguntar si falta: ${c.preguntar.join(" / ")}${c.origen ? ` Aprendido de un caso real ENQORA (${c.origen.fecha}, ${c.origen.estado === "resuelto" ? "resuelto" : "en curso"}): ${c.origen.aprendizajes.join(" ")}` : ""}`);
   return [
     `Base normativa ENQORA (verificada al ${KNOWLEDGE_VERSION}; si el caso es de otra fecha, confirma la norma vigente a esa fecha):`,
     ...rules,

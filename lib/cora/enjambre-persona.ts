@@ -53,6 +53,13 @@ export function enjambrePersona(a: PersonaAnswers, hoy = new Date()): Revision[]
       `Tus boletas tienen la retención vigente de ${hoy.getFullYear()}; en abril se cruza con tu impuesto y tus cotizaciones.`, "informativo"));
   }
 
+  // Renta anual: el F22 y, en Pro Pyme Transparente, la DJ 1947 antes (caso real ENQORA, nov-2026)
+  if (inicio && a.venta !== "honorarios" && a.declara !== "si") {
+    out.push(rev("Tributario", "dj_1947", "Renta anual: F22 y DJ 1947 (si tu negocio está en Pro Pyme Transparente)",
+      "Además de los F29, cada año va la declaración de renta (F22). Si tu negocio está en el régimen Pro Pyme Transparente, antes del F22 se presenta la Declaración Jurada 1947, que calcula tu base imponible. Revisa en sii.cl si el F22 del último año está presentado: es común que falten los dos.",
+      "por_confirmar"));
+  }
+
   // Cierre del negocio (persona sin movimiento)
   if (inactivo) {
     const conDeuda = a.deudas === "si";
