@@ -5,7 +5,7 @@ import { supabaseEnv } from "./env";
 // Rutas accesibles sin sesión.
 // «/mando/acceso» es la entrada propia del Centro de Mando (equipo ENQORA), separada de la de clientes.
 // «/equipo/pase» es el enlace de jornada que el Administrador envía a cada integrante del equipo.
-const PUBLIC_PREFIXES = ["/equipo/pase", "/gestor/unirse", "/mando/acceso", "/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth", "/comenzar", "/privacidad", "/terminos", "/sin-conexion"];
+const PUBLIC_PREFIXES = ["/equipo/pase", "/gestor/unirse", "/mando/acceso", "/ingresar", "/registro", "/verificar-correo", "/recuperar", "/auth", "/comenzar", "/explorar", "/privacidad", "/terminos", "/sin-conexion"];
 // Páginas legales: siempre visibles, con o sin sesión y en cualquier etapa del segundo factor.
 const ALWAYS = ["/privacidad", "/terminos", "/sin-conexion"];
 // Rutas que solo tienen sentido sin sesión.

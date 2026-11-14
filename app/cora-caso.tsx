@@ -1,11 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useState } from "react";
+import { createContext, useActionState, useContext, useState } from "react";
 import { enviarCasoAction, type CasoState } from "@/app/actions/caso";
 import { SubmitButton } from "@/components/submit-button";
 import { DOCUMENTOS, nombreCategoria, type OBJETIVOS } from "@/lib/cora/caso";
 import { escuchar, soporteVoz, useModoVoz } from "@/lib/voz/navegador";
+
+// Categoría que la persona eligió en la portada (/explorar/<categoría>). Llega a CORA como pista; no la obliga.
+export const CategoriaEntrada = createContext<string | null>(null);
 
 // «Cuéntanos tu caso»: el cliente relata (escribiendo o dictando), elige cómo quiere la respuesta y recibe
 // qué documentos tener a mano. El equipo responde con una cotización por el canal elegido.
@@ -18,6 +21,7 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo
   const [canal, setCanal] = useState<"whatsapp" | "correo">("whatsapp");
   const [dictando, setDictando] = useState(false);
   const voz = useModoVoz();
+  const categoria = useContext(CategoriaEntrada);
 
   if (state?.ok) {
     const a = state.analisis;
@@ -58,6 +62,7 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo
 
   return (
     <form id="cora-caso" action={action} className="cora-caso">
+      {categoria ? <input type="hidden" name="categoria" value={categoria} /> : null}
       <span className="eyebrow">{etiqueta}</span>
       <b>{titulo}</b>
       {objetivos.length ? (
