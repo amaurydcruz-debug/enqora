@@ -3171,6 +3171,12 @@ fieldset.mini-form legend { padding: 0 6px; }
 .ent-ruta .is-now { color: var(--text); border-color: var(--ent-gold); box-shadow: 0 0 22px rgba(229, 199, 131, 0.14); }
 .ent-cat .welcome-first, .ent-cat-bloque, .ent-cat .welcome-gallery, .ent-cat .welcome-steps { max-width: 1220px; margin-left: auto; margin-right: auto; }
 .ent-cat-consulta { margin-top: 26px; padding-left: clamp(16px, 4vw, 40px); padding-right: clamp(16px, 4vw, 40px); box-sizing: border-box; }
+.ent-sin-rut { margin-top: 18px; border: 1px solid var(--hairline-strong); border-radius: 16px; background: rgba(255, 255, 255, 0.02); }
+.ent-sin-rut > summary { cursor: pointer; padding: 14px 18px; color: var(--gold-bright); font-weight: 600; list-style: none; }
+.ent-sin-rut > summary::-webkit-details-marker { display: none; }
+.ent-sin-rut > summary::after { content: " ↓"; }
+.ent-sin-rut[open] > summary::after { content: " ↑"; }
+.ent-sin-rut > .cora-caso { margin: 0 14px 14px; }
 .ent-cat-bloque { padding: 40px clamp(16px, 4vw, 40px) 0; display: grid; gap: 18px; }
 .ent-cat-continuar {
   max-width: calc(1220px - 2 * clamp(16px, 4vw, 40px)); margin: 40px auto 0; width: calc(100% - 2 * clamp(16px, 4vw, 40px)); padding: 26px clamp(18px, 3vw, 32px);

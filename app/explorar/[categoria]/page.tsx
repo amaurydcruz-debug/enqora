@@ -7,6 +7,7 @@ import { CATEGORIES } from "@/lib/discovery";
 import { indexable } from "@/lib/site";
 import { RutLookup } from "@/app/rut-lookup";
 import { EntradaPie, EntradaTop, FOTO_SERVICIO, Icono } from "@/app/entrada";
+import { CasoCategoria } from "./caso-categoria";
 import { cargarCatalogo, FormasDeTrabajar, serviciosDe, ServiciosLista } from "../catalogo";
 
 type Props = { params: Promise<{ categoria: string }> };
@@ -63,6 +64,10 @@ export default async function CategoriaPage({ params }: Props) {
               Dile a CORA el RUT de tu empresa (o tu RUT si emprendes a tu nombre) y cuéntale tu caso. Te orienta sin costo y sin crear cuenta.
             </p>
             <RutLookup categoria={c.key} />
+            <details className="ent-sin-rut">
+              <summary>¿Prefieres no dar el RUT? Cuéntanos tu caso</summary>
+              <CasoCategoria categoria={c.key} titulo={c.title} objetivos={c.solves} />
+            </details>
           </div>
           <div className="welcome-clock" aria-hidden="true">
             <EnqoraClock size={220} live />
