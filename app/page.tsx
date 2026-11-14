@@ -10,6 +10,7 @@ import { clp, UNITS } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 import { RutLookup } from "./rut-lookup";
 import { Portal } from "./portal";
+import { EntradaHero, EntradaTop } from "./entrada";
 import { indexable } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -108,23 +109,15 @@ export default async function WelcomePage() {
 
   return (
     <div className="entry">
-      <header className="welcome-top">
-        <Link href="/" className="welcome-brand" aria-label="ENQORA, inicio">
-          <EnqoraClock size={34} />
-          <span>ENQ<em>ORA</em></span>
-        </Link>
-        <nav className="welcome-nav" aria-label="Cuenta">
-          <Link href="/ingresar" className="btn btn-ghost btn-inline btn-sm">Ingresar</Link>
-          <Link href="/registro" className="btn btn-gold btn-inline btn-sm">Crear cuenta</Link>
-        </nav>
-      </header>
+      <EntradaTop />
+      <EntradaHero />
 
       <main className="welcome-main">
-        {/* 01 · Primer contacto */}
-        <section className="welcome-first" aria-labelledby="bienvenida">
+        {/* Consulta con CORA (se conserva): RUT de la empresa o persona */}
+        <section className="welcome-first" id="consulta" aria-labelledby="bienvenida">
           <div className="welcome-first-text">
-            <span className="eyebrow">01 · Primer contacto</span>
-            <h1 id="bienvenida">Bienvenido al mundo ENQORA</h1>
+            <span className="eyebrow">Consulta gratis con CORA</span>
+            <h2 id="bienvenida">Consulta con el RUT de tu empresa</h2>
             <p className="welcome-lead">
               Háblale a CORA: dile el RUT de tu empresa y te cuenta lo que la ley ya te da. Si prefieres, escríbelo.
             </p>
@@ -148,7 +141,7 @@ export default async function WelcomePage() {
         </section>
 
         {/* 04 · Registro y contratación */}
-        <section className="welcome-steps" aria-labelledby="espacio">
+        <section className="welcome-steps" id="planes" aria-labelledby="espacio">
           <span className="eyebrow">04 · Registro y contratación</span>
           <h2 id="espacio">Tu espacio ENQORA</h2>
           <ol className="steps-row">
