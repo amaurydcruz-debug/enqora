@@ -140,13 +140,20 @@ export function EntradaServicios() {
     <section className="ent-opciones ent-servicios" id="resuelve" aria-labelledby="ent-resuelve">
       <h2 id="ent-resuelve" className="ent-h2 ent-h2-linea">Todo lo que <span>ENQORA</span> resuelve</h2>
       <p className="ent-sub">Elige un servicio: recibes una primera orientación gratis con CORA y ves qué incluye y sus precios.</p>
-      <div className="ent-mosaico ent-mosaico-servicios">
-        {CATEGORIES.map((c, i) => (
-          <Tarjeta key={c.key} href={`/explorar/${c.key}`} foto={FOTO_SERVICIO[c.key]} alt="" icono={c.key} titulo={c.title} texto={c.lead}
-            n={String(i + 1).padStart(2, "0")} clase={`ent-tile-s ent-tile-${c.key}${c.key === "crecimiento" ? " ent-tile-lado" : ""}`} />
-        ))}
-      </div>
+      <MosaicoServicios />
     </section>
+  );
+}
+
+// Las nueve categorías en mosaico (portada y «Servicios y precios»).
+export function MosaicoServicios() {
+  return (
+    <div className="ent-mosaico ent-mosaico-servicios">
+      {CATEGORIES.map((c, i) => (
+        <Tarjeta key={c.key} href={`/explorar/${c.key}`} foto={FOTO_SERVICIO[c.key]} alt="" icono={c.key} titulo={c.title} texto={c.lead}
+          n={String(i + 1).padStart(2, "0")} clase={`ent-tile-s ent-tile-${c.key}${c.key === "crecimiento" ? " ent-tile-lado" : ""}`} />
+      ))}
+    </div>
   );
 }
 
