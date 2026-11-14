@@ -119,6 +119,6 @@ Llega a tres lugares:
 
 | Caso | Estado | Aprendizajes clave |
 |---|---|---|
-| `propyme_transparente_sin_renta`: aviso del SII por la DJ 1947 no presentada (año tributario 2026) | En curso (nov-2026) | El aviso escondía también el F22 sin presentar. Orden: 1947 → F22. El cliente no entrega claves: envía capturas o el Excel del asistente, y ENQORA revisa antes de que envíe. |
+| `propyme_transparente_sin_renta`: aviso del SII por la DJ 1947 no presentada (año tributario 2026) | En curso (nov-2026) | El aviso escondía también el F22 sin presentar. Orden: 1947 → F22. El cliente no entrega claves: envía capturas o el Excel del asistente, o da un Mandato Digital del SII al profesional de ENQORA, que actúa con su propia clave. Sin libro diario es normal en este régimen, pero el Libro de Caja es obligatorio y se reconstruye con RCV y cartolas. |
 
 Al cerrar el caso: cambiar `estado` a `resuelto`, agregar lo aprendido (qué funcionó, multa real, si se condonó) y registrar además el aprendizaje en el Centro de Mando (cuatro ojos).

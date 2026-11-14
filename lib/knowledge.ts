@@ -164,6 +164,16 @@ export const RULES: Record<string, Rule> = {
     regla: "F22 con pago: del 8 al 30 de abril de 2026. Sin pago o con devolución: hasta el 8 de mayo de 2026. Después, la declaración es fuera de plazo: con impuesto a pagar se aplica reajuste, multa del art. 97 N°2 e interés del art. 53 (ver multa_97_2 e interes_53); sin pago o con devolución, multa de 1 UTM a 1 UTA. Regularizar antes de una fiscalización es siempre más barato.",
     fuente: { titulo: "SII · Noticia 06-05-2026: último plazo para declarar Renta", vigencia: "AT 2026", url: "https://www.sii.cl/noticias/2026/060526noti02smn.htm" },
   },
+  mandato_digital_sii: {
+    tema: "Mandato Digital del SII: actuar por el cliente sin su clave",
+    regla: "El contribuyente puede autorizar a una persona natural (Mandatario Digital) para que presente declaraciones juradas o declare Renta en su nombre. El mandatario se autentica con SU PROPIO RUT y clave; el cliente nunca entrega la suya. Se otorga en sii.cl → Servicios online → Declaraciones Juradas → Declaraciones Juradas de Renta → Escritorio Contable → Administración y gestión de mandatos, indicando RUT del mandatario, su rol, los trámites (p. ej. «Presentar Declaraciones Juradas de Renta F22», «Declarar Renta (F22)», «Corregir o rectificar») y la fecha de término. El mandatario debe aceptar la designación. Es la única forma en que ENQORA actúa ante el SII por un cliente: nunca con su clave, nunca con un robot.",
+    fuente: { titulo: "SII · ¿Qué es un mandato digital? y paso a paso Mandatario Digital", vigencia: "Vigente", url: "https://www.sii.cl/preguntas_frecuentes/clave_secr_repr_electr/001_100_8810.htm" },
+  },
+  propyme_transparente_contabilidad: {
+    tema: "Pro Pyme Transparente: no lleva libro diario, sí Libro de Caja",
+    regla: "El régimen Pro Pyme Transparente (art. 14 D N°8 LIR) determina su resultado con ingresos percibidos y gastos pagados y está liberado de contabilidad completa (libro diario, mayor y balance). No tener libro diario no es una infracción. Sí debe llevar un Libro de Caja con el resumen diario del flujo de ingresos y egresos (Res. Ex. SII N° 14 de 2021, complementada por la N° 31 de 2021) y controlar ingresos y egresos con el Registro de Compras y Ventas, o con un Libro de Ingresos y Egresos si no está obligado al RCV. Si falta el Libro de Caja, se reconstruye con el RCV y las cartolas bancarias.",
+    fuente: { titulo: "SII · Resolución Ex. N° 31 de 2021 (Libro de Caja y Libro de Ingresos y Egresos, régimen 14 D N°8)", articulo: "Art. 14 D N°8 LIR; Res. Ex. SII 14 y 31 de 2021", vigencia: "Vigente", url: "https://www.sii.cl/normativa_legislacion/resoluciones/2021/reso31.pdf" },
+  },
   datos_personales: {
     tema: "Protección de datos personales",
     regla: "Ley 21.719 modifica la Ley 19.628 y crea la Agencia de Protección de Datos Personales; entra en vigencia el 1-12-2026. Exige base de licitud, deber de información, derechos de acceso, rectificación, supresión, oposición y portabilidad, medidas de seguridad y régimen de sanciones.",
@@ -187,15 +197,17 @@ export const PLAYBOOKS: Playbook[] = [
     ],
     pasos: [
       "Verificar que el aviso es auténtico: el SII no envía enlaces ni pide claves; revisar todo entrando directo a sii.cl.",
+      "Si el cliente autoriza a ENQORA a hacerlo: que otorgue un Mandato Digital en sii.cl al profesional de ENQORA (persona natural) para «Presentar Declaraciones Juradas de Renta F22» y «Declarar Renta (F22)», con fecha de término. El profesional actúa con su propia clave. Nunca recibir la clave del cliente ni usar robots en el SII.",
       "Diagnóstico completo, no solo lo que dice el aviso: Consulta de estado del F22 del año (¿existe? ¿observado?), pagos pendientes y Carpeta Tributaria (régimen, empresario individual o sociedad, F29 del período). Un aviso por la 1947 suele esconder también el F22 sin presentar.",
       "Orden obligatorio: primero la DJ 1947, después el F22. La 1947 calcula la base imponible (recuadro 22) que el SII usa para proponer el F22; al revés, el F22 queda observado.",
       "DJ 1947 con el «Asistente de apoyo para presentar DJ»: el cliente lo abre con su clave; ENQORA revisa la «Propuesta Base Imponible» (ingresos, egresos, PPM, exportable a Excel) ANTES de enviar: ingresos completos, gastos bien clasificados, PPM de los F29. Empresario individual: se informa a sí mismo como propietario.",
       "Enviar la 1947 y luego el F22 del mismo año tributario desde la Consulta de estado («realizar una declaración de renta para este periodo»); revisar la propuesta (recuadros 22 y 23) antes de enviar.",
       "Cuantificar: con pago, reajuste + multa art. 97 N°2 + interés art. 53; con devolución o sin pago, multa 1 UTM a 1 UTA. La multa de la DJ la calcula el SII al presentar.",
       "Pedir condonación de multas en MiSII con el texto que prepara ENQORA (presentación voluntaria, primera vez).",
+      "Si el cliente no lleva libro diario ni contabilidad: es normal en este régimen (liberado de contabilidad completa). La base sale del RCV. Pero sí debe llevar Libro de Caja: reconstruir el del año con RCV y cartolas en ENQORA CONTABILIDAD y dejarlo al día.",
       "Cerrar el caso revisando otros años, F29 y demás DJ para dejar al cliente al día de una vez; registrar el aprendizaje.",
     ],
-    normas: ["dj_1947", "dj_fuera_plazo", "f22_plazos_2026", "multa_97_2", "interes_53", "pro_pyme"],
+    normas: ["dj_1947", "dj_fuera_plazo", "f22_plazos_2026", "multa_97_2", "interes_53", "pro_pyme", "mandato_digital_sii", "propyme_transparente_contabilidad"],
     preguntar: [
       "¿Puedes enviar el correo del SII completo (sin claves) y una captura de la Consulta de estado del F22?",
       "¿Tu negocio es como persona natural (empresario individual) o es una sociedad?",
@@ -210,6 +222,8 @@ export const PLAYBOOKS: Playbook[] = [
         "El aviso del SII mencionaba solo la DJ 1947; la revisión mostró que también faltaba el F22 del año. Revisar siempre el estado del F22 antes de responder.",
         "El cliente no necesita entregar claves: descarga y envía capturas o el Excel del asistente; ENQORA revisa antes de que envíe.",
         "La consulta de estado del F22 ofrece «realizar una declaración»: no usarla antes de presentar la 1947.",
+        "La clienta autorizó a ENQORA a resolverlo: la vía correcta fue el Mandato Digital del SII al profesional, no su clave ni un robot.",
+        "La clienta no llevaba libro diario ni contabilidad: en Pro Pyme Transparente no se exige contabilidad completa (la base sale del RCV), pero sí Libro de Caja, que hubo que reconstruir.",
       ],
     },
   },
@@ -402,7 +416,7 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Cuantificar multas e intereses solo con las herramientas de cálculo y datos verificados.",
       "Comparar regímenes con escenarios y supuestos explícitos.",
     ],
-    reglas: ["f29_plazos", "multa_97_2", "interes_53", "iva_tasa", "iva_credito_24", "iva_servicios", "pro_pyme", "idpc_tasas", "tgr_condonacion", "retencion_honorarios", "inicio_actividades", "termino_giro", "prescripcion_200", "ley_21713", "dj_1947", "dj_fuera_plazo", "f22_plazos_2026"],
+    reglas: ["f29_plazos", "multa_97_2", "interes_53", "iva_tasa", "iva_credito_24", "iva_servicios", "pro_pyme", "idpc_tasas", "tgr_condonacion", "retencion_honorarios", "inicio_actividades", "termino_giro", "prescripcion_200", "ley_21713", "dj_1947", "dj_fuera_plazo", "f22_plazos_2026", "mandato_digital_sii", "propyme_transparente_contabilidad"],
     casos: ["propyme_transparente_sin_renta", "f29_atrasado", "tgr_condonacion", "ventas_informales", "eleccion_regimen", "honorarios", "iva_servicios", "termino_giro"],
   },
   contable: {
@@ -411,7 +425,7 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Detectar notas de crédito omitidas, documentos atrasados y abonos sin respaldo.",
       "Proponer asientos y correcciones con su período correcto.",
     ],
-    reglas: ["iva_tasa", "iva_credito_24", "f29_plazos", "retencion_honorarios", "ley_21713", "dj_1947"],
+    reglas: ["iva_tasa", "iva_credito_24", "f29_plazos", "retencion_honorarios", "ley_21713", "dj_1947", "propyme_transparente_contabilidad"],
     casos: ["propyme_transparente_sin_renta", "cuadratura_iva", "abonos_sin_respaldo", "honorarios", "f29_atrasado"],
   },
   legal: {
