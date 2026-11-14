@@ -1,10 +1,11 @@
+/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { AuthCard } from "@/components/auth-card";
 import { indexable } from "@/lib/site";
-import { Emblem } from "@/components/emblems";
 import { categoryByKey, INTENT_COOKIE } from "@/lib/discovery";
+import { FOTO_SERVICIO, Icono } from "@/app/entrada";
 import { SignUpForm } from "./form";
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
 
   return (
     <AuthCard
+      foto={(chosen && FOTO_SERVICIO[chosen.key]) || undefined}
       title="Crea tu cuenta ENQORA"
       subtitle="Confirmarás tu correo y activarás un segundo factor de seguridad."
       footer={
@@ -32,7 +34,8 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
     >
       {chosen ? (
         <div className="chosen-service">
-          <Emblem name={chosen.emblem} size="sm" />
+          {FOTO_SERVICIO[chosen.key] ? <img src={FOTO_SERVICIO[chosen.key]} alt="" className="chosen-foto" /> : null}
+          <Icono nombre={chosen.key} size={24} />
           <span>
             <small>Servicio elegido</small>
             <b>{chosen.title}</b>
