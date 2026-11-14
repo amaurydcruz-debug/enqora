@@ -6,7 +6,7 @@ import type { AgentKey } from "@/lib/mirror";
 // mínimo) NO se escriben aquí: el agente debe pedirlas o verificarlas en la fuente oficial.
 // Al cambiar una norma: actualizar este archivo, KNOWLEDGE_VERSION y docs/ENQORA-AGENTES.md.
 
-export const KNOWLEDGE_VERSION = "2026-11-13";
+export const KNOWLEDGE_VERSION = "2026-11-14";
 
 export type Source = { titulo: string; articulo?: string; vigencia?: string; url?: string };
 export type Rule = { tema: string; regla: string; fuente: Source };
@@ -148,6 +148,21 @@ export const RULES: Record<string, Rule> = {
     tema: "Franquicia tributaria de capacitación SENCE (Ley 21.850)",
     regla: "Las empresas de primera categoría pueden descontar del impuesto a la renta el costo de capacitaciones autorizadas por SENCE. La Ley 21.850 redujo el tope de 1% a 0,7% de la planilla anual de remuneraciones y fijó copagos según la renta del trabajador: cobertura de 80% hasta 25 UTM, 50% entre 25 y 50 UTM y 15% sobre 50 UTM. Confirmar en SENCE desde qué fecha rigen el tope y los copagos. Requisito habitual: planilla imponible mayor a 35 UTM mensuales y cotizaciones pagadas.",
     fuente: { titulo: "ChileAtiende · Franquicia tributaria SENCE; Ley 21.850", vigencia: "Tope y copagos según Ley 21.850 (fecha de aplicación por confirmar)", url: "https://www.chileatiende.gob.cl/fichas/44808-franquicia-tributaria" },
+  },
+  despido_plazo_168: {
+    tema: "Plazo para demandar por despido injustificado, indebido o improcedente",
+    regla: "El trabajador tiene 60 días hábiles desde la separación (lunes a sábado, sin feriados) para demandar. Si dentro de ese plazo reclama ante la Inspección del Trabajo, el plazo se suspende mientras dura el reclamo y sigue corriendo al terminar, pero en ningún caso se puede demandar pasados 90 días hábiles desde la separación. Es un plazo de caducidad: vencido, la acción se pierde. CORA solo avisa que el plazo corre; el abogado calcula la fecha exacta.",
+    fuente: { titulo: "Dirección del Trabajo · Plazo para demandar por despido injustificado", articulo: "Art. 168 Código del Trabajo", vigencia: "Vigente (consultado 14-11-2026)", url: "https://dt.gob.cl/portal/1628/w3-article-60507.html" },
+  },
+  tutela_486_489: {
+    tema: "Tutela laboral: vulneración de derechos fundamentales",
+    regla: "Durante la relación laboral, la denuncia se presenta dentro de 60 días desde que se produce la vulneración (art. 486). Si la vulneración ocurre con ocasión del despido, el plazo es de 60 días hábiles desde la separación (art. 489). En ambos casos el plazo se suspende por el reclamo ante la Inspección del Trabajo en la forma del art. 168 (máximo 90 días hábiles). Acoso laboral y discriminación se canalizan por esta vía; desde la Ley Karin (Ley 21.643) el empleador debe tener protocolo de prevención.",
+    fuente: { titulo: "Código del Trabajo · arts. 485 a 495 (procedimiento de tutela laboral)", articulo: "Arts. 486 y 489 Código del Trabajo", vigencia: "Vigente (consultado 14-11-2026)", url: "https://iura.cl/ct/486" },
+  },
+  prescripcion_laboral_510: {
+    tema: "Prescripción de derechos laborales",
+    regla: "Los derechos del Código del Trabajo prescriben en 2 años desde la fecha en que se hicieron exigibles. Las acciones provenientes de los actos y contratos laborales prescriben en 6 meses desde la terminación de los servicios. El derecho a reclamar horas extraordinarias prescribe en 6 meses desde que debieron pagarse. La acción para declarar una relación laboral encubierta (honorarios) se rige por el plazo de 2 años del art. 510.",
+    fuente: { titulo: "Código del Trabajo · art. 510", articulo: "Art. 510 Código del Trabajo", vigencia: "Vigente (consultado 14-11-2026)", url: "https://www.bcn.cl/leychile/navegar?idNorma=207436" },
   },
   dj_1947: {
     tema: "DJ 1947 · régimen Pro Pyme Transparente (art. 14 D N°8 LIR)",
@@ -433,8 +448,10 @@ export const AGENT_PROFILE: Record<AgentKey, { capacidades: string[]; reglas: st
       "Ordenar la ruta societaria (constitución, modificación, disolución) y de marcas.",
       "Revisar cumplimiento laboral básico (jornada, Ley Karin) y de datos personales.",
       "Identificar qué requiere abogado y qué documentos firma el propio cliente.",
+      "Áreas laborales: identificar el lado (trabajador o empleador), detectar plazos de caducidad y prescripción, y derivar a un abogado laboral sin conflicto de interés.",
+      "Nunca prometer resultados judiciales ni reemplazar el análisis del abogado.",
     ],
-    reglas: ["empresa_un_dia", "marcas", "propiedad_industrial", "jornada_40h", "ley_karin", "datos_personales", "termino_giro"],
+    reglas: ["empresa_un_dia", "marcas", "propiedad_industrial", "jornada_40h", "ley_karin", "datos_personales", "termino_giro", "despido_plazo_168", "tutela_486_489", "prescripcion_laboral_510"],
     casos: ["constitucion_spa", "registro_marca", "jornada_karin", "datos_personales", "termino_giro"],
   },
   financiero: {

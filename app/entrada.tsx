@@ -23,6 +23,8 @@ const ICONOS: Record<string, ReactNode> = {
   gestion: <><path d="M4 20h16M6 20v-6M10 20v-9M14 20v-5M18 20v-11" /></>,
   profesionales: <><path d="M12 4v16M8 20h8M5 7h14M5 7l-3 6c0 1.7 1.3 3 3 3s3-1.3 3-3L5 7ZM19 7l-3 6c0 1.7 1.3 3 3 3s3-1.3 3-3l-3-6Z" /></>,
   crecimiento: <><path d="M4 20h16M7 20v-4M11 20v-7M15 20v-10M19 20V5" /></>,
+  trabajador: <><circle cx="9" cy="7" r="3" /><path d="M3.5 20c0-3.3 2.5-6 5.5-6 1.4 0 2.6.5 3.6 1.3" /><path d="M17.5 12l4 1.5v3c0 2.4-1.7 4.2-4 5-2.3-.8-4-2.6-4-5v-3l4-1.5Z" /><path d="M16 16.8l1.1 1.1 2.2-2.3" /></>,
+  empleador: <><path d="M3 21V7l6-3v17M9 21V9h6v3M3 21h10M5 10h2M5 13h2M5 16h2" /><path d="M17.5 12l4 1.5v3c0 2.4-1.7 4.2-4 5-2.3-.8-4-2.6-4-5v-3l4-1.5Z" /><path d="M16 16.8l1.1 1.1 2.2-2.3" /></>,
   enterprise: <><path d="M4 21V8l6-3v16M10 21V3l10 4v14M4 21h16M13 9h4M13 12h4M13 15h4M6 11h2M6 14h2" /></>,
 };
 export function Icono({ nombre, size = 34 }: { nombre: string; size?: number }) {
@@ -44,6 +46,9 @@ export const FOTO_SERVICIO: Partial<Record<string, string>> = {
   profesionales: "/entrada/servicios/profesionales.webp",
   crecimiento: "/entrada/servicios/crecimiento.webp",
   enterprise: "/entrada/servicios/enterprise.webp",
+  // Fotografías provisorias (ilustrativas) hasta tener las propias de las áreas laborales.
+  trabajador: "/entrada/problema.webp",
+  empleador: "/entrada/pyme.webp",
 };
 
 // Las cuatro puertas. «Enterprise» lleva directo a su categoría (es el mismo servicio).
@@ -151,7 +156,7 @@ export function MosaicoServicios() {
     <div className="ent-mosaico ent-mosaico-servicios">
       {CATEGORIES.map((c, i) => (
         <Tarjeta key={c.key} href={`/explorar/${c.key}`} foto={FOTO_SERVICIO[c.key]} alt="" icono={c.key} titulo={c.title} texto={c.lead}
-          n={String(i + 1).padStart(2, "0")} clase={`ent-tile-s ent-tile-${c.key}${c.key === "crecimiento" ? " ent-tile-lado" : ""}`} />
+          n={String(i + 1).padStart(2, "0")} clase={`ent-tile-s ent-tile-${c.key}${["crecimiento", "trabajador", "empleador"].includes(c.key) ? " ent-tile-lado" : ""}`} />
       ))}
     </div>
   );

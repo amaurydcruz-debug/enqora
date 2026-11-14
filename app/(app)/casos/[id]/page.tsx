@@ -54,6 +54,7 @@ import { Quotes } from "./quotes";
 import { Authorizations } from "./authorizations";
 import { LegalDocs } from "./legal-docs";
 import { SiiMandatePanel } from "./sii-mandate";
+import { CasePartyPanel, type CaseParty } from "./case-party";
 import type { SiiMandate } from "@/lib/sii-mandate";
 import { resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 import { CommentForm } from "./comment-form";
@@ -83,6 +84,8 @@ const fmtDate = (d: string | null) => (d ? fmt(`${d}T12:00:00Z`, false) : "—")
 
 const AVISOS: Record<string, string> = {
   creado: "Solicitud creada. El equipo ENQORA la revisará y te mantendrá informado aquí.",
+  partes_ok: "Partes registradas. ENQORA asignará un abogado que no represente a la contraparte.",
+  partes_conflicto: "Partes registradas. Detectamos un posible conflicto de interés: la supervisión fue avisada y reasignará el caso.",
   sii_solicitado: "Mandato Digital pedido. El cliente verá los pasos para otorgarlo en sii.cl.",
   sii_otorgado: "¡Gracias! Avisamos al profesional para que acepte el mandato en el SII.",
   sii_aceptado: "Mandato aceptado: ya puedes trabajar en el SII, solo en los trámites autorizados.",
@@ -254,7 +257,7 @@ export default async function CasePage({
 
   const supervisor = isSupervisorRole(staffRole);
   // Resultados para el cliente (0033): calificación y ahorro (el cliente solo ve el verificado, por RLS).
-  const [ratingRes, savingsRes, legalRes, siiRes, myProfileRes] = await Promise.all([
+  const [ratingRes, savingsRes, legalRes, siiRes, myProfileRes, partyRes] = await Promise.all([
     supabase.from("case_ratings").select("resuelto, satisfaccion, comentario, created_at").eq("case_id", id).maybeSingle(),
     supabase.from("case_savings").select("id, monto, concepto, fundamento, evidencia_document_id, estado, registrado_por, nota").eq("case_id", id).order("created_at"),
     // Documentos legales y ficha legal del trámite (0036).
@@ -262,7 +265,10 @@ export default async function CasePage({
     // Mandato Digital del SII (0055).
     supabase.from("sii_mandates").select("*").eq("case_id", id).order("requested_at", { ascending: false }),
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    // Partes del conflicto laboral (0057): solo casos del área legal.
+    c.module === "legal" ? supabase.rpc("case_party", { p_case: id }) : Promise.resolve({ data: null }),
   ]);
+  const party = ((partyRes as { data: unknown }).data ?? null) as CaseParty;
   const siiMandates = (siiRes.data ?? []) as SiiMandate[];
   const myName = ((myProfileRes.data as { full_name: string | null } | null)?.full_name ?? "").trim();
   const legal = (legalRes.data as CaseLegalStatus | null) ?? null;
@@ -472,7 +478,9 @@ export default async function CasePage({
 
   // Sección que se abre sola tras una acción, para ver su resultado.
   const OPEN_AFTER: Record<string, string> = {
-    sii_solicitado: "sii", sii_otorgado: "sii", sii_aceptado: "sii", sii_revocado: "sii", sii_anular: "sii",
+    partes_ok: "Partes registradas. ENQORA asignará un abogado que no represente a la contraparte.",
+  partes_conflicto: "Partes registradas. Detectamos un posible conflicto de interés: la supervisión fue avisada y reasignará el caso.",
+  sii_solicitado: "sii", sii_otorgado: "sii", sii_aceptado: "sii", sii_revocado: "sii", sii_anular: "sii",
     tarea: "tareas", analisis: "investigando", asignado: "agentes", retirado: "agentes", estado: "gestion", prioridad: "gestion",
     aprobacion_solicitada: "proximas", aprobacion_aprobar: "proximas", aprobacion_rechazar: "proximas", aprobacion_devolver: "proximas",
     aprobacion_anulada: "proximas", autorizacion_solicitada: "proximas", autorizada: "proximas", autorizacion_rechazada: "proximas",
@@ -976,6 +984,17 @@ export default async function CasePage({
           tone: (resumenLegal(legal).porFirmar && canDecide ? "gold" : "default") as AccordionItem["tone"],
           status: <span className={resumenLegal(legal).listo ? "status status-ok" : "status status-gold"}>{resumenLegal(legal).texto}</span>,
           content: <LegalDocs caseId={c.id} companyId={c.company_id} status={legal} canSign={canDecide && !isClosed} worker={worker} />,
+        } satisfies AccordionItem]
+      : []),
+    ...(c.module === "legal" && (party || canPost)
+      ? [{
+          id: "partes",
+          aliases: ["contraparte", "conflicto"],
+          title: "Partes del conflicto",
+          emblem: <Emblem name="legal" size="sm" />,
+          tone: (worker && party?.conflicto_profesional ? "gold" : "default") as AccordionItem["tone"],
+          status: party ? <span className={`status status-${party.conflicto_profesional && worker ? "gold" : "ok"}`}>{party.lado === "trabajador" ? "Trabajador" : "Empleador"}</span> : <span className="status status-gold">Por registrar</span>,
+          content: <CasePartyPanel caseId={c.id} party={party} canEdit={canPost && staffRole !== "ai_agent"} worker={worker} ladoSugerido={null} />,
         } satisfies AccordionItem]
       : []),
     ...(siiMandates.length || (worker && !isClosed && staffRole !== "ai_agent")

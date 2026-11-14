@@ -8,7 +8,7 @@ import { after } from "next/server";
 import { acuseSolicitud, flushDeliveries } from "@/lib/notify-delivery";
 import { contextoAviso } from "@/lib/cora/avisos-sii";
 import { llamarHerramienta } from "@/lib/ai/gateway";
-import { analizarReglas, CATEGORIAS_CASO, DOCUMENTOS, validarAnalisis, type AnalisisCaso } from "@/lib/cora/caso";
+import { analizarReglas, CATEGORIAS_CASO, DOCUMENTOS, urgenciaLaboral, validarAnalisis, type AnalisisCaso } from "@/lib/cora/caso";
 import { dbCode } from "@/lib/db-errors";
 import { SOLICITUD_COOKIE } from "@/lib/discovery";
 import { isValidRut, normalizeRut } from "@/lib/rut";
@@ -54,12 +54,15 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
     return { ok: false, error: canal === "correo" ? "Revisa tu correo electrónico." : "Revisa tu número de WhatsApp (ej.: +56 9 1234 5678)." };
 
   const ia = await llamarHerramienta({
-    system: "Eres CORA, de ENQORA (Chile). Ordenas el caso de un dueño de empresa para que un profesional lo cotice. Tono cercano y seguro, en segunda persona. Nunca pidas claves (ClaveÚnica, clave del SII, bancos). No prometas resultados ni plazos legales.",
+    system: "Eres CORA, de ENQORA (Chile). Ordenas el caso de un dueño de empresa o de un trabajador para que un profesional lo cotice. En casos laborales, el lado lo define quién habla: «trabajador» si es la persona empleada, «empleador» si es la empresa; no mezcles ambos lados. Tono cercano y seguro, en segunda persona. Nunca pidas claves (ClaveÚnica, clave del SII, bancos). No prometas resultados ni plazos legales.",
     prompt: `Empresa: ${razon || "no indicada"}${rut ? ` (RUT ${rut})` : ""}.\n${categoriaElegida ? `Llegó desde la categoría «${categoriaElegida}» de la portada (pista: confírmala o corrígela según el relato).\n` : ""}Caso relatado por el cliente:\n"""${relato}"""\n${contextoAviso(relato) ? `\n${contextoAviso(relato)}\nUsa esta ruta para el resumen y los documentos (sin montos ni plazos legales).\n` : ""}\nÁreas posibles: ${CATEGORIAS_CASO.join(", ")}.\nDocumentos posibles: ${Object.entries(DOCUMENTOS).map(([k, d]) => `${k} (${d.nombre})`).join("; ")}.`,
     tool: TOOL, datos: "privados", modulo: "caso_publico", maxTokens: 700, timeoutMs: 30_000, validar: (x) => !!validarAnalisis(x),
   });
   const base = (ia.input ? validarAnalisis(ia.input) : null) ?? analizarReglas(relato);
-  const analisis = categoriaElegida && !base.categorias.length ? { ...base, categorias: [categoriaElegida] } : base;
+  const conCategoria = categoriaElegida && !base.categorias.length ? { ...base, categorias: [categoriaElegida] } : base;
+  // Áreas laborales: aviso de plazos con texto fijo verificado (no lo redacta la IA).
+  const urgencia = urgenciaLaboral(relato, [...conCategoria.categorias, ...(categoriaElegida ? [categoriaElegida] : [])]);
+  const analisis: AnalisisCaso = urgencia ? { ...conCategoria, urgencia } : conCategoria;
 
   const h = await headers();
   const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "desconocido";

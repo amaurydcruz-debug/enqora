@@ -12,6 +12,14 @@ export type Category = {
   module: ModuleKey; // módulo con el que se crea la solicitud
   emblem: string;
   services: { codes?: string[]; module?: string }; // qué servicios del catálogo mostrar
+  // Necesidades específicas que la persona puede marcar en la consulta gratuita (si no, se usan `solves`).
+  necesidades?: string[];
+  // "relato": la consulta gratuita es solo «Cuéntanos tu caso» (sin búsqueda por RUT), p. ej. un trabajador.
+  consulta?: "relato";
+  // Área laboral: de qué lado está el cliente (expedientes separados y control de conflictos de interés, 0057).
+  lado?: "trabajador" | "empleador";
+  // Lo que CORA no hace en esta área (se muestra en la pantalla de la categoría).
+  aviso?: string;
 };
 
 export const CATEGORIES: Category[] = [
@@ -104,6 +112,62 @@ export const CATEGORIES: Category[] = [
     module: "general",
     emblem: "control",
     services: { codes: ["GEN-01"] },
+  },
+  {
+    key: "trabajador",
+    title: "Soluciones laborales",
+    lead: "Defensa del trabajador: despidos, sueldos y derechos.",
+    detail: "Para trabajadores que necesitan orientación y defensa ante un despido, remuneraciones o cotizaciones impagas, acoso o la vulneración de sus derechos. CORA ordena tus antecedentes y detecta plazos urgentes; un abogado laboral revisa tu caso.",
+    solves: ["Me despidieron injustificadamente", "No me pagaron lo que me deben", "Acoso o vulneración de derechos", "Finiquito con el que no estoy de acuerdo"],
+    necesidades: [
+      "Despido injustificado, indebido o improcedente",
+      "Despido indirecto o autodespido",
+      "Despido por necesidades de la empresa que no comparto",
+      "Falta de pago de indemnizaciones",
+      "Cotizaciones previsionales impagas",
+      "Nulidad del despido",
+      "Vulneración de derechos fundamentales (tutela laboral)",
+      "Acoso laboral u hostigamiento",
+      "Discriminación en el trabajo",
+      "Accidente laboral y responsabilidad del empleador",
+      "Diferencias de sueldo, horas extra o remuneraciones impagas",
+      "Finiquito incorrecto o con el que no estoy de acuerdo",
+      "Revisión de mi contrato o anexos",
+    ],
+    module: "legal",
+    emblem: "legal",
+    services: { codes: [] },
+    consulta: "relato",
+    lado: "trabajador",
+    aviso: "CORA te orienta y ordena tu caso, pero no reemplaza al abogado ni promete resultados: cada caso depende de sus pruebas y de lo que resuelva el tribunal.",
+  },
+  {
+    key: "empleador",
+    title: "Defensa laboral empresarial",
+    lead: "Protección del empleador: demandas, despidos y fiscalizaciones.",
+    detail: "Para empresas y empleadores que necesitan prevenir conflictos, revisar despidos y contratos, responder fiscalizaciones de la Dirección del Trabajo o defenderse de una demanda. CORA identifica los riesgos y plazos; un abogado laboral especializado toma el caso.",
+    solves: ["Me demandó un trabajador", "Quiero despedir correctamente", "Fiscalización de la Dirección del Trabajo", "Contratos, finiquitos y reglamento interno"],
+    necesidades: [
+      "Defensa ante una demanda por despido injustificado",
+      "Asesoría en despidos y desvinculaciones",
+      "Revisión de la causal legal de despido",
+      "Elaboración o revisión de contratos de trabajo",
+      "Defensa ante una denuncia por vulneración de derechos",
+      "Acusación de acoso laboral o discriminación",
+      "Conflicto con un trabajador",
+      "Revisión de finiquitos e indemnizaciones",
+      "Cumplimiento de obligaciones laborales y previsionales",
+      "Fiscalización de la Dirección del Trabajo",
+      "Multas y procedimientos administrativos",
+      "Reglamento interno y protocolos (Ley Karin)",
+      "Negociación o acuerdo laboral",
+      "Defensa judicial y representación legal",
+    ],
+    module: "legal",
+    emblem: "legal",
+    services: { codes: [] },
+    lado: "empleador",
+    aviso: "CORA identifica riesgos y plazos, pero no reemplaza al abogado ni promete resultados: la estrategia la define el abogado con tus antecedentes.",
   },
 ];
 
