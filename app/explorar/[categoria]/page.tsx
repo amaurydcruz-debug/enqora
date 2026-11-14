@@ -56,29 +56,40 @@ export default async function CategoriaPage({ params }: Props) {
           <li><span>3</span>Crea tu cuenta para continuar</li>
         </ol>
 
-        <section className="welcome-first ent-cat-consulta" id="consulta" aria-labelledby="consulta-t">
-          <div className="welcome-first-text">
-            <span className="eyebrow">Primera orientación gratis · {c.title}</span>
-            <h2 id="consulta-t">Consulta gratis con CORA</h2>
-            <p className="welcome-lead">
+        <section className="ent-consulta" id="consulta" aria-labelledby="consulta-t">
+          <div className="ent-consulta-texto">
+            <span className="ent-cat-n">Primera orientación gratis · {c.title}</span>
+            <h2 id="consulta-t" className="ent-h2">Consulta gratis con <span>CORA</span></h2>
+            <p className="ent-lead">
               Dile a CORA el RUT de tu empresa (o tu RUT si emprendes a tu nombre) y cuéntale tu caso. Te orienta sin costo y sin crear cuenta.
             </p>
             <RutLookup categoria={c.key} />
             <details className="ent-sin-rut">
-              <summary>¿Prefieres no dar el RUT? Cuéntanos tu caso</summary>
+              <summary><Icono nombre="tributario" size={22} /> ¿Prefieres no dar el RUT? Cuéntanos tu caso</summary>
               <CasoCategoria categoria={c.key} titulo={c.title} objetivos={c.solves} />
             </details>
           </div>
-          <div className="welcome-clock" aria-hidden="true">
-            <EnqoraClock size={220} live />
-            <span className="welcome-clock-floor" />
+          <div className="ent-consulta-visual" aria-hidden="true">
+            <div className="ent-tile ent-consulta-foto">
+              {foto ? <img src={foto} alt="" loading="lazy" /> : null}
+              <span className="ent-tile-shine" />
+            </div>
+            <span className="ent-consulta-reloj"><EnqoraClock size={120} live /></span>
+            <ul className="ent-consulta-sellos">
+              <li>Sin costo</li><li>Sin crear cuenta</li><li>Nunca pedimos tu clave del SII</li>
+            </ul>
           </div>
         </section>
 
-        <section className="ent-cat-bloque" aria-labelledby="precios-t">
-          <h2 id="precios-t" className="ent-h3">Servicios y precios de {c.title.toLowerCase()}</h2>
-          <ServiciosLista services={services} />
-          <FormasDeTrabajar />
+        <section className="ent-opciones ent-cat-precios" aria-labelledby="precios-t">
+          <h2 id="precios-t" className="ent-h2 ent-h2-linea">Servicios y <span>precios</span></h2>
+          <p className="ent-sub">Lo que incluye {c.title.toLowerCase()} y cómo contratarlo.</p>
+          <div className="ent-precio ent-precio-fijo">
+            <div className="ent-precio-cuerpo">
+              <ServiciosLista services={services} />
+              <FormasDeTrabajar />
+            </div>
+          </div>
         </section>
 
         <section className="ent-cat-continuar" aria-labelledby="continuar-t">

@@ -3169,7 +3169,7 @@ fieldset.mini-form legend { padding: 0 6px; }
 .ent-ruta span { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; border: 1px solid var(--ent-gold); color: var(--gold-bright); font-weight: 700; font-size: 0.82rem; }
 .ent-ruta .is-done span, .ent-ruta .is-now span { background: var(--ent-metal); color: #0b1425; border-color: transparent; }
 .ent-ruta .is-now { color: var(--text); border-color: var(--ent-gold); box-shadow: 0 0 22px rgba(229, 199, 131, 0.14); }
-.ent-cat .welcome-first, .ent-cat-bloque, .ent-cat .welcome-gallery, .ent-cat .welcome-steps { max-width: 1220px; margin-left: auto; margin-right: auto; }
+.ent-cat-bloque, .ent-cat .welcome-gallery, .ent-cat .welcome-steps { max-width: 1220px; margin-left: auto; margin-right: auto; }
 .ent-cat-consulta { margin-top: 26px; padding-left: clamp(16px, 4vw, 40px); padding-right: clamp(16px, 4vw, 40px); box-sizing: border-box; }
 .ent-sin-rut { margin-top: 18px; border: 1px solid var(--hairline-strong); border-radius: 16px; background: rgba(255, 255, 255, 0.02); }
 .ent-sin-rut > summary { cursor: pointer; padding: 14px 18px; color: var(--gold-bright); font-weight: 600; list-style: none; }
@@ -3284,3 +3284,44 @@ fieldset.mini-form legend { padding: 0 6px; }
   .ent-mosaico-pasos { grid-template-columns: 1fr 1fr; }
   .ent-paso { min-height: 220px; }
 }
+
+/* Pantalla de categoría: consulta con CORA y precios con la misma línea visual de la portada */
+.ent-consulta {
+  position: relative; max-width: calc(1220px - 2 * clamp(16px, 4vw, 40px)); width: calc(100% - 2 * clamp(16px, 4vw, 40px)); margin: 28px auto 0;
+  display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: clamp(20px, 3vw, 40px); align-items: start;
+  padding: clamp(20px, 3vw, 36px); border-radius: 28px; border: 1px solid var(--ent-gold);
+  background: radial-gradient(90% 120% at 100% 0%, rgba(60, 118, 210, 0.18), transparent 55%), radial-gradient(70% 90% at 0% 100%, rgba(229, 199, 131, 0.08), transparent 60%), linear-gradient(180deg, #0d1a33 0%, #081123 100%);
+  box-shadow: 0 0 0 1px rgba(229, 199, 131, 0.08), 0 24px 60px rgba(0, 0, 0, 0.55), 0 0 44px rgba(229, 199, 131, 0.14);
+  animation: entUp 0.6s ease both;
+}
+.ent-consulta-texto { display: grid; gap: 14px; min-width: 0; }
+.ent-consulta-texto .ent-h2 { text-align: left; font-size: clamp(1.6rem, 3vw, 2.3rem); }
+.ent-consulta-visual { position: sticky; top: 90px; display: grid; gap: 16px; }
+.ent-tile.ent-consulta-foto { min-height: 320px; border-radius: 22px 22px 22px 60px; }
+.ent-consulta-foto::after { background: linear-gradient(0deg, rgba(5, 9, 20, 0.7) 0%, rgba(5, 9, 20, 0) 55%); }
+.ent-consulta-reloj { position: absolute; top: 230px; right: -12px; filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.6)); }
+.ent-consulta-sellos { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.ent-consulta-sellos li { font-size: 0.82rem; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(229, 199, 131, 0.4); color: var(--text); background: rgba(5, 9, 20, 0.5); }
+.ent-consulta-sellos li::before { content: "✓ "; color: var(--gold-bright); }
+/* Formulario de RUT, voz y «sin RUT» con dorado (antes azul) */
+.ent-consulta .lookup-form { border: 1px solid var(--ent-gold); border-radius: 18px; background: rgba(5, 9, 20, 0.55); box-shadow: 0 0 26px rgba(229, 199, 131, 0.1); }
+.ent-consulta .lookup-input { border-color: rgba(229, 199, 131, 0.35); background: rgba(5, 9, 20, 0.7); }
+.ent-consulta .lookup-input:focus { border-color: var(--gold-bright); box-shadow: 0 0 0 3px rgba(229, 199, 131, 0.18); }
+.ent-consulta .btn-gold, .ent-consulta .lookup-btn { background: var(--ent-metal); color: #0b1425; border-color: transparent; font-weight: 700; box-shadow: 0 8px 24px rgba(198, 166, 107, 0.3); }
+.ent-consulta .btn-gold:hover { filter: brightness(1.07); }
+.ent-consulta .voz-btn { border-color: var(--ent-gold); background: linear-gradient(90deg, rgba(229, 199, 131, 0.12), rgba(5, 9, 20, 0.6)); }
+.ent-consulta .voz-btn:hover { border-color: var(--gold-bright); box-shadow: 0 0 24px rgba(229, 199, 131, 0.22); }
+.ent-consulta .ent-sin-rut { margin-top: 4px; border-color: var(--ent-gold); background: rgba(5, 9, 20, 0.45); transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+.ent-consulta .ent-sin-rut:hover, .ent-consulta .ent-sin-rut[open] { border-color: var(--gold-bright); box-shadow: 0 0 24px rgba(229, 199, 131, 0.16); }
+.ent-sin-rut > summary { display: flex; align-items: center; gap: 10px; }
+.ent-cat-precios .ent-precio-fijo { text-align: left; }
+.ent-cat-precios .ent-precio-fijo:hover { transform: none; }
+.ent-cat-precios .ent-precio-cuerpo { border-top: 0; padding-top: 22px; }
+@media (max-width: 900px) {
+  .ent-consulta { grid-template-columns: 1fr; }
+  .ent-consulta-visual { position: relative; top: 0; grid-row: 1; }
+  .ent-tile.ent-consulta-foto { min-height: 200px; }
+  .ent-consulta-reloj { top: 120px; right: 4px; }
+  .ent-consulta-reloj svg { width: 90px; height: 90px; }
+}
+
