@@ -197,7 +197,7 @@ export const PLAYBOOKS: Playbook[] = [
     ],
     pasos: [
       "Verificar que el aviso es auténtico: el SII no envía enlaces ni pide claves; revisar todo entrando directo a sii.cl.",
-      "Si el cliente autoriza a ENQORA a hacerlo: que otorgue un Mandato Digital en sii.cl al profesional de ENQORA (persona natural) para «Presentar Declaraciones Juradas de Renta F22» y «Declarar Renta (F22)», con fecha de término. El profesional actúa con su propia clave. Nunca recibir la clave del cliente ni usar robots en el SII.",
+      "Si el cliente autoriza a ENQORA a hacerlo: el profesional pide el Mandato Digital desde el caso (sección «Autorizar a ENQORA en el SII»), el cliente lo otorga en sii.cl solo para «Presentar Declaraciones Juradas de Renta F22» y «Declarar Renta (F22)», con fecha de término, y el profesional lo acepta y actúa con su propia clave. Nunca recibir la clave del cliente ni usar robots en el SII. Al cerrar el caso, el cliente lo revoca.",
       "Diagnóstico completo, no solo lo que dice el aviso: Consulta de estado del F22 del año (¿existe? ¿observado?), pagos pendientes y Carpeta Tributaria (régimen, empresario individual o sociedad, F29 del período). Un aviso por la 1947 suele esconder también el F22 sin presentar.",
       "Orden obligatorio: primero la DJ 1947, después el F22. La 1947 calcula la base imponible (recuadro 22) que el SII usa para proponer el F22; al revés, el F22 queda observado.",
       "DJ 1947 con el «Asistente de apoyo para presentar DJ»: el cliente lo abre con su clave; ENQORA revisa la «Propuesta Base Imponible» (ingresos, egresos, PPM, exportable a Excel) ANTES de enviar: ingresos completos, gastos bien clasificados, PPM de los F29. Empresario individual: se informa a sí mismo como propietario.",

@@ -29,6 +29,8 @@ const MESSAGES: Record<string, string> = {
   ENQ_GESTOR_SIN_ACCESO: "Esa persona no es un gestor registrado y activo. Regístralo e invítalo en Despacho en terreno → Gestores.",
   ENQ_ETA_INVALIDA: "Indica una hora estimada de llegada válida (desde ahora y dentro de las próximas 12 horas).",
   ENQ_FALTA_COMPROBANTE: "Ingresa el comprobante del trámite: número de ingreso, carátula, repertorio o folio.",
+  ENQ_MANDATO_SII_ACTIVO: "Este caso ya tiene un Mandato Digital pedido o vigente. Anúlalo o espera a que se revoque antes de pedir otro.",
+  ENQ_FECHA_INVALIDA: "La fecha no es válida: debe ser futura y dentro de un año.",
   ENQ_GESTOR_YA_REGISTRADO: "Ya hay un gestor registrado con ese correo.",
   ENQ_ENCARGO_NO_ACEPTADO: "Solo se autoriza la descarga cuando el gestor ya aceptó el encargo y está en curso.",
   ENQ_DESCARGA_NO_AUTORIZADA: "CORA aún no autoriza la descarga de este documento. Te avisaremos apenas lo haga.",
