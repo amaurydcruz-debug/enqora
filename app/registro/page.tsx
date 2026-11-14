@@ -26,7 +26,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
       footer={
         <>
           <p>¿Ya tienes cuenta? <Link href="/ingresar">Ingresar</Link></p>
-          <p><Link href="/#servicios">Ver los servicios ENQORA</Link></p>
+          <p><Link href="/#resuelve">Ver los servicios ENQORA</Link></p>
         </>
       }
     >
@@ -37,7 +37,7 @@ export default async function SignUpPage({ searchParams }: { searchParams: Promi
             <small>Servicio elegido</small>
             <b>{chosen.title}</b>
           </span>
-          <Link href="/#servicios" className="chosen-change">Cambiar</Link>
+          <Link href="/#resuelve" className="chosen-change">Cambiar</Link>
         </div>
       ) : null}
       <SignUpForm />
