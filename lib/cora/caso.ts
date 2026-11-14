@@ -21,11 +21,17 @@ export const DOCUMENTOS: Record<string, { nombre: string; como: string }> = {
   domicilio: { nombre: "Respaldo del domicilio comercial", como: "Contrato de arriendo, dominio vigente o autorización." },
   marca: { nombre: "Nombre y logo de la marca", como: "Y una descripción de tus productos o servicios." },
   estados_financieros: { nombre: "Balance o estados financieros del último año", como: "Si los tienes." },
+  carta_despido: { nombre: "Carta de despido o aviso de término", como: "La carta o comunicación que recibiste (o enviaste), con su fecha." },
+  finiquito: { nombre: "Finiquito", como: "Firmado o el borrador propuesto, si existe." },
+  demanda: { nombre: "Demanda o notificación del tribunal", como: "La copia que te notificaron, con la fecha de notificación." },
+  acta_dt: { nombre: "Acta, citación o multa de la Dirección del Trabajo", como: "El documento de la fiscalización o del reclamo, con su fecha." },
+  reglamento_interno: { nombre: "Reglamento interno y protocolo de acoso (Ley Karin)", como: "La versión vigente de tu empresa." },
+  registro_asistencia: { nombre: "Registro de asistencia y horas extra", como: "Del período en conflicto." },
   certificado_deuda: { nombre: "Certificado de deuda fiscal (Tesorería)", como: "Se descarga gratis en tgr.gob.cl con tu propia clave y se comparte como PDF. ENQORA nunca pide tus claves." },
   datos_personales: { nombre: "Lista de los datos personales que maneja tu empresa", como: "Qué datos guardas de clientes y trabajadores, dónde y para qué (una lista simple basta)." },
 };
 
-export type AnalisisCaso = { resumen: string; categorias: string[]; documentos: string[]; origen: "ia" | "reglas" };
+export type AnalisisCaso = { resumen: string; categorias: string[]; documentos: string[]; origen: "ia" | "reglas"; urgencia?: string };
 
 export const CATEGORIAS_CASO = CATEGORIES.filter((c) => c.key !== "enterprise").map((c) => c.key);
 const DOCS_POR_CATEGORIA: Record<string, string[]> = {
@@ -36,11 +42,18 @@ const DOCS_POR_CATEGORIA: Record<string, string[]> = {
   formalizacion: ["escritura", "domicilio"],
   gestion: ["rcv", "cartolas"],
   profesionales: ["contratos", "liquidaciones", "cotizaciones"],
+  trabajador: ["carta_despido", "contratos", "finiquito", "liquidaciones", "cotizaciones"],
+  empleador: ["demanda", "contratos", "carta_despido", "liquidaciones", "acta_dt"],
   crecimiento: ["carpeta_tributaria", "estados_financieros"],
 };
 
 const sinTildes = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+// Áreas laborales: quién habla define el lado (trabajador o empleador). Van primero: ganan a «profesionales».
+const LABORAL_TRABAJADOR = /\b(me (despidieron|echaron|desvincularon|deben)|mi (jefe|jefa|empleador|empleadora)|autodespido|despido indirecto|no me (pagan|pagaron|han pagado)|mis cotizaciones|me (acosan|hostigan|discriminan)|acoso laboral|tutela|accidente (laboral|del trabajo|de trabajo)|horas extra)/;
+const LABORAL_EMPLEADOR = /\b(un (trabajador|ex ?trabajador|empleado) me|me demand\w+ (un|una) (trabajador|trabajadora|ex)|demanda laboral|despedir a|desvincular a|mis (trabajadores|empleados)|fiscalizaci\w* de la direccion del trabajo|inspeccion del trabajo (me|nos)|reglamento interno|protocolo (de acoso|ley karin)|multa de la (direccion|inspeccion) del trabajo)/;
 const REGLAS: [RegExp, string][] = [
+  [LABORAL_EMPLEADOR, "empleador"],
+  [LABORAL_TRABAJADOR, "trabajador"],
   [/\b(renta|f22|operacion renta|impuesto|sii|multa|giro|fiscaliz|notificaci|citaci|deuda|deudas|tgr|tesoreria|condonaci\w*|convenio de pago|regimen|pro ?pyme)\b/, "tributario"],
   [/\b(contab|iva|f29|libro|balance|factura|boleta|conciliaci)\w*/, "contabilidad"],
   [/\b(marca|logo|inapi|nombre comercial)\w*/, "marcas"],
@@ -54,7 +67,10 @@ const REGLAS: [RegExp, string][] = [
 // Ordenamiento por reglas (respaldo si la IA no está disponible).
 export function analizarReglas(relato: string): AnalisisCaso {
   const t = sinTildes(relato);
-  const categorias = [...new Set(REGLAS.filter(([re]) => re.test(t)).map(([, c]) => c))].slice(0, 2);
+  let todas = [...new Set(REGLAS.filter(([re]) => re.test(t)).map(([, c]) => c))];
+  if (todas.includes("empleador")) todas = todas.filter((c) => c !== "trabajador" && c !== "profesionales");
+  else if (todas.includes("trabajador")) todas = todas.filter((c) => c !== "profesionales");
+  const categorias = todas.slice(0, 2);
   const cats = categorias.length ? categorias : ["contabilidad"];
   // Documentos específicos que el relato pide aunque la categoría sea general.
   const extra = [
@@ -63,6 +79,25 @@ export function analizarReglas(relato: string): AnalisisCaso {
   ];
   const documentos = [...new Set([...extra, ...documentosPara(cats)])].slice(0, 5);
   return { resumen: "", categorias: cats, documentos, origen: "reglas" };
+}
+
+// Plazos laborales verificados (Código del Trabajo; Dirección del Trabajo). Texto fijo, nunca generado por IA:
+// CORA solo avisa que hay un plazo corriendo; el abogado calcula el plazo exacto del caso.
+export function urgenciaLaboral(relato: string, categorias: string[]): string | undefined {
+  const t = sinTildes(relato);
+  if (categorias.includes("trabajador")) {
+    if (/despid|despido|autodespido|desvincul|me echaron|termino (de|del) contrato|carta de aviso/.test(t))
+      return "Atención a los plazos: para demandar por despido injustificado (o por vulneración de derechos con ocasión del despido) hay 60 días hábiles desde la separación, de lunes a sábado sin feriados. Si reclamas ante la Inspección del Trabajo, el plazo se suspende mientras dura el reclamo, con un máximo de 90 días hábiles desde la separación (arts. 168 y 489 del Código del Trabajo). Si ya pasaron varias semanas, avísanos de inmediato.";
+    if (/acoso|hostig|discrimin|vulnera|tutela/.test(t))
+      return "Atención a los plazos: la denuncia por vulneración de derechos fundamentales durante la relación laboral se presenta dentro de 60 días desde que ocurre la vulneración (art. 486 del Código del Trabajo). Cuéntanos desde cuándo ocurre.";
+    if (/no me (pagan|pagaron|han pagado)|me deben|cotizacion|horas extra|sueldo|remuneraci|indemnizaci|finiquito/.test(t))
+      return "Atención a los plazos: los derechos laborales prescriben en 2 años desde que se hicieron exigibles, y si el contrato ya terminó, las acciones deben ejercerse dentro de 6 meses desde el término de los servicios (art. 510 del Código del Trabajo).";
+  }
+  if (categorias.includes("empleador") && /demand|notific|tribunal|juzgado|audiencia/.test(t))
+    return "Atención a los plazos: si te notificaron una demanda laboral, los plazos para contestarla y preparar la audiencia corren desde la notificación y son breves. Sube la demanda apenas la tengas para que el abogado revise las fechas exactas.";
+  if (categorias.includes("empleador") && /fiscaliz|multa|inspeccion|direccion del trabajo/.test(t))
+    return "Atención a los plazos: las multas y actas de la Dirección del Trabajo tienen plazos acotados para reclamar o corregir. Sube el acta o la resolución con su fecha para que el abogado revise el plazo exacto.";
+  return undefined;
 }
 
 export const documentosPara = (cats: string[]) => [...new Set(cats.flatMap((c) => DOCS_POR_CATEGORIA[c] ?? []))].slice(0, 5);

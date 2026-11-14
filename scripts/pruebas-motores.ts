@@ -8,7 +8,7 @@ import { oportunidades, FIN_PLAZO_TGR, TASA_GENERAL, TASA_PRO_PYME } from "@/lib
 import { ejecutivo } from "@/lib/mando/ejecutivo";
 import { operacion, type Run } from "@/lib/agentes/operacion";
 import { runCalculator } from "@/lib/tax-calc";
-import { analizarReglas } from "@/lib/cora/caso";
+import { analizarReglas, urgenciaLaboral } from "@/lib/cora/caso";
 import { knowledgeFor, PLAYBOOKS, RULES } from "@/lib/knowledge";
 import { contextoAviso, leerAvisoSII } from "@/lib/cora/avisos-sii";
 import { isNaturalPersonRut } from "@/lib/rut";
@@ -305,6 +305,26 @@ prueba("Base de conocimiento: el caso real llega a los agentes con sus aprendiza
 prueba("Enjambre: persona con negocio que no declara recibe la revisión de renta y DJ 1947", () => {
   const rs = enjambrePersona({ venta: "facturas", declara: "no", deudas: "no", contador: "nadie", trabajadores: "no", lugar: "casa", cuentas: "si", crecer: "no", marca: "no" } as never, new Date("2026-11-13T12:00:00-03:00"));
   assert.ok(rs.some((r) => r.norma === "dj_1947"));
+});
+
+prueba("Laboral: el trabajador despedido va a Soluciones laborales con aviso de plazo (art. 168)", () => {
+  const a = analizarReglas("Me despidieron la semana pasada y creo que fue injustificado, mi jefe no me pagó el finiquito");
+  assert.equal(a.categorias[0], "trabajador");
+  assert.ok(!a.categorias.includes("profesionales"));
+  assert.ok(a.documentos.includes("carta_despido"));
+  assert.match(urgenciaLaboral("me despidieron ayer", a.categorias) ?? "", /60 días hábiles.*90 días hábiles/);
+});
+
+prueba("Laboral: el empleador demandado va a Defensa laboral empresarial, nunca al lado del trabajador", () => {
+  const a = analizarReglas("Un trabajador me demandó por despido injustificado, ¿cómo defiendo mi empresa?");
+  assert.deepEqual(a.categorias.filter((c) => c === "trabajador" || c === "empleador"), ["empleador"]);
+  assert.ok(a.documentos.includes("demanda"));
+  assert.match(urgenciaLaboral("me notificaron la demanda", ["empleador"]) ?? "", /notificación/);
+});
+
+prueba("Laboral: las reglas de plazos existen con fuente oficial y llegan al agente legal", () => {
+  for (const r of ["despido_plazo_168", "tutela_486_489", "prescripcion_laboral_510"]) assert.ok(RULES[r]?.fuente?.url, r);
+  assert.match(knowledgeFor("legal"), /despido injustificado/);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

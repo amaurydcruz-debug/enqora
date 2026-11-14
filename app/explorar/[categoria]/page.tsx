@@ -61,13 +61,24 @@ export default async function CategoriaPage({ params }: Props) {
             <span className="ent-cat-n">Primera orientación gratis · {c.title}</span>
             <h2 id="consulta-t" className="ent-h2">Consulta gratis con <span>CORA</span></h2>
             <p className="ent-lead">
-              Dile a CORA el RUT de tu empresa (o tu RUT si emprendes a tu nombre) y cuéntale tu caso. Te orienta sin costo y sin crear cuenta.
+              {c.consulta === "relato"
+                ? "Marca lo que te pasa y cuéntale a CORA tu caso. Te orienta sin costo y sin crear cuenta, y te avisa si hay un plazo legal corriendo."
+                : "Dile a CORA el RUT de tu empresa (o tu RUT si emprendes a tu nombre) y cuéntale tu caso. Te orienta sin costo y sin crear cuenta."}
             </p>
-            <RutLookup categoria={c.key} />
-            <details className="ent-sin-rut">
-              <summary><Icono nombre="tributario" size={22} /> ¿Prefieres no dar el RUT? Cuéntanos tu caso</summary>
-              <CasoCategoria categoria={c.key} titulo={c.title} objetivos={c.solves} />
-            </details>
+            {c.aviso ? <p className="ent-aviso-legal">{c.aviso}</p> : null}
+            {c.consulta === "relato" ? (
+              <div className="ent-relato">
+                <CasoCategoria categoria={c.key} titulo={c.title} objetivos={c.necesidades ?? c.solves} sinRut={false} />
+              </div>
+            ) : (
+              <>
+                <RutLookup categoria={c.key} />
+                <details className="ent-sin-rut" open={!!c.lado || undefined}>
+                  <summary><Icono nombre="tributario" size={22} /> {c.lado ? "Cuéntanos tu caso" : "¿Prefieres no dar el RUT? Cuéntanos tu caso"}</summary>
+                  <CasoCategoria categoria={c.key} titulo={c.title} objetivos={c.necesidades ?? c.solves} sinRut={!c.lado} />
+                </details>
+              </>
+            )}
           </div>
           <div className="ent-consulta-visual" aria-hidden="true">
             <div className="ent-tile ent-consulta-foto">
@@ -76,7 +87,8 @@ export default async function CategoriaPage({ params }: Props) {
             </div>
             <span className="ent-consulta-reloj"><EnqoraClock size={120} live /></span>
             <ul className="ent-consulta-sellos">
-              <li>Sin costo</li><li>Sin crear cuenta</li><li>Nunca pedimos tu clave del SII</li>
+              <li>Sin costo</li><li>Sin crear cuenta</li>
+              {c.lado ? <><li>Expediente confidencial</li><li>Abogado sin conflicto de interés</li></> : <li>Nunca pedimos tu clave del SII</li>}
             </ul>
           </div>
         </section>

@@ -12,9 +12,9 @@ export const CategoriaEntrada = createContext<string | null>(null);
 
 // «Cuéntanos tu caso»: el cliente relata (escribiendo o dictando), elige cómo quiere la respuesta y recibe
 // qué documentos tener a mano. El equipo responde con una cotización por el canal elegido.
-export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo = "Conozcamos qué quieres conseguir con tu empresa.", ayuda, boton = "Enviar", etiqueta = "Siguiente paso" }: {
+export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo = "Conozcamos qué quieres conseguir con tu empresa.", ayuda, boton = "Enviar", etiqueta = "Siguiente paso", ejemplo = "Ej.: quiero ordenar la renta del año pasado y contratar a dos personas este semestre." }: {
   rut: string; razon: string; relato: string; setRelato: (v: string) => void; objetivos?: typeof OBJETIVOS; titulo?: string;
-  ayuda?: string; boton?: string; etiqueta?: string;
+  ayuda?: string; boton?: string; etiqueta?: string; ejemplo?: string;
 }) {
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [state, action] = useActionState<CasoState, FormData>(enviarCasoAction, null);
@@ -30,6 +30,7 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo
         <span className="eyebrow">Recibimos tu solicitud</span>
         {a.resumen ? <b>{a.resumen}</b> : <b>Gracias por contarnos tu caso. Ya está en manos del equipo ENQORA.</b>}
         <span>Área: {a.categorias.map(nombreCategoria).join(" y ")}.</span>
+        {a.urgencia ? <p className="alert alert-info cora-urgencia" role="status">{a.urgencia}</p> : null}
         {a.documentos.length ? (
           <>
             <span>Para cotizar y resolver tu caso, ten a mano:</span>
@@ -82,7 +83,7 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo
       <input type="hidden" name="razon_social" value={razon} />
       <label className="sr-only" htmlFor="caso-relato">Tu caso</label>
       <textarea id="caso-relato" name="relato" className="input" rows={3} maxLength={4000} required={!elegidos.length} value={relato} onChange={(e) => setRelato(e.target.value)}
-        placeholder="Ej.: quiero ordenar la renta del año pasado y contratar a dos personas este semestre." />
+        placeholder={ejemplo} />
       {soporteVoz().escuchar ? (
         <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => void dictar()} disabled={dictando || voz.escuchando}>
           {dictando ? "Te escucho…" : "Dictar por voz"}
