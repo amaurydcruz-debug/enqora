@@ -67,12 +67,14 @@ export default async function SystemStatusPage() {
   if (!isSupervisorRole(role)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }] = await Promise.all([
+  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }, { error: m56Error }] = await Promise.all([
     supabase.rpc("system_status"), supabase.rpc("audit_stats"), supabase.rpc("avisos_entregas", { p_dias: 7 }),
     supabase.rpc("migraciones_estado"),
     supabase.from("field_task_types").select("code", { count: "exact", head: true }),
     supabase.from("field_agents").select("id", { count: "exact", head: true }),
     supabase.from("sii_mandates").select("id", { count: "exact", head: true }),
+    // 0056: con un identificador inexistente la función no une nada; si falta, responde error.
+    supabase.rpc("vincular_solicitud_navegador", { p_id: "00000000-0000-0000-0000-000000000000" }),
   ]);
   // Entregas de avisos por canal, últimos 7 días (0051).
   const entregas = (Array.isArray(entregasData) ? entregasData : []) as { canal: string; enviados: number; pendientes: number; fallidos: number; omitidos: number; ultimo_envio: string | null; ultimo_error: string | null }[];
@@ -88,6 +90,7 @@ export default async function SystemStatusPage() {
     ["0053", !m53Error] as [string, boolean], // Despacho en terreno
     ["0054", !m54Error] as [string, boolean], // App del gestor
     ["0055", !m55Error] as [string, boolean], // Mandato Digital del SII
+    ["0056", !m56Error] as [string, boolean], // Solicitud por WhatsApp unida por navegador
   ].sort(([x], [y]) => x.localeCompare(y));
   const missingMigrations = migrations.filter(([, ok]) => !ok).map(([k]) => k);
   const lastMigration = migrations.at(-1)?.[0] ?? "0016";

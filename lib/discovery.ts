@@ -110,3 +110,5 @@ export const CATEGORIES: Category[] = [
 export const categoryByKey = (key: string | undefined | null) => CATEGORIES.find((c) => c.key === key) ?? null;
 
 export const INTENT_COOKIE = "enqora_intent";
+// Solicitud enviada a CORA desde la portada (identificador aleatorio, 24 h): se une a la cuenta al registrarse (0056).
+export const SOLICITUD_COOKIE = "enqora_solicitud";

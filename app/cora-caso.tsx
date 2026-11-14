@@ -42,7 +42,7 @@ export function CasoForm({ rut, razon, relato, setRelato, objetivos = [], titulo
             Tu código de solicitud: <b className="mono">{state.codigo}</b>.{" "}
             {state.canal === "correo"
               ? "Si creas tu cuenta ENQORA con este mismo correo, tu solicitud queda unida a tu cuenta y a tu caso automáticamente."
-              : "Guárdalo: si creas tu cuenta ENQORA, el equipo lo usa para unir tu solicitud a tu caso."}
+              : "Si creas tu cuenta ENQORA en este mismo dispositivo en las próximas 24 horas, tu solicitud se une sola. Igual guarda el código: el equipo lo usa para unirla a tu caso."}
           </span>
         ) : null}
         <span className="report-note">

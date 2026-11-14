@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 type Solicitud = {
   id: string; creada: string; rut: string | null; razon_social: string | null; nombre: string; canal: "correo" | "whatsapp"; contacto: string;
   relato: string; analisis: Partial<AnalisisCaso>; estado: "nueva" | "en_revision" | "cotizada" | "cerrada"; nota: string | null;
-  referencia?: string | null; folio?: string | null; case_id?: string | null; con_cuenta?: boolean;
+  referencia?: string | null; folio?: string | null; case_id?: string | null; con_cuenta?: boolean; vinculada_via?: string | null;
 };
 const ESTADO: Record<Solicitud["estado"], string> = { nueva: "Nueva", en_revision: "En revisión", cotizada: "Cotizada", cerrada: "Cerrada" };
 const TONO: Record<Solicitud["estado"], string> = { nueva: "gold", en_revision: "muted", cotizada: "ok", cerrada: "muted" };
@@ -82,6 +82,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
               <span className="muted-line">
                 {s.referencia ? <>Código <b className="mono">{s.referencia}</b> · </> : null}
                 {s.con_cuenta ? "Ya tiene cuenta ENQORA" : "Sin cuenta ENQORA aún"}
+                {s.con_cuenta && s.vinculada_via === "navegador" ? <> · <b>Unida por navegador: confirma con la persona que es su solicitud</b></> : null}
                 {s.folio && s.case_id ? <> · Caso <Link href={`/casos/${s.case_id}`}>{s.folio}</Link></> : " · Sin caso vinculado"}
               </span>
             </div>
