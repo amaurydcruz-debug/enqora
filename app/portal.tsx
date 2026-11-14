@@ -58,26 +58,22 @@ function RubroDetail({ r, profile }: { r: Rubro; profile: Profile }) {
           </div>
         ) : null}
         <div className="panel-actions">
-          <Link href={`/comenzar?servicio=${r.categoria}`} className="btn btn-gold btn-inline btn-sm">Comenzar mi ruta: {r.nombre.toLowerCase()}</Link>
+          <Link href={`/explorar/${r.categoria}`} className="btn btn-gold btn-inline btn-sm">Comenzar mi ruta: {r.nombre.toLowerCase()}</Link>
         </div>
       </div>
     </details>
   );
 }
 
-export function Portal() {
-  const items: AccordionItem[] = ENTRIES.map((e) => ({
-    id: `perfil-${e.key}`,
-    title: e.titulo,
-    description: e.lead,
-    emblem: <Emblem name={e.emblem} size="md" />,
-    content: e.key === "problema" ? (
+// Contenido de un perfil: lo usa la pantalla /explorar/perfil/<perfil> (y el acordeón del Portal).
+export function PerfilContenido({ e }: { e: (typeof ENTRIES)[number] }) {
+  return e.key === "problema" ? (
       <div className="portal-body">
         <p className="panel-lead">Elige tu situación. No necesitas saber si es contable, legal o municipal: ENQORA identifica la ruta.</p>
         <ul className="problem-grid" role="list">
           {PROBLEMS.map((p) => (
             <li key={p.key}>
-              <Link href={p.categoria ? `/comenzar?servicio=${p.categoria}` : "/comenzar"} className="problem-card">
+              <Link href={p.categoria ? `/explorar/${p.categoria}` : "/#resuelve"} className="problem-card">
                 <Emblem name={p.emblem} size="sm" />
                 <span><b>{p.titulo}</b><small>{p.detalle}</small></span>
               </Link>
@@ -98,7 +94,7 @@ export function Portal() {
         </ol>
         {e.key === "enterprise" ? (
           <div className="panel-actions">
-            <Link href="/comenzar?servicio=enterprise" className="btn btn-gold btn-inline">Conversar sobre ENQORA Enterprise</Link>
+            <Link href="/explorar/enterprise" className="btn btn-gold btn-inline">Conversar sobre ENQORA Enterprise</Link>
             <span className="muted-line">Un profesional revisa tu caso y te propone el alcance antes de cualquier cobro.</span>
           </div>
         ) : (
@@ -107,11 +103,20 @@ export function Portal() {
             <div className="rubro-list">
               {RUBROS.map((r) => <RubroDetail key={r.key} r={r} profile={e.key as Profile} />)}
             </div>
-            <p className="muted-line">¿Tu negocio no aparece? <Link href={`/comenzar?servicio=${e.key === "idea" ? "constitucion" : "contabilidad"}`}>Cuéntanos tu caso</Link> y lo diagnosticamos.</p>
+            <p className="muted-line">¿Tu negocio no aparece? <Link href={`/explorar/${e.key === "idea" ? "constitucion" : "contabilidad"}#consulta`}>Cuéntanos tu caso</Link> y lo diagnosticamos.</p>
           </>
         )}
       </div>
-    ),
+    );
+}
+
+export function Portal() {
+  const items: AccordionItem[] = ENTRIES.map((e) => ({
+    id: `perfil-${e.key}`,
+    title: e.titulo,
+    description: e.lead,
+    emblem: <Emblem name={e.emblem} size="md" />,
+    content: <PerfilContenido e={e} />,
   }));
 
   return (

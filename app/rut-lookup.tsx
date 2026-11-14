@@ -1,9 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useContext, useEffect, useRef, useState } from "react";
 import { lookupRutAction, type LookupState } from "@/app/actions/public";
-import { CasoForm } from "@/app/cora-caso";
+import { CasoForm, CategoriaEntrada } from "@/app/cora-caso";
 import { PriceLine } from "@/app/diagnostico-360";
 import { objetivosOrdenados } from "@/lib/cora/caso";
 import { ConsultaEstrategica } from "@/app/consulta-estrategica";
@@ -29,7 +29,11 @@ const fmtDate = (d?: string | null) =>
 // 01 · Primer contacto y 02 · Demostración de capacidad.
 // Empresa (persona jurídica): hoja de vida pública desde las nóminas oficiales del SII, con el análisis ENQORA.
 // Persona natural con giro: el SII no publica sus datos; 4 preguntas (respondidas en el navegador) arman el diagnóstico.
-export function RutLookup() {
+export function RutLookup({ categoria = null }: { categoria?: string | null } = {}) {
+  return <CategoriaEntrada.Provider value={categoria}><RutLookupInner /></CategoriaEntrada.Provider>;
+}
+
+function RutLookupInner() {
   // Si la consulta falla en el servidor o la página quedó abierta desde una versión anterior de ENQORA,
   // se muestra un mensaje y la consulta se puede reintentar (nunca la pantalla de error general).
   const [state, action, pending] = useActionState(async (prev: LookupState, fd: FormData): Promise<LookupState> => {
@@ -214,7 +218,7 @@ export function RutLookup() {
           ) : null}
           <div className="lookup-next">
             <span>¿Buscas otro servicio?</span>
-            <Link href="#servicios" className="btn btn-ghost btn-inline btn-sm">Explorar servicios</Link>
+            <Link href="/#resuelve" className="btn btn-ghost btn-inline btn-sm">Explorar servicios</Link>
           </div>
         </section>
       ) : null}
@@ -308,6 +312,7 @@ const ESTADO_REV = { aplica: "Te aplica", no_aplica: "No te aplica", por_confirm
 const horaCl = (iso: string) => new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "America/Santiago" }).format(new Date(iso));
 
 function PersonaReport({ a, e, when, rut, enjambre }: { a: PersonaAnswers; e: ExpedientePersona; when: string | null; rut: string; enjambre: EnjambreResult | null }) {
+  const categoriaEntrada = useContext(CategoriaEntrada);
   const enj = enjambre && enjambre.ok ? enjambre : null;
   const verif = new Map((enj?.fuentes ?? []).map((f) => [f.url, f]));
   const sol = solucionPersona(a, e);
@@ -445,7 +450,7 @@ function PersonaReport({ a, e, when, rut, enjambre }: { a: PersonaAnswers; e: Ex
         <b>Tu expediente personal</b>
         <span>Con tu cuenta ENQORA, y con tu autorización, un profesional confirma esta orientación con tu Carpeta Tributaria y tus fechas quedan en un calendario con alertas. ENQORA nunca te pedirá tu clave del SII.</span>
         <div className="inline-form">
-          <Link href={`/comenzar?servicio=${e.prioridades[0]?.servicio?.categoria ?? "formalizacion"}`} className="btn btn-gold btn-inline btn-sm">Crear mi cuenta gratis</Link>
+          <Link href={`/comenzar?servicio=${e.prioridades[0]?.servicio?.categoria ?? categoriaEntrada ?? "formalizacion"}`} className="btn btn-gold btn-inline btn-sm">Crear mi cuenta gratis</Link>
           <button type="button" className="btn btn-ghost btn-inline btn-sm" onClick={() => window.print()}>Guardar en PDF</button>
         </div>
       </div>

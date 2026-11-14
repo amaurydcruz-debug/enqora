@@ -43,6 +43,8 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
   const rutRaw = normalizeRut(String(form.get("rut") ?? ""));
   const rut = rutRaw && isValidRut(rutRaw) ? rutRaw : null;
   const razon = String(form.get("razon_social") ?? "").slice(0, 200);
+  const elegida = String(form.get("categoria") ?? "");
+  const categoriaElegida = CATEGORIAS_CASO.includes(elegida) ? elegida : null;
   if (form.get("consentimiento") !== "on") return { ok: false, error: "Para responderte necesitamos tu autorización para usar estos datos." };
   if (relato.length < 10) return { ok: false, error: "Elige un objetivo o cuéntanos con un poco más de detalle qué quieres conseguir." };
   if (relato.length > 4000) return { ok: false, error: "El relato es muy largo: resúmelo en menos de 4.000 caracteres." };
@@ -52,10 +54,11 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
 
   const ia = await llamarHerramienta({
     system: "Eres CORA, de ENQORA (Chile). Ordenas el caso de un dueño de empresa para que un profesional lo cotice. Tono cercano y seguro, en segunda persona. Nunca pidas claves (ClaveÚnica, clave del SII, bancos). No prometas resultados ni plazos legales.",
-    prompt: `Empresa: ${razon || "no indicada"}${rut ? ` (RUT ${rut})` : ""}.\nCaso relatado por el cliente:\n"""${relato}"""\n${contextoAviso(relato) ? `\n${contextoAviso(relato)}\nUsa esta ruta para el resumen y los documentos (sin montos ni plazos legales).\n` : ""}\nÁreas posibles: ${CATEGORIAS_CASO.join(", ")}.\nDocumentos posibles: ${Object.entries(DOCUMENTOS).map(([k, d]) => `${k} (${d.nombre})`).join("; ")}.`,
+    prompt: `Empresa: ${razon || "no indicada"}${rut ? ` (RUT ${rut})` : ""}.\n${categoriaElegida ? `Llegó desde la categoría «${categoriaElegida}» de la portada (pista: confírmala o corrígela según el relato).\n` : ""}Caso relatado por el cliente:\n"""${relato}"""\n${contextoAviso(relato) ? `\n${contextoAviso(relato)}\nUsa esta ruta para el resumen y los documentos (sin montos ni plazos legales).\n` : ""}\nÁreas posibles: ${CATEGORIAS_CASO.join(", ")}.\nDocumentos posibles: ${Object.entries(DOCUMENTOS).map(([k, d]) => `${k} (${d.nombre})`).join("; ")}.`,
     tool: TOOL, datos: "privados", modulo: "caso_publico", maxTokens: 700, timeoutMs: 30_000, validar: (x) => !!validarAnalisis(x),
   });
-  const analisis = (ia.input ? validarAnalisis(ia.input) : null) ?? analizarReglas(relato);
+  const base = (ia.input ? validarAnalisis(ia.input) : null) ?? analizarReglas(relato);
+  const analisis = categoriaElegida && !base.categorias.length ? { ...base, categorias: [categoriaElegida] } : base;
 
   const h = await headers();
   const ip = (h.get("x-forwarded-for") ?? "").split(",")[0].trim() || h.get("x-real-ip") || "desconocido";
