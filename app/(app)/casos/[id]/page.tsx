@@ -53,6 +53,8 @@ import { DiagnosisReport, type ServiceRef } from "./diagnosis-report";
 import { Quotes } from "./quotes";
 import { Authorizations } from "./authorizations";
 import { LegalDocs } from "./legal-docs";
+import { SiiMandatePanel } from "./sii-mandate";
+import type { SiiMandate } from "@/lib/sii-mandate";
 import { resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 import { CommentForm } from "./comment-form";
 import { MirrorConsole } from "./mirror-console";
@@ -81,6 +83,11 @@ const fmtDate = (d: string | null) => (d ? fmt(`${d}T12:00:00Z`, false) : "—")
 
 const AVISOS: Record<string, string> = {
   creado: "Solicitud creada. El equipo ENQORA la revisará y te mantendrá informado aquí.",
+  sii_solicitado: "Mandato Digital pedido. El cliente verá los pasos para otorgarlo en sii.cl.",
+  sii_otorgado: "¡Gracias! Avisamos al profesional para que acepte el mandato en el SII.",
+  sii_aceptado: "Mandato aceptado: ya puedes trabajar en el SII, solo en los trámites autorizados.",
+  sii_revocado: "Mandato revocado: ENQORA ya no puede actuar por ti en el SII.",
+  sii_anular: "Solicitud de mandato anulada.",
   estado: "Estado actualizado.",
   prioridad: "Prioridad actualizada.",
   asignado: "Equipo del caso actualizado.",
@@ -247,12 +254,17 @@ export default async function CasePage({
 
   const supervisor = isSupervisorRole(staffRole);
   // Resultados para el cliente (0033): calificación y ahorro (el cliente solo ve el verificado, por RLS).
-  const [ratingRes, savingsRes, legalRes] = await Promise.all([
+  const [ratingRes, savingsRes, legalRes, siiRes, myProfileRes] = await Promise.all([
     supabase.from("case_ratings").select("resuelto, satisfaccion, comentario, created_at").eq("case_id", id).maybeSingle(),
     supabase.from("case_savings").select("id, monto, concepto, fundamento, evidencia_document_id, estado, registrado_por, nota").eq("case_id", id).order("created_at"),
     // Documentos legales y ficha legal del trámite (0036).
     supabase.rpc("legal_case_status", { p_case: id }),
+    // Mandato Digital del SII (0055).
+    supabase.from("sii_mandates").select("*").eq("case_id", id).order("requested_at", { ascending: false }),
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
   ]);
+  const siiMandates = (siiRes.data ?? []) as SiiMandate[];
+  const myName = ((myProfileRes.data as { full_name: string | null } | null)?.full_name ?? "").trim();
   const legal = (legalRes.data as CaseLegalStatus | null) ?? null;
   const caseRating = (ratingRes.data as Rating | null) ?? null;
   const caseSavings = (savingsRes.data ?? []) as Saving[];
@@ -402,6 +414,8 @@ export default async function CasePage({
         return `registró el pago del cobro ${e.metadata?.folio ?? ""}`;
       case "actuacion":
         return `${ACTUACION_ACTIONS[e.metadata?.accion ?? ""] ?? "actualizó un trámite"} «${e.metadata?.titulo ?? ""}»`;
+      case "sii":
+        return `informó sobre el Mandato Digital del SII: ${e.body ?? ""}`;
       case "terreno":
         return `informó sobre el trámite en terreno ${e.metadata?.encargo ?? ""}: ${e.body ?? ""}`;
       case "legal":
@@ -458,6 +472,7 @@ export default async function CasePage({
 
   // Sección que se abre sola tras una acción, para ver su resultado.
   const OPEN_AFTER: Record<string, string> = {
+    sii_solicitado: "sii", sii_otorgado: "sii", sii_aceptado: "sii", sii_revocado: "sii", sii_anular: "sii",
     tarea: "tareas", analisis: "investigando", asignado: "agentes", retirado: "agentes", estado: "gestion", prioridad: "gestion",
     aprobacion_solicitada: "proximas", aprobacion_aprobar: "proximas", aprobacion_rechazar: "proximas", aprobacion_devolver: "proximas",
     aprobacion_anulada: "proximas", autorizacion_solicitada: "proximas", autorizada: "proximas", autorizacion_rechazada: "proximas",
@@ -961,6 +976,20 @@ export default async function CasePage({
           tone: (resumenLegal(legal).porFirmar && canDecide ? "gold" : "default") as AccordionItem["tone"],
           status: <span className={resumenLegal(legal).listo ? "status status-ok" : "status status-gold"}>{resumenLegal(legal).texto}</span>,
           content: <LegalDocs caseId={c.id} companyId={c.company_id} status={legal} canSign={canDecide && !isClosed} worker={worker} />,
+        } satisfies AccordionItem]
+      : []),
+    ...(siiMandates.length || (worker && !isClosed && staffRole !== "ai_agent")
+      ? [{
+          id: "sii",
+          aliases: ["mandato-sii", "mandato-digital"],
+          title: "Autorizar a ENQORA en el SII",
+          emblem: <Emblem name="legal" size="sm" />,
+          tone: (siiMandates.some((m) => (m.status === "solicitado" && canDecide) || (m.status === "otorgado" && m.mandatario_id === user.id)) ? "gold" : "default") as AccordionItem["tone"],
+          status: (() => {
+            const a = siiMandates.find((m) => ["solicitado", "otorgado", "aceptado"].includes(m.status));
+            return a ? <span className={`status status-${a.status === "aceptado" ? "ok" : "gold"}`}>{a.status === "aceptado" ? "Mandato vigente" : a.status === "otorgado" ? "Otorgado" : "Por otorgar"}</span> : null;
+          })(),
+          content: <SiiMandatePanel caseId={c.id} mandates={siiMandates} canDecide={canDecide} worker={worker && staffRole !== "ai_agent"} userId={user.id} defaultName={myName} isClosed={isClosed} />,
         } satisfies AccordionItem]
       : []),
     {

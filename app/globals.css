@@ -3043,3 +3043,5 @@ body { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-ins
 .install-head { display: flex; align-items: center; gap: 12px; }
 .install-head img { flex: 0 0 auto; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35)); }
 .install-head p { margin: 0; }
+fieldset.mini-form { border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 10px 14px; margin: 0; }
+fieldset.mini-form legend { padding: 0 6px; }
