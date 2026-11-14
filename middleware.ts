@@ -38,8 +38,8 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Todo excepto archivos estáticos, imágenes de marca, iconos, manifest, service worker, robots y sitemap, y las rutas que
+    // Todo excepto archivos estáticos, imágenes de marca y de la portada (entrada/), iconos, manifest, service worker, robots y sitemap, y las rutas que
     // llaman servidores externos sin sesión (pasarela de pago, tarea diaria y verificación de salud).
-    "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest|sw.js|robots.txt|sitemap.xml|brand/|api/pagos/|api/cron/|api/salud).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.png|apple-icon.png|manifest.webmanifest|sw.js|robots.txt|sitemap.xml|brand/|entrada/|gestor.webmanifest|api/pagos/|api/cron/|api/salud).*)",
   ],
 };
