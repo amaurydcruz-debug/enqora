@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { acuseSolicitud, flushDeliveries } from "@/lib/notify-delivery";
@@ -10,6 +10,7 @@ import { contextoAviso } from "@/lib/cora/avisos-sii";
 import { llamarHerramienta } from "@/lib/ai/gateway";
 import { analizarReglas, CATEGORIAS_CASO, DOCUMENTOS, validarAnalisis, type AnalisisCaso } from "@/lib/cora/caso";
 import { dbCode } from "@/lib/db-errors";
+import { SOLICITUD_COOKIE } from "@/lib/discovery";
 import { isValidRut, normalizeRut } from "@/lib/rut";
 import { createClient } from "@/lib/supabase/server";
 
@@ -83,6 +84,10 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
     // El aviso al equipo de la nueva solicitud (0042) sale de inmediato, sin esperar a que alguien entre a la app.
     await flushDeliveries(origen, true);
   });
+  // Mismo navegador → misma persona: si crea su cuenta aquí en las próximas 24 horas, la solicitud se une sola (0056).
+  if (typeof solId === "string") {
+    (await cookies()).set(SOLICITUD_COOKIE, solId, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 });
+  }
   // Código de la solicitud (trazabilidad): la persona lo ve y queda unido a su cuenta y su caso.
   const { data: codigo } = solId ? await supabase.rpc("solicitud_codigo", { p_id: solId }) : { data: null };
   return { ok: true, analisis, canal, codigo: typeof codigo === "string" ? codigo : null };

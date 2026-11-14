@@ -10,7 +10,7 @@ import { Callout, Disclosure, FactTag, NextAction } from "@/components/disclosur
 import { ModuleIcon } from "@/components/module-icons";
 import { Emblem } from "@/components/emblems";
 import { clp, todayCL } from "@/lib/pricing";
-import { categoryByKey, INTENT_COOKIE } from "@/lib/discovery";
+import { categoryByKey, INTENT_COOKIE, SOLICITUD_COOKIE } from "@/lib/discovery";
 import { benefitsFor, type Profile } from "@/lib/benefits";
 import { isComplete, suggestRoutes, type Answers } from "@/lib/onboarding";
 import { IconArrowRight, IconBuilding, IconPlus } from "@/components/icons";
@@ -85,6 +85,11 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const user = await currentUser();
   const { active } = await activeCompany();
   if (intent && active && active.role !== "viewer") redirect("/comenzar/continuar");
+  // Solicitud enviada a CORA desde este navegador antes de registrarse: se une a la cuenta (0056).
+  if ((await cookies()).get(SOLICITUD_COOKIE)?.value) {
+    const { data: unida, error: e56 } = await supabase.rpc("vincular_solicitud_navegador", { p_id: (await cookies()).get(SOLICITUD_COOKIE)?.value ?? null });
+    if (!e56 || unida) redirect("/comenzar/continuar?solo=solicitud");
+  }
 
   const [{ count: pendingAlerts }, { data: me }] = await Promise.all([
     supabase.from("security_events").select("id", { count: "exact", head: true }).eq("event", "nuevo_dispositivo").is("acknowledged_at", null),
