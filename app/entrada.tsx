@@ -101,9 +101,19 @@ export function EntradaHero() {
   );
 }
 
-// Fotografía de cada servicio (public/entrada/servicios/<clave>.webp). Mientras no exista, la tarjeta usa la
-// escena gráfica de la categoría con el mismo marco, brillo y degradado que las tarjetas fotográficas.
-const FOTO_SERVICIO: Partial<Record<string, string>> = {};
+// Fotografía de cada servicio (public/entrada/servicios/<clave>.webp). Una categoría sin foto usa su escena
+// gráfica con el mismo marco, brillo y degradado que las tarjetas fotográficas.
+const FOTO_SERVICIO: Partial<Record<string, string>> = {
+  contabilidad: "/entrada/servicios/contabilidad.webp",
+  constitucion: "/entrada/servicios/constitucion.webp",
+  formalizacion: "/entrada/servicios/formalizacion.webp",
+  marcas: "/entrada/servicios/marcas.webp",
+  tributario: "/entrada/servicios/tributario.webp",
+  gestion: "/entrada/servicios/gestion.webp",
+  profesionales: "/entrada/servicios/profesionales.webp",
+  crecimiento: "/entrada/servicios/crecimiento.webp",
+  enterprise: "/entrada/servicios/enterprise.webp",
+};
 
 // «Todo lo que ENQORA resuelve»: galería de todas las categorías de servicio (las mismas de lib/discovery).
 // Cada tarjeta lleva a su categoría en la galería de servicios existente, con precios y cómo contratar.
