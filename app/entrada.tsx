@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { EnqoraClock } from "@/components/brand/enqora-clock";
+import { CategoryScene } from "@/components/category-scene";
+import { CATEGORIES } from "@/lib/discovery";
 
 // Puerta de entrada fotográfica (rediseño, fase 1). Solo presentación: cada tarjeta lleva a las rutas existentes
 // (perfiles del Portal, consulta con CORA y galería de servicios). No cambia ninguna lógica de ENQORA.
@@ -29,7 +31,7 @@ export function EntradaTop() {
       </Link>
       <nav className="ent-nav" aria-label="Secciones">
         <a href="#inicio" className="is-active">Inicio</a>
-        <a href="#servicios">Servicios</a>
+        <a href="#resuelve">Servicios</a>
         <a href="#planes">Planes</a>
         <a href="#como-funciona">Ayuda</a>
       </nav>
@@ -75,6 +77,11 @@ export function EntradaHero() {
             </li>
           ))}
         </ul>
+      </section>
+
+      <EntradaServicios />
+
+      <section className="ent-opciones ent-opciones-cierre" aria-label="Por qué ENQORA">
         <ul className="ent-beneficios" role="list">
           {BENEFICIOS.map((b) => <li key={b.t}><span aria-hidden="true">{b.i}</span>{b.t}</li>)}
         </ul>
@@ -91,5 +98,42 @@ export function EntradaHero() {
         <p className="muted-line">Sin registro obligatorio para tu primera consulta. Las fotografías son ilustrativas.</p>
       </section>
     </>
+  );
+}
+
+// Fotografía de cada servicio (public/entrada/servicios/<clave>.webp). Mientras no exista, la tarjeta usa la
+// escena gráfica de la categoría con el mismo marco, brillo y degradado que las tarjetas fotográficas.
+const FOTO_SERVICIO: Partial<Record<string, string>> = {};
+
+// «Todo lo que ENQORA resuelve»: galería de todas las categorías de servicio (las mismas de lib/discovery).
+// Cada tarjeta lleva a su categoría en la galería de servicios existente, con precios y cómo contratar.
+export function EntradaServicios() {
+  return (
+    <section className="ent-opciones ent-servicios" id="resuelve" aria-labelledby="ent-resuelve">
+      <h2 id="ent-resuelve">Todo lo que ENQORA resuelve</h2>
+      <p className="ent-sub">Servicios con agentes de IA que preparan y especialistas que revisan y responden. Elige uno para ver qué incluye y sus precios.</p>
+      <ul className="ent-cards ent-cards-servicios" role="list">
+        {CATEGORIES.map((c, i) => {
+          const foto = FOTO_SERVICIO[c.key];
+          return (
+            <li key={c.key} style={{ animationDelay: `${(i % 3) * 80}ms` }}>
+              <a href={`#${c.key}`} className={`ent-card ent-card-servicio${foto ? "" : " is-scene"}`}>
+                {foto
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={foto} alt="" loading="lazy" width={556} height={330} />
+                  : <span className="ent-card-scene"><CategoryScene emblem={c.emblem} index={i} /></span>}
+                <span className="ent-card-body">
+                  <span className="ent-card-n">{String(i + 1).padStart(2, "0")}</span>
+                  <b>{c.title}</b>
+                  <small>{c.lead}</small>
+                  <span className="ent-solves">{c.solves.slice(0, 3).map((x) => <em key={x}>{x}</em>)}</span>
+                </span>
+                <span className="ent-card-go" aria-hidden="true">→</span>
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

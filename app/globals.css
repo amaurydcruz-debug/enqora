@@ -3142,3 +3142,24 @@ fieldset.mini-form legend { padding: 0 6px; }
   .ent-beneficios li { justify-content: flex-start; }
   .ent-pasos { grid-template-columns: 1fr; gap: 22px; }
 }
+
+/* Galería «Todo lo que ENQORA resuelve» (mismo marco que las tarjetas fotográficas) */
+.ent-servicios { padding-top: 64px; }
+.ent-opciones-cierre { padding-top: 0; }
+.ent-cards-servicios { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ent-card-servicio { min-height: 400px; background: radial-gradient(120% 90% at 50% 0%, #13284a 0%, #0b1425 55%, #070d1a 100%); }
+.ent-card-scene { position: absolute; inset: 0 0 auto 0; height: 64%; display: block; transition: transform 0.6s ease; }
+.ent-card-scene .cat-scene { height: 100%; aspect-ratio: auto; border: 0; border-radius: 0; background: transparent; }
+.ent-card-servicio:hover .ent-card-scene, .ent-card-servicio:focus-visible .ent-card-scene { transform: scale(1.05); }
+.ent-card-servicio.is-scene::after { background: linear-gradient(180deg, rgba(7, 13, 26, 0) 38%, rgba(7, 13, 26, 0.86) 60%, rgba(5, 9, 20, 0.98) 100%); }
+.ent-card-n { font-family: var(--font-brand), sans-serif; font-size: 0.78rem; letter-spacing: 0.24em; color: var(--gold-bright); }
+.ent-solves { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ent-solves em { font-style: normal; font-size: 0.74rem; color: var(--text-2); padding: 4px 9px; border-radius: 999px; border: 1px solid rgba(229, 199, 131, 0.28); background: rgba(5, 9, 20, 0.55); }
+@media (max-width: 1000px) { .ent-cards-servicios { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) {
+  /* En el teléfono: galería deslizable de lado, con la siguiente tarjeta asomando */
+  .ent-cards-servicios { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 14px; margin: 0 calc(-1 * clamp(16px, 4vw, 40px)); padding: 6px clamp(16px, 4vw, 40px) 18px; scrollbar-width: none; }
+  .ent-cards-servicios::-webkit-scrollbar { display: none; }
+  .ent-cards-servicios li { flex: 0 0 82%; scroll-snap-align: center; }
+  .ent-card-servicio { min-height: 380px; }
+}
