@@ -9,7 +9,7 @@ export const dynamic = "force-static";
 // información de empresas guardada como si fuera actual.
 export default function Offline() {
   return (
-    <AuthCard title="Sin conexión" subtitle="ENQORA necesita internet para mostrarte información actualizada y proteger tus datos.">
+    <AuthCard foto={null} title="Sin conexión" subtitle="ENQORA necesita internet para mostrarte información actualizada y proteger tus datos.">
       <p className="auth-sub">Revisa tu conexión y vuelve a intentarlo. Nada de lo que estabas haciendo se envió sin conexión.</p>
       <div className="error-actions">
         <RetryButton />
