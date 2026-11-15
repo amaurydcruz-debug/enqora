@@ -3616,3 +3616,34 @@ fieldset.mini-form legend { padding: 0 6px; }
   .doc-pagina-fondo { background: #fff; padding: 0; }
   .doc-hoja { box-shadow: none; border-radius: 0; padding: 0; max-width: none; }
 }
+
+/* ENQORA SIGN (0060): firma electrónica simple */
+.firma-partes { list-style: none; margin: 8px 0 10px; padding: 0; display: grid; gap: 8px; counter-reset: firma; }
+.firma-partes li { counter-increment: firma; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; padding: 10px 12px 10px 42px; position: relative; border-radius: 12px; border: 1px solid var(--hairline); background: rgba(11, 20, 37, 0.45); }
+.firma-partes li::before { content: counter(firma); position: absolute; left: 12px; top: 9px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 0.75rem; font-weight: 600; color: var(--gold); border: 1px solid rgba(229, 199, 131, 0.5); }
+.firma-partes li small { color: var(--text-3); }
+.firma-partes li span { margin-left: auto; font-size: 0.82rem; color: var(--text-3); }
+.firma-partes li.is-ok { border-color: rgba(110, 200, 150, 0.45); }
+.firma-partes li.is-ok::before { content: "✓"; color: #8fdcb0; border-color: rgba(110, 200, 150, 0.6); }
+.firma-partes li.is-no { opacity: 0.75; border-color: rgba(230, 120, 110, 0.45); }
+.firma-solicitud + .firma-solicitud { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--hairline); }
+.firma-hoja { margin: 18px auto; }
+.firma-fin { height: 1px; }
+.firma-panel { border-color: rgba(229, 199, 131, 0.45); }
+.firma-acepto { align-items: flex-start; line-height: 1.5; font-size: 0.9rem; }
+.firma-acepto input { margin-top: 4px; flex: none; }
+.firma-codigo { max-width: 220px; font-size: 1.4rem; letter-spacing: 0.4em; text-align: center; font-variant-numeric: tabular-nums; }
+.firma-ok { border-color: rgba(110, 200, 150, 0.45); }
+.doc-firmas { margin-top: 22px; padding: 14px 16px; border: 1px solid #b8975a; border-radius: 6px; font-family: Arial, sans-serif; font-size: 0.8rem; color: #333; break-inside: avoid; }
+.doc-firmas h2 { font-size: 0.95rem; margin: 0 0 8px; color: #1b1f27; font-family: Georgia, serif; }
+.doc-firmas ul { margin: 0 0 8px; padding-left: 18px; }
+.doc-firmas code { word-break: break-all; }
+.vf-form { display: grid; gap: 10px; margin-top: 16px; max-width: 560px; }
+.vf-resultado { max-width: 860px; margin: 24px auto 0; }
+.vf-resultado.is-ok { border-color: rgba(110, 200, 150, 0.55); }
+.vf-resultado.is-ok h2 { color: #8fdcb0; }
+.vf-resultado.is-no { border-color: rgba(230, 160, 110, 0.5); }
+.vf-huella { word-break: break-all; }
+.vf-firmas { margin: 6px 0 12px; padding-left: 18px; }
+.vf-info { max-width: 860px; margin: 22px auto 40px; color: var(--text-3); font-size: 0.9rem; }
+@media (max-width: 640px) { .firma-partes li span { margin-left: 0; width: 100%; } }

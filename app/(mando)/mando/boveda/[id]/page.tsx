@@ -1,10 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { anularFirmaAction, solicitarFirmaAction } from "@/app/actions/firma";
 import { anularAction, autorizarEnviarAction, editarBorradorAction, enviarRevisionAction, redactorAction, retencionAction, revisarAction, secretariaAction } from "@/app/actions/boveda";
 import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
 import { ACCIONES, CLASES, ESTADOS, REVISORES, tipoPorKey } from "@/lib/boveda";
+import { CALIDADES, ESTADOS_FIRMANTE, ESTADOS_SOLICITUD, MAPA_FIRMA, admiteFirma, codigoVerificacion, type Calidad } from "@/lib/firma";
 import { messageForCode } from "@/lib/db-errors";
 import { fechaCL } from "@/lib/informa";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
@@ -22,6 +24,8 @@ type D = {
   anulado_motivo: string | null; mime_type: string | null; size_bytes: number | null; created_at: string;
 };
 type V = { version: number; cuerpo: string | null; faltantes: string[]; normas: string[]; sha256: string; autor_tipo: string; autor_agente: string | null; autor_id: string | null; nota: string | null; created_at: string };
+type FR = { id: string; folio: string; estado: string; nivel: string; version: number; secuencial: boolean; vence_at: string; completada_at: string | null; sello: string | null; anulado_motivo: string | null; created_at: string };
+type FS = { id: string; request_id: string; orden: number; nombre: string; correo: string; calidad: Calidad; estado: string; leido_at: string | null; firmado_at: string | null; rechazo_motivo: string | null; evidencia: { ip?: string; dispositivo?: string } };
 type E = { id: number; accion: string; actor_id: string | null; actor_tipo: string; actor_agente: string | null; detalle: Record<string, unknown>; created_at: string; hash: string };
 
 const AVISOS: Record<string, string> = {
@@ -29,6 +33,7 @@ const AVISOS: Record<string, string> = {
   borrador_editado: "Nueva versión guardada.", en_revision: "Enviado a revisión profesional.", aprobado: "Documento aprobado. Falta autorizar y enviar.",
   observado: "Documento observado: vuelve a borrador.", enviado: "Documento autorizado y enviado. La versión final quedó congelada.",
   anulado: "Documento anulado.", retencion: "Retención actualizada.", pedido: "Pedido registrado en la Bóveda.",
+  firma_solicitada: "Documento enviado a firma: cada firmante recibió el aviso con su enlace.", firma_anulada: "Solicitud de firma anulada.",
 };
 
 export default async function DocumentoBovedaPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ aviso?: string; error?: string }> }) {
@@ -48,6 +53,13 @@ export default async function DocumentoBovedaPage({ params, searchParams }: { pa
     supabase.auth.getUser(),
     d.case_id ? supabase.from("cases").select("folio, title, responsible_id").eq("id", d.case_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  // ENQORA SIGN (0060): si la migración no está pegada, la sección de firma no aparece.
+  const [{ data: frs, error: fError }, { data: fss }] = await Promise.all([
+    supabase.from("sign_requests").select("id, folio, estado, nivel, version, secuencial, vence_at, completada_at, sello, anulado_motivo, created_at").eq("document_id", id).order("created_at", { ascending: false }),
+    supabase.from("sign_signers").select("id, request_id, orden, nombre, correo, calidad, estado, leido_at, firmado_at, rechazo_motivo, evidencia").order("orden"),
+  ]);
+  const solicitudes = (frs ?? []) as FR[];
+  const firmantesDe = (r: string) => ((fss ?? []) as FS[]).filter((f) => f.request_id === r);
   const versiones = (vers ?? []) as V[];
   const eventos = (evs ?? []) as E[];
   const actual = versiones.find((v) => v.version === d.version_actual) ?? null;
@@ -60,6 +72,9 @@ export default async function DocumentoBovedaPage({ params, searchParams }: { pa
   const generado = d.origen === "generado";
   const editable = generado && ["solicitado", "antecedentes", "borrador", "observado", "en_revision"].includes(d.estado);
   const tipo = tipoPorKey(d.tipo);
+  const admite = admiteFirma(d.tipo, d.clase);
+  const firmable = !fError && generado && ["enviado", "archivado"].includes(d.estado) && d.confidencialidad === "cliente" && !!d.version_final;
+  const enCurso = solicitudes.some((r) => r.estado === "pendiente");
   const ant = d.antecedentes ?? {};
 
   return (
@@ -156,6 +171,60 @@ export default async function DocumentoBovedaPage({ params, searchParams }: { pa
               </form>
             </details>
           ) : null}
+        </section>
+      ) : null}
+
+      {!fError && generado && d.estado !== "anulado" ? (
+        <section className="card" id="firma" aria-labelledby="firma-t">
+          <h2 id="firma-t">Firma electrónica · ENQORA SIGN</h2>
+          {solicitudes.map((r) => (
+            <div key={r.id} className="firma-solicitud">
+              <p><span className="mono">{r.folio}</span> <span className={`badge ${ESTADOS_SOLICITUD[r.estado]?.tono === "ok" ? "badge-ok" : ESTADOS_SOLICITUD[r.estado]?.tono === "muted" ? "badge-muted" : "badge-gold"}`}>{r.estado === "pendiente" && new Date(r.vence_at) < new Date() ? "Plazo vencido" : ESTADOS_SOLICITUD[r.estado]?.texto ?? r.estado}</span>{" "}
+                <small>versión {r.version} · {r.secuencial ? "en orden" : "sin orden"} · vence {fechaCL(r.vence_at)}{r.completada_at ? ` · completada ${fechaCL(r.completada_at, "long")}` : ""}{r.sello ? ` · código ${codigoVerificacion(r.sello)}` : ""}{r.anulado_motivo ? ` · anulada: ${r.anulado_motivo}` : ""}</small></p>
+              <ol className="firma-partes">
+                {firmantesDe(r.id).map((f) => (
+                  <li key={f.id} className={f.estado === "firmado" ? "is-ok" : f.estado === "rechazado" ? "is-no" : undefined}>
+                    <b>{f.nombre}</b> <small>{CALIDADES[f.calidad] ?? f.calidad} · {f.correo}</small>
+                    <span>{ESTADOS_FIRMANTE[f.estado] ?? f.estado}{f.firmado_at ? ` · ${fechaCL(f.firmado_at, "long")}` : f.leido_at ? " · leyó el documento" : ""}{f.evidencia?.ip ? ` · IP ${f.evidencia.ip}` : ""}{f.rechazo_motivo ? ` · «${f.rechazo_motivo}»` : ""}</span>
+                  </li>
+                ))}
+              </ol>
+              {r.estado === "pendiente" && puedeAutorizar ? (
+                <form action={anularFirmaAction} className="inline-form">
+                  <input type="hidden" name="doc" value={d.id} /><input type="hidden" name="id" value={r.id} />
+                  <input name="motivo" className="input" required minLength={5} maxLength={500} placeholder="Motivo para anular la solicitud" aria-label="Motivo" />
+                  <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Anular solicitud</SubmitButton>
+                </form>
+              ) : null}
+            </div>
+          ))}
+          {!admite.ok ? <p className="alert alert-info">{admite.motivo}</p>
+            : !firmable ? <p className="muted-line">{d.confidencialidad !== "cliente" ? "Solo se envían a firma documentos visibles para el cliente." : "Se envía a firma cuando el documento está autorizado y su versión final quedó congelada."}</p>
+            : enCurso ? <p className="muted-line">Hay una solicitud de firma en curso para este documento.</p>
+            : puedeAutorizar ? (
+            <form action={solicitarFirmaAction} className="mini-form">
+              <input type="hidden" name="id" value={d.id} />
+              <p className="muted-line">Firmantes en orden. Cada uno necesita su cuenta ENQORA (con segundo factor): escribe el correo de esa cuenta. Integrantes de la empresa firman como cliente, representante o empleador; un trabajador o la contraparte, con su propia cuenta.</p>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="inline-form">
+                  <input name={`correo_${i}`} type="email" className="input" required={i === 0} maxLength={254} placeholder={`Correo del firmante ${i + 1}${i ? " (opcional)" : ""}`} aria-label={`Correo del firmante ${i + 1}`} />
+                  <select name={`calidad_${i}`} className="input input-sm" defaultValue={i === 0 ? "cliente" : "contraparte"} aria-label={`Calidad del firmante ${i + 1}`}>
+                    {Object.entries(CALIDADES).map(([k, t]) => <option key={k} value={k}>{t}</option>)}
+                  </select>
+                </div>
+              ))}
+              <div className="inline-form">
+                <label className="check"><input type="checkbox" name="secuencial" defaultChecked /> Firmar en este orden</label>
+                <select name="vence_dias" className="input input-sm" defaultValue="15" aria-label="Plazo para firmar"><option value="5">Plazo: 5 días</option><option value="15">Plazo: 15 días</option><option value="30">Plazo: 30 días</option></select>
+              </div>
+              <input name="mensaje" className="input" maxLength={500} placeholder="Mensaje para los firmantes (opcional)" aria-label="Mensaje" />
+              <SubmitButton variant="gold" className="btn-inline" pendingText="Enviando a firma…">Enviar a firma</SubmitButton>
+            </form>
+          ) : <p className="muted-line">Envía a firma el responsable del caso, el responsable del documento o la supervisión.</p>}
+          <details>
+            <summary>Qué se firma dónde</summary>
+            <ul>{MAPA_FIRMA.map((m) => <li key={m.documento}><b>{m.donde}:</b> {m.documento}.</li>)}</ul>
+          </details>
         </section>
       ) : null}
 
