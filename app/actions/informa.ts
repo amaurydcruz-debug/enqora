@@ -84,3 +84,20 @@ export async function reverificarAction(fd: FormData) {
   const { error } = await supabase.rpc("informa_editar", { p_update: id, p: { fecha_consulta: hoy } });
   volver(`/mando/informa/${id}`, error, "reverificada");
 }
+
+// Barrido completo: deja en cola una misión por cada área sin misión pendiente. El Director IA las toma de a dos
+// por ronda (las automáticas de lunes, miércoles y viernes, o «Ejecutar ronda» para adelantarlas).
+export async function barridoAction() {
+  const supabase = await createClient();
+  const { data: pendientes } = await supabase.from("info_missions").select("departamento").eq("estado", "planificada");
+  const ya = new Set(((pendientes ?? []) as { departamento: string }[]).map((m) => m.departamento));
+  let error: { message?: string } | null = null;
+  let n = 0;
+  for (const dep of DEP_KEYS) {
+    if (ya.has(dep)) continue;
+    const r = await supabase.rpc("informa_pedir_mision", { p_departamento: dep, p_tema: "Barrido completo: novedades oficiales de los últimos 45 días en esta área" });
+    if (r.error) { error = r.error; break; }
+    n++;
+  }
+  volver("/mando/informa", error, `barrido_${n}`);
+}
