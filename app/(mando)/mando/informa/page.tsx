@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { runWatchAction } from "@/app/actions/learning";
-import { pedirMisionAction } from "@/app/actions/informa";
+import { barridoAction, pedirMisionAction } from "@/app/actions/informa";
 import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
 import { messageForCode } from "@/lib/db-errors";
@@ -54,6 +54,7 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
   const reverificar = publicadasTodas.filter((i) => (diasDesde(i.fecha_consulta) ?? 999) > DIAS_REVERIFICAR);
   const publicadas = publicadasTodas.slice(0, 12);
   const ultimaDe = (d: Departamento) => misiones.find((m) => m.departamento === d && m.estado !== "planificada");
+  const enCola = (d: Departamento) => misiones.some((m) => m.departamento === d && m.estado === "planificada");
 
   const fila = (i: Item) => (
     <li key={i.id} className="inf-cola-item">
@@ -84,8 +85,10 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
         </div>
       </header>
 
-      {sp.aviso && (AVISOS[sp.aviso] || /^vigilancia_\d+$/.test(sp.aviso)) ? (
-        <Notice kind="ok">{AVISOS[sp.aviso] ?? `Ronda terminada: ${sp.aviso.split("_")[1]} hallazgo(s) nuevo(s) por verificar.`}</Notice>
+      {sp.aviso && (AVISOS[sp.aviso] || /^(vigilancia|barrido)_\d+$/.test(sp.aviso)) ? (
+        <Notice kind="ok">{AVISOS[sp.aviso] ?? (sp.aviso.startsWith("barrido_")
+          ? `Barrido en cola: ${sp.aviso.split("_")[1]} área(s). Cada ronda investiga dos; usa «Ejecutar ronda» para adelantarlas (cerca de un minuto cada una).`
+          : `Ronda terminada: ${sp.aviso.split("_")[1]} hallazgo(s) nuevo(s) por verificar.`)}</Notice>
       ) : null}
       {messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null}
 
@@ -111,11 +114,17 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
                 <small>{DEPARTAMENTOS[d].monitorea}</small>
                 <span className={`badge ${m ? ESTADO_MISION[m.estado] ?? "badge-muted" : "badge-muted"}`}>{m ? `${m.estado} · ${fechaCL(m.created_at)}` : "Sin misiones aún"}</span>
                 {m ? <small>{m.folio} · {m.nuevas} nuevo(s) de {m.hallazgos}</small> : null}
+                {enCola(d) ? <span className="badge badge-gold">En cola para la próxima ronda</span> : null}
               </li>
             );
           })}
         </ul>
-        <p className="muted-line">Cada ronda investiga dos departamentos: primero los pedidos por la supervisión y luego los que llevan más tiempo sin revisar. La ronda automática corre lunes, miércoles y viernes (09:00 de Chile en horario de verano); con «Ejecutar ronda» puedes adelantarla.</p>
+        {supervisor ? (
+          <form action={barridoAction} className="inline-form">
+            <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Barrido completo: poner en cola las 8 áreas</SubmitButton>
+          </form>
+        ) : null}
+        <p className="muted-line">«Sin misiones aún» = el área nunca se ha investigado. «terminada · 0 nuevos» = se investigó y no había novedades oficiales en los últimos 45 días. Cada ronda investiga dos departamentos: primero los pedidos por la supervisión y luego los que llevan más tiempo sin revisar. La ronda automática corre lunes, miércoles y viernes (09:00 de Chile en horario de verano); con «Ejecutar ronda» puedes adelantarla.</p>
       </section>
 
       <section className="card" id="cola" aria-labelledby="cola-t">
