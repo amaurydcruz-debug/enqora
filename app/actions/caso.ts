@@ -53,9 +53,16 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
   if (canal === "correo" ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contacto) : !/^\+?[\d\s()-]{8,20}$/.test(contacto))
     return { ok: false, error: canal === "correo" ? "Revisa tu correo electrónico." : "Revisa tu número de WhatsApp (ej.: +56 9 1234 5678)." };
 
+  // ENQORA Informa: novedades ya verificadas y publicadas del área elegida (si existen), con su fuente.
+  let informa = "";
+  if (categoriaElegida) {
+    const pub = await (await createClient()).rpc("informa_publicaciones", { p_categoria: categoriaElegida, p_q: null, p_limit: 3 });
+    const filas = ((pub.data ?? []) as { titulo: string; institucion: string | null; fuente: string; resumen: string }[]).slice(0, 3);
+    if (filas.length) informa = `\nNovedades verificadas por ENQORA Informa en esta área (menciónalas solo si aplican al caso, sin agregar datos):\n${filas.map((f) => `- ${f.titulo} (${f.institucion ?? "fuente oficial"}): ${f.resumen.slice(0, 280)}`).join("\n")}\n`;
+  }
   const ia = await llamarHerramienta({
     system: "Eres CORA, de ENQORA (Chile). Ordenas el caso de un dueño de empresa o de un trabajador para que un profesional lo cotice. En casos laborales, el lado lo define quién habla: «trabajador» si es la persona empleada, «empleador» si es la empresa; no mezcles ambos lados. Tono cercano y seguro, en segunda persona. Nunca pidas claves (ClaveÚnica, clave del SII, bancos). No prometas resultados ni plazos legales.",
-    prompt: `Empresa: ${razon || "no indicada"}${rut ? ` (RUT ${rut})` : ""}.\n${categoriaElegida ? `Llegó desde la categoría «${categoriaElegida}» de la portada (pista: confírmala o corrígela según el relato).\n` : ""}Caso relatado por el cliente:\n"""${relato}"""\n${contextoAviso(relato) ? `\n${contextoAviso(relato)}\nUsa esta ruta para el resumen y los documentos (sin montos ni plazos legales).\n` : ""}\nÁreas posibles: ${CATEGORIAS_CASO.join(", ")}.\nDocumentos posibles: ${Object.entries(DOCUMENTOS).map(([k, d]) => `${k} (${d.nombre})`).join("; ")}.`,
+    prompt: `Empresa: ${razon || "no indicada"}${rut ? ` (RUT ${rut})` : ""}.\n${categoriaElegida ? `Llegó desde la categoría «${categoriaElegida}» de la portada (pista: confírmala o corrígela según el relato).\n` : ""}Caso relatado por el cliente:\n"""${relato}"""\n${informa}${contextoAviso(relato) ? `\n${contextoAviso(relato)}\nUsa esta ruta para el resumen y los documentos (sin montos ni plazos legales).\n` : ""}\nÁreas posibles: ${CATEGORIAS_CASO.join(", ")}.\nDocumentos posibles: ${Object.entries(DOCUMENTOS).map(([k, d]) => `${k} (${d.nombre})`).join("; ")}.`,
     tool: TOOL, datos: "privados", modulo: "caso_publico", maxTokens: 700, timeoutMs: 30_000, validar: (x) => !!validarAnalisis(x),
   });
   const base = (ia.input ? validarAnalisis(ia.input) : null) ?? analizarReglas(relato);

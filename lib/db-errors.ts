@@ -40,6 +40,7 @@ const MESSAGES: Record<string, string> = {
   ENQ_CUATRO_OJOS: "No puedes decidir una solicitud que tú mismo enviaste. Debe decidirla otra persona.",
   ENQ_FALTA_OBSERVACION: "Para rechazar o devolver, explica el motivo (mínimo 10 caracteres).",
   ENQ_AUTORIZACION_VENCIDA: "El plazo de esta autorización ya venció. ENQORA deberá enviarte una nueva solicitud.",
+  ENQ_REVISION_PROFESIONAL: "Este contenido es de alto impacto: antes de publicarlo, un abogado o contador del equipo debe registrar su revisión profesional.",
   ENQ_CONFLICTO_INTERES: "Conflicto de interés: esta persona trabaja (o trabajó) en un caso de la contraparte. Asigna a otro profesional: nadie puede representar a ambas partes del mismo conflicto.",
   ENQ_FALTA_CONFIRMACION: "Para continuar, marca la casilla de confirmación.",
   ENQ_CODIGO_DUPLICADO: "Ya existe un servicio o plan con ese código.",

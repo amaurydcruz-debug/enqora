@@ -9,6 +9,7 @@ import { ejecutivo } from "@/lib/mando/ejecutivo";
 import { operacion, type Run } from "@/lib/agentes/operacion";
 import { runCalculator } from "@/lib/tax-calc";
 import { analizarReglas, urgenciaLaboral } from "@/lib/cora/caso";
+import { planificar } from "@/lib/informa";
 import { knowledgeFor, PLAYBOOKS, RULES } from "@/lib/knowledge";
 import { contextoAviso, leerAvisoSII } from "@/lib/cora/avisos-sii";
 import { isNaturalPersonRut } from "@/lib/rut";
@@ -325,6 +326,20 @@ prueba("Laboral: el empleador demandado va a Defensa laboral empresarial, nunca 
 prueba("Laboral: las reglas de plazos existen con fuente oficial y llegan al agente legal", () => {
   for (const r of ["despido_plazo_168", "tutela_486_489", "prescripcion_laboral_510"]) assert.ok(RULES[r]?.fuente?.url, r);
   assert.match(knowledgeFor("legal"), /despido injustificado/);
+});
+
+prueba("Informa: el Director IA toma primero lo pedido y luego los departamentos más atrasados, sin repetir", () => {
+  const plan = planificar({
+    pedidas: [{ id: "m1", departamento: "laboral", tema: "Ley 40 horas" }, { id: "m2", departamento: "laboral", tema: "Otra" }],
+    ultimas: { tributario: "2026-11-10", contable: "2026-11-01", legal: null, laboral: "2026-11-12", empresas: "2026-11-11", marcas: "2026-11-09", financiero: "2026-11-08", municipal: "2026-11-07" },
+  });
+  assert.deepEqual(plan.map((m) => [m.departamento, m.origen]), [["laboral", "demanda"], ["legal", "programada"]]);
+  assert.equal(plan[0].id, "m1");
+});
+
+prueba("Informa: sin pedidos, investiga los dos departamentos que llevan más tiempo sin revisar", () => {
+  const plan = planificar({ pedidas: [], ultimas: { tributario: "2026-11-10", contable: "2026-11-01", legal: "2026-11-02", laboral: "2026-11-12", empresas: "2026-11-11", marcas: "2026-11-09", financiero: "2026-11-08", municipal: "2026-11-07" } });
+  assert.deepEqual(plan.map((m) => m.departamento), ["contable", "legal"]);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
