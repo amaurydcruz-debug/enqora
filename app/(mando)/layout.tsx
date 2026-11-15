@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { AppNav, type NavItem } from "@/components/app-nav";
+import { FondoMando } from "@/components/fondo-mando";
 import { IconLogout, IconShield } from "@/components/icons";
 import { SignOutLink } from "@/components/sign-out-link";
 import { UserMenu } from "@/components/user-menu";
@@ -94,6 +95,7 @@ export default async function MandoLayout({ children }: { children: React.ReactN
       </aside>
 
       <div className="frame">
+        <FondoMando />
         <header className="topbar">
           <Link href="/mando" className="brand-mark topbar-brand">
             <img src="/brand/enqora-icon.png" alt="" width={30} height={30} />
