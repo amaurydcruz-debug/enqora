@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { EnqoraClock } from "@/components/brand/enqora-clock";
 import { CATEGORIES } from "@/lib/discovery";
-import { ALERTAS, ETAPAS, FICHA_CAMPOS, fechaCL, type Publicacion } from "@/lib/informa";
+import { esDominioOficial } from "@/lib/dominios-oficiales";
+import { ALERTAS, ETAPAS, FICHA_CAMPOS, fechaCL, revisadoHace, type Publicacion } from "@/lib/informa";
 
 // Fotografía ilustrativa de cada área (la misma de la galería de servicios).
 const FOTO: Record<string, string> = {
@@ -16,6 +17,8 @@ const FOTO: Record<string, string> = {
   enterprise: "/entrada/servicios/enterprise.webp", trabajador: "/entrada/problema.webp", empleador: "/entrada/pyme.webp",
 };
 const VISTO = "enqora_informa_visto";
+// Imagen propia de la publicación (solo desde la fuente oficial) o, si no tiene, la ilustrativa del área.
+const fotoDe = (p: Publicacion) => (esDominioOficial(p.ficha?.imagen) ? p.ficha.imagen : FOTO[p.categorias[0]] ?? "/entrada/hero.webp");
 const nombreCat = (k?: string) => CATEGORIES.find((c) => c.key === k)?.title ?? "ENQORA Informa";
 const leerVisto = () => { try { return localStorage.getItem(VISTO) ?? ""; } catch { return ""; } };
 const guardarVisto = (v: string) => { try { localStorage.setItem(VISTO, v); } catch { /* sin almacenamiento: no pasa nada */ } };
@@ -82,7 +85,7 @@ export function InformaFlotante() {
                 return (
                   <li key={p.id} className={`infx-card infx-card-${i % 3 === 0 ? "ancha" : i % 3 === 1 ? "alta" : "base"}`}>
                     <button type="button" onClick={() => setSel(p)} aria-label={`Abrir: ${p.titulo}`}>
-                      <span className="infx-foto"><img src={FOTO[cat] ?? "/entrada/hero.webp"} alt="" loading="lazy" /></span>
+                      <span className="infx-foto"><img src={fotoDe(p)} alt="" loading="lazy" referrerPolicy="no-referrer" /></span>
                       <span className="infx-card-txt">
                         <span className="infx-chips">
                           {p.alerta !== "informativa" ? <em className={`inf-alerta ${ALERTAS[p.alerta]?.clase ?? ""}`}>{ALERTAS[p.alerta]?.texto}</em> : null}
@@ -90,7 +93,7 @@ export function InformaFlotante() {
                         </span>
                         <b>{p.titulo}</b>
                         <small>{p.institucion ?? "Fuente oficial"} · {fechaCL(p.publicado ?? p.consultado)}</small>
-                        <small className="infx-ok">✓ Verificado{p.revision_profesional ? " · revisión profesional" : ""}</small>
+                        <small className="infx-ok">✓ Verificado · {revisadoHace(p.consultado).toLowerCase()}</small>
                       </span>
                     </button>
                   </li>
@@ -115,7 +118,7 @@ function Ficha({ p, volver }: { p: Publicacion; volver: () => void }) {
   return (
     <article ref={ref} className="infx-ficha" tabIndex={-1} aria-label={p.titulo}>
       <button type="button" className="infx-volver" onClick={volver}>← Volver a la galería</button>
-      <div className="infx-ficha-foto"><img src={FOTO[cat] ?? "/entrada/hero.webp"} alt="" /></div>
+      <div className="infx-ficha-foto"><img src={fotoDe(p)} alt="" referrerPolicy="no-referrer" /></div>
       <span className="infx-chips">
         {p.alerta !== "informativa" ? <em className={`inf-alerta ${ALERTAS[p.alerta]?.clase ?? ""}`}>{ALERTAS[p.alerta]?.texto}</em> : null}
         <em className="infx-cat">{nombreCat(cat)}</em>
@@ -130,7 +133,7 @@ function Ficha({ p, volver }: { p: Publicacion; volver: () => void }) {
       ) : null}
       <dl className="infx-datos">
         <div><dt>Fuente oficial</dt><dd><a href={p.fuente} target="_blank" rel="noopener noreferrer">{p.institucion ?? "Abrir documento"} ↗</a></dd></div>
-        <div><dt>Revisado por ENQORA</dt><dd>{fechaCL(p.consultado)}</dd></div>
+        <div><dt>Revisado por ENQORA</dt><dd>{fechaCL(p.consultado)} · {revisadoHace(p.consultado).toLowerCase()}</dd></div>
         <div><dt>Vigencia</dt><dd>{p.vigente_desde || p.vigente_hasta ? `${p.vigente_desde ? `desde ${fechaCL(p.vigente_desde)}` : ""}${p.vigente_hasta ? ` hasta ${fechaCL(p.vigente_hasta)}` : ""}` : "Según la fuente"}</dd></div>
         <div><dt>Verificación</dt><dd>{ETAPAS[p.etapa]?.texto ?? p.etapa}{p.revision_profesional ? " · revisión profesional" : ""}</dd></div>
       </dl>

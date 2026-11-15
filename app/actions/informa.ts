@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dbCode } from "@/lib/db-errors";
+import { esDominioOficial } from "@/lib/dominios-oficiales";
 import { DEP_KEYS, FICHA_CAMPOS } from "@/lib/informa";
 import { createClient } from "@/lib/supabase/server";
 
@@ -37,6 +38,10 @@ export async function editarInformaAction(fd: FormData) {
     const v = String(fd.get(`ficha_${c}`) ?? "").trim();
     if (v) ficha[c] = v.slice(0, 3000);
   }
+  // Imagen de la publicación: solo desde la fuente oficial (dominio del Estado o servicio oficial).
+  const imagen = String(fd.get("ficha_imagen") ?? "").trim();
+  if (imagen && !esDominioOficial(imagen)) redirect(`/mando/informa/${id}?error=ENQ_IMAGEN_NO_OFICIAL`);
+  if (imagen) ficha.imagen = imagen.slice(0, 500);
   const p: Record<string, unknown> = {
     titulo: String(fd.get("titulo") ?? "").trim().slice(0, 200),
     resumen: String(fd.get("resumen") ?? "").trim().slice(0, 2000),
@@ -68,4 +73,14 @@ export async function revisionProfesionalAction(fd: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("informa_revision_profesional", { p_update: id, p_nota: String(fd.get("nota") ?? "").trim().slice(0, 1000) });
   volver(`/mando/informa/${id}`, error, "revision_profesional");
+}
+
+// «Sigue vigente»: el equipo volvió a revisar la fuente hoy. Solo actualiza la fecha de revisión (sin cambiar el contenido).
+export async function reverificarAction(fd: FormData) {
+  const id = String(fd.get("id") ?? "");
+  if (!UUID_RE.test(id)) redirect("/mando/informa");
+  const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago" }).format(new Date());
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("informa_editar", { p_update: id, p: { fecha_consulta: hoy } });
+  volver(`/mando/informa/${id}`, error, "reverificada");
 }

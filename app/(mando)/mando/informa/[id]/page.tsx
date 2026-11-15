@@ -1,12 +1,12 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { editarInformaAction, revisionProfesionalAction } from "@/app/actions/informa";
+import { editarInformaAction, reverificarAction, revisionProfesionalAction } from "@/app/actions/informa";
 import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
 import { CATEGORIES } from "@/lib/discovery";
 import { messageForCode } from "@/lib/db-errors";
-import { ALERTAS, DEP_KEYS, DEPARTAMENTOS, ETAPAS, FICHA_CAMPOS, fechaCL, TIPO_CONTENIDO } from "@/lib/informa";
+import { ALERTAS, DEP_KEYS, DEPARTAMENTOS, DIAS_REVERIFICAR, diasDesde, ETAPAS, FICHA_CAMPOS, fechaCL, revisadoHace, TIPO_CONTENIDO } from "@/lib/informa";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 
@@ -20,7 +20,7 @@ type U = {
 };
 type V = { version: number; title: string; summary: string; motivo: string | null; created_at: string };
 
-const AVISOS: Record<string, string> = { ficha_guardada: "Ficha guardada.", revision_profesional: "Revisión profesional registrada." };
+const AVISOS: Record<string, string> = { ficha_guardada: "Ficha guardada.", revision_profesional: "Revisión profesional registrada.", reverificada: "Fecha de revisión actualizada: la publicación sigue vigente según la fuente." };
 const SIGUIENTES: Record<string, { etapa: string; texto: string }[]> = {
   detectado: [{ etapa: "en_investigacion", texto: "Tomar para investigar" }, { etapa: "verificado", texto: "Marcar verificado en la fuente" }],
   en_investigacion: [{ etapa: "pendiente_contraste", texto: "Pasar a contraste" }, { etapa: "verificado", texto: "Marcar verificado en la fuente" }],
@@ -69,6 +69,17 @@ export default async function FichaInformaPage({ params, searchParams }: { param
       {sp.aviso && (AVISOS[sp.aviso] || avisoEtapa) ? <Notice kind="ok">{AVISOS[sp.aviso] ?? avisoEtapa}</Notice> : null}
       {messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null}
 
+      {publicada && supervisor ? (
+        <section className={`card${(diasDesde(u.fecha_consulta) ?? 999) > DIAS_REVERIFICAR ? " inf-reverificar" : ""}`}>
+          <h2>Vigencia de la información</h2>
+          <p className="muted-line">{revisadoHace(u.fecha_consulta)}{(diasDesde(u.fecha_consulta) ?? 999) > DIAS_REVERIFICAR ? ` · lleva más de ${DIAS_REVERIFICAR} días sin revisarse: abre la fuente y confirma que sigue igual, o corrige y publica una actualización.` : "."}</p>
+          <form action={reverificarAction} className="inline-form">
+            <input type="hidden" name="id" value={u.id} />
+            <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Revisé la fuente hoy: sigue vigente</SubmitButton>
+          </form>
+        </section>
+      ) : null}
+
       {u.requiere_revision && profesional ? (
         <section className="card">
           <h2>Revisión profesional</h2>
@@ -92,6 +103,8 @@ export default async function FichaInformaPage({ params, searchParams }: { param
           ))}
           <label className="field"><span>Versión técnica (artículos, antecedentes, referencias)</span><textarea name="ficha_tecnica" className="input" rows={4} maxLength={3000} defaultValue={u.ficha?.tecnica ?? ""} /></label>
           <label className="field"><span>Documentos oficiales (enlaces o números)</span><textarea name="ficha_documentos" className="input" rows={2} maxLength={3000} defaultValue={u.ficha?.documentos ?? ""} /></label>
+
+          <label className="field"><span>Imagen de la publicación (opcional; solo desde la fuente oficial, https)</span><input name="ficha_imagen" type="url" className="input" defaultValue={u.ficha?.imagen ?? ""} pattern="https://.+" placeholder="https://www.sii.cl/…/imagen.jpg" /></label>
 
           <h2>Fuente, fechas y clasificación</h2>
           <div className="inline-form">

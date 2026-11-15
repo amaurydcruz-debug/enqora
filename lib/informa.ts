@@ -64,6 +64,15 @@ export type Publicacion = {
   verificado_at: string | null; version: number; ficha: Record<string, string>;
 };
 
+// Días desde la última revisión de ENQORA en la fuente. Más de DIAS_REVERIFICAR: se pide revisarla de nuevo.
+export const DIAS_REVERIFICAR = 60;
+export const diasDesde = (d: string | null | undefined) =>
+  d ? Math.max(0, Math.floor((Date.now() - new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T12:00:00-03:00` : d).getTime()) / 86400000)) : null;
+export const revisadoHace = (d: string | null | undefined) => {
+  const n = diasDesde(d);
+  return n === null ? "Sin fecha de revisión" : n === 0 ? "Revisado hoy" : n === 1 ? "Revisado ayer" : `Revisado hace ${n} días`;
+};
+
 // Fechas sin hora (AAAA-MM-DD) se leen a mediodía de Chile para no correrse un día.
 export const fechaCL = (d: string | null | undefined, estilo: "medium" | "long" = "medium") =>
   d ? new Intl.DateTimeFormat("es-CL", { dateStyle: estilo, timeZone: "America/Santiago" }).format(new Date(/^\d{4}-\d{2}-\d{2}$/.test(d) ? `${d}T12:00:00-03:00` : d)) : "—";

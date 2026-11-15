@@ -367,8 +367,9 @@ begin
   end if;
   v_ficha := case when jsonb_typeof(p -> 'ficha') = 'object' then (
       select coalesce(jsonb_object_agg(k, left(v #>> '{}', 3000)), '{}'::jsonb) from jsonb_each(p -> 'ficha') e(k, v)
-      where k in ('que_cambio', 'antes', 'ahora', 'afecta_a', 'desde', 'obligaciones', 'riesgos', 'acciones', 'tecnica', 'documentos')
-        and jsonb_typeof(v) = 'string' and char_length(trim(v #>> '{}')) > 0)
+      where k in ('que_cambio', 'antes', 'ahora', 'afecta_a', 'desde', 'obligaciones', 'riesgos', 'acciones', 'tecnica', 'documentos', 'imagen')
+        and jsonb_typeof(v) = 'string' and char_length(trim(v #>> '{}')) > 0
+        and (k <> 'imagen' or (v #>> '{}') ~ '^https://[^\s]+$'))
     else v_u.ficha end;
   -- Corregir lo ya publicado exige motivo (queda en el historial); reenviar el mismo texto no es un cambio.
   if v_publicada and v_motivo is null and (

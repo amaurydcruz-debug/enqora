@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ALERTAS, fechaCL, TIPO_CONTENIDO, type Publicacion } from "@/lib/informa";
+import { ALERTAS, fechaCL, revisadoHace, TIPO_CONTENIDO, type Publicacion } from "@/lib/informa";
 
 // Tarjeta de una publicación de ENQORA Informa: siempre con institución, fecha, estado de verificación y fuente.
 export function TarjetaInforma({ p, destacada = false }: { p: Publicacion; destacada?: boolean }) {
@@ -18,7 +18,7 @@ export function TarjetaInforma({ p, destacada = false }: { p: Publicacion; desta
         {p.vigente_hasta ? <div><dt>Hasta</dt><dd>{fechaCL(p.vigente_hasta)}</dd></div> : null}
       </dl>
       <footer className="inf-card-pie">
-        <span className="inf-verif">✓ Verificado en la fuente{p.revision_profesional ? " · revisión profesional" : ""}</span>
+        <span className="inf-verif">✓ Verificado en la fuente{p.revision_profesional ? " · revisión profesional" : ""} · {revisadoHace(p.consultado).toLowerCase()}</span>
         <span className="inf-links">
           <Link href={`/informa/${p.id}`}>Ver ficha</Link>
           <a href={p.fuente} target="_blank" rel="noopener noreferrer">Fuente oficial ↗</a>
