@@ -59,11 +59,12 @@ export const PERFILES = [
   { key: "enterprise", titulo: "ENQORA Enterprise", texto: "Soluciones empresariales avanzadas y personalizadas.", foto: "/entrada/enterprise.webp", pos: "40% 20%", icono: "grafico", alt: "Ejecutivo en un entorno corporativo", href: "/explorar/enterprise" },
 ] as const;
 
-type Seccion = "inicio" | "servicios" | "planes" | "ayuda";
+type Seccion = "inicio" | "servicios" | "informa" | "planes" | "ayuda";
 export function EntradaTop({ activa = "inicio" }: { activa?: Seccion }) {
   const enlaces: { k: Seccion; href: string; t: string }[] = [
     { k: "inicio", href: "/", t: "Inicio" },
     { k: "servicios", href: "/#resuelve", t: "Servicios" },
+    { k: "informa", href: "/informa", t: "Informa" },
     { k: "planes", href: "/explorar#precios", t: "Planes" },
     { k: "ayuda", href: "/explorar#ayuda", t: "Ayuda" },
   ];
@@ -169,6 +170,7 @@ export function EntradaPie() {
       <p className="welcome-motto">La complejidad es nuestra. La claridad, tuya.</p>
       <nav className="legal-links" aria-label="Información legal">
         <Link href="/explorar">Servicios y precios</Link>
+        <Link href="/informa">ENQORA Informa</Link>
         <Link href="/terminos">Términos del servicio</Link>
         <Link href="/privacidad">Privacidad</Link>
       </nav>

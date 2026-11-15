@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { runWatch } from "@/lib/watch";
+import { rondaInforma } from "@/lib/informa-director";
 
-// Vigilancia normativa semanal (vercel.json → crons). Vercel envía «Authorization: Bearer CRON_SECRET».
-// Las novedades se guardan como «detectadas» con la clave de servicio; la supervisión las verifica.
+// ENQORA Informa: ronda del Director IA (vercel.json → crons). Vercel envía «Authorization: Bearer CRON_SECRET».
+// Los hallazgos quedan como «detectados» y se registran como misiones; la supervisión verifica y publica.
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
@@ -13,16 +13,11 @@ export async function GET(request: NextRequest) {
   if (!secret || !service || request.headers.get("authorization") !== `Bearer ${secret}`) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
-  const result = await runWatch(AbortSignal.timeout(50_000));
-  if (!result.ok) {
-    console.error("[ENQORA vigilancia]", result.error);
-    return NextResponse.json({ ok: false, temas: result.groups }, { status: 502 });
-  }
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("ingest_regulatory_updates", { p_token: service, p_items: result.items });
-  if (error) {
-    console.error("[ENQORA vigilancia] ingest", error.message);
-    return NextResponse.json({ ok: false }, { status: 500 });
+  const r = await rondaInforma(supabase, service, AbortSignal.timeout(50_000));
+  if (!r.ok) {
+    console.error("[ENQORA Informa]", r.error);
+    return NextResponse.json({ ok: false, departamentos: r.departamentos }, { status: 502 });
   }
-  return NextResponse.json({ ok: true, temas: result.groups, encontradas: result.items.length, nuevas: data });
+  return NextResponse.json({ ok: true, departamentos: r.departamentos, encontrados: r.encontrados, nuevos: r.nuevos });
 }

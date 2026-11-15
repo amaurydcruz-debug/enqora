@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { dbCode } from "@/lib/db-errors";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
-import { runWatch } from "@/lib/watch";
+import { rondaInforma } from "@/lib/informa-director";
 
 // Acciones de M16: aprendizajes de casos y vigilancia normativa.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -80,15 +80,16 @@ export async function addUpdateAction(fd: FormData) {
 }
 
 // Ejecuta la vigilancia ahora (supervisión). Usa la clave de servicio del servidor para guardar.
-export async function runWatchAction() {
+export async function runWatchAction(fd?: FormData) {
   const role = await myStaffRole();
   if (!isSupervisorRole(role)) redirect("/mando");
+  const destino = String(fd?.get("volver") ?? "") === "informa" ? "/mando/informa" : "/mando/vigilancia";
   const service = process.env.ENQORA_SERVICE_TOKEN;
-  if (!service) go("/mando/vigilancia", { message: "ENQ_CLAVE_SERVICIO" }, "");
-  const result = await runWatch(AbortSignal.timeout(50_000));
-  if (!result.ok) go("/mando/vigilancia", { message: "ENQ_VIGILANCIA_FALLIDA" }, "");
+  if (!service) go(destino, { message: "ENQ_CLAVE_SERVICIO" }, "");
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("ingest_regulatory_updates", { p_token: service, p_items: result.items });
+  const r = await rondaInforma(supabase, service as string, AbortSignal.timeout(50_000));
   revalidatePath("/mando/vigilancia");
-  go("/mando/vigilancia", error, `vigilancia_${Number(data ?? 0)}`);
+  revalidatePath("/mando/informa");
+  if (!r.ok) go(destino, { message: "ENQ_VIGILANCIA_FALLIDA" }, "");
+  go(destino, null, `vigilancia_${r.nuevos}`);
 }
