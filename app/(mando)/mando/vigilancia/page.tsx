@@ -117,7 +117,7 @@ export default async function WatchPage({ searchParams }: { searchParams: Promis
         <div className="hero-main">
           <span className="eyebrow">Centro de Mando</span>
           <h1>Vigilancia normativa</h1>
-          <p className="hero-lead">Un agente revisa cada semana fuentes oficiales (SII, BCN, DT, INAPI, Sercotec, CORFO…) y propone novedades. Nada llega a los agentes ni a los clientes sin verificación de la supervisión.</p>
+          <p className="hero-lead">Un agente revisa tres veces por semana fuentes oficiales (SII, BCN, DT, INAPI, Sercotec, CORFO…) y propone novedades. Nada llega a los agentes ni a los clientes sin verificación de la supervisión.</p>
         </div>
         <div className="hero-actions">
           <Link href="/mando" className="btn btn-ghost btn-inline">Volver al Centro de Mando</Link>
@@ -143,7 +143,7 @@ export default async function WatchPage({ searchParams }: { searchParams: Promis
               : "Aún no hay ejecuciones registradas del agente (se registran desde la migración 0049)."}
           </p>
         )}
-        <p className="muted-line">Cada semana se revisan dos grupos, rotando. Esta semana: {next}. Las novedades verificadas se entregan a los agentes en cada caso del servicio correspondiente; las marcadas «aplicadas» ya se incorporaron a la base normativa del sistema. Si una novedad tiene plazo (un beneficio, una condonación), indica «vigente hasta»: al vencer deja de mostrarse a clientes y agentes.</p>
+        <p className="muted-line">Lunes, miércoles y viernes, el Director IA de ENQORA Informa revisa dos áreas (primero las pedidas y luego las más atrasadas). Sin pedidos, la rotación sugiere: {next}. Las novedades verificadas se entregan a los agentes en cada caso del servicio correspondiente; las marcadas «aplicadas» ya se incorporaron a la base normativa del sistema. Si una novedad tiene plazo (un beneficio, una condonación), indica «vigente hasta»: al vencer deja de mostrarse a clientes y agentes.</p>
         {supervisor ? (
           <form action={runWatchAction} className="panel-actions">
             <SubmitButton variant="ghost" className="btn-inline" pendingText="Revisando fuentes oficiales…">Ejecutar vigilancia ahora</SubmitButton>
