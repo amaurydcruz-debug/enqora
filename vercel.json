@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/vigilancia",
-      "schedule": "0 12 * * 1"
+      "schedule": "0 12 * * 1,3,5"
     },
     {
       "path": "/api/cron/nomina",

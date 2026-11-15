@@ -115,7 +115,7 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
             );
           })}
         </ul>
-        <p className="muted-line">Cada ronda investiga dos departamentos: primero los pedidos por la supervisión y luego los que llevan más tiempo sin revisar. La ronda automática corre cada lunes; con «Ejecutar ronda» puedes adelantarla.</p>
+        <p className="muted-line">Cada ronda investiga dos departamentos: primero los pedidos por la supervisión y luego los que llevan más tiempo sin revisar. La ronda automática corre lunes, miércoles y viernes (09:00 de Chile en horario de verano); con «Ejecutar ronda» puedes adelantarla.</p>
       </section>
 
       <section className="card" id="cola" aria-labelledby="cola-t">
