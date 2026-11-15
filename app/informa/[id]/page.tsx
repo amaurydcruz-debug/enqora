@@ -4,7 +4,8 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { EntradaPie, EntradaTop, FOTO_SERVICIO, Icono } from "@/app/entrada";
 import { CATEGORIES } from "@/lib/discovery";
-import { ALERTAS, DEPARTAMENTOS, ETAPAS, FICHA_CAMPOS, fechaCL, TIPO_CONTENIDO, type Departamento, type Publicacion } from "@/lib/informa";
+import { esDominioOficial } from "@/lib/dominios-oficiales";
+import { ALERTAS, DEPARTAMENTOS, ETAPAS, FICHA_CAMPOS, fechaCL, revisadoHace, TIPO_CONTENIDO, type Departamento, type Publicacion } from "@/lib/informa";
 import { createClient } from "@/lib/supabase/server";
 
 type Props = { params: Promise<{ id: string }> };
@@ -48,6 +49,7 @@ export default async function PublicacionPage({ params }: Props) {
           </p>
         </div>
 
+        {esDominioOficial(p.ficha?.imagen) ? <div className="inf-ficha-imagen"><img src={p.ficha.imagen} alt="" referrerPolicy="no-referrer" /><small>Imagen: {p.institucion ?? "fuente oficial"}</small></div> : null}
         <article className="inf-ficha">
           <section className="ent-precio inf-bloque">
             <div className="ent-precio-cuerpo">
@@ -74,7 +76,7 @@ export default async function PublicacionPage({ params }: Props) {
                 <div><dt>Institución</dt><dd>{p.institucion ?? "—"}</dd></div>
                 <div><dt>Fuente oficial</dt><dd><a href={p.fuente} target="_blank" rel="noopener noreferrer">Abrir documento ↗</a></dd></div>
                 <div><dt>Publicado</dt><dd>{fechaCL(p.publicado)}</dd></div>
-                <div><dt>Consultado por ENQORA</dt><dd>{fechaCL(p.consultado)}</dd></div>
+                <div><dt>Revisado por ENQORA</dt><dd>{fechaCL(p.consultado)} · {revisadoHace(p.consultado).toLowerCase()}</dd></div>
                 <div><dt>Vigencia</dt><dd>{p.vigente_desde || p.vigente_hasta ? `${p.vigente_desde ? `desde ${fechaCL(p.vigente_desde)}` : ""}${p.vigente_hasta ? ` hasta ${fechaCL(p.vigente_hasta)}` : ""}` : "Según la fuente"}</dd></div>
                 <div><dt>Estado</dt><dd>{etapa} · versión {p.version}</dd></div>
               </dl>

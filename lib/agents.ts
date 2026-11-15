@@ -23,13 +23,8 @@ const WEB_SEARCH = () => {
 };
 
 // Fuentes oficiales chilenas a las que se limita la búsqueda web.
-export const OFFICIAL_DOMAINS = [
-  "sii.cl", "bcn.cl", "leychile.cl", "tgr.cl", "dt.gob.cl", "inapi.cl", "chileatiende.gob.cl", "diariooficial.interior.gob.cl",
-  "registrodeempresasysociedades.cl", "cmfchile.cl", "corfo.cl", "sercotec.cl", "previred.com", "suseso.cl", "spensiones.cl",
-  "aduana.cl", "minsal.cl", "sag.gob.cl", "conservador.cl", "economia.gob.cl", "pjud.cl",
-  // M16: todo el dominio gob.cl (solo organismos del Estado) y servicios con dominio propio.
-  "gob.cl", "sernac.cl", "sernatur.cl", "mercadopublico.cl", "chilecompra.cl", "ispch.cl", "sec.cl", "nic.cl", "prochile.gob.cl",
-];
+import { OFFICIAL_DOMAINS } from "@/lib/dominios-oficiales";
+export { OFFICIAL_DOMAINS };
 
 const FOCUS: Record<AgentKey, string> = {
   tributario: "Eres el Agente Tributario. Analizas obligaciones tributarias chilenas: inicio de actividades, regímenes (Pro Pyme general, Pro Pyme transparente, semi integrado), IVA, F29, F22, PPM, retenciones, boletas de honorarios, multas e intereses del Código Tributario y beneficios aplicables.",

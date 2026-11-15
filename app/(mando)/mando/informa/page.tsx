@@ -6,7 +6,7 @@ import { pedirMisionAction } from "@/app/actions/informa";
 import { Notice } from "@/components/auth-card";
 import { SubmitButton } from "@/components/submit-button";
 import { messageForCode } from "@/lib/db-errors";
-import { DEP_KEYS, DEPARTAMENTOS, ETAPAS, fechaCL, type Departamento } from "@/lib/informa";
+import { DEP_KEYS, DEPARTAMENTOS, DIAS_REVERIFICAR, diasDesde, ETAPAS, fechaCL, type Departamento } from "@/lib/informa";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 
@@ -17,7 +17,7 @@ type Tablero = { fuentes: number; fuentes_al_dia: number; misiones_activas: numb
   por_verificar: number; revision_profesional: number; por_publicar: number; publicadas: number; alertas_criticas: number };
 type Mision = { id: string; folio: string; departamento: Departamento; tema: string | null; origen: string; estado: string; hallazgos: number; nuevas: number; error: string | null; created_at: string; ended_at: string | null };
 type Fuente = { key: string; institucion: string; url: string; departamentos: string[]; frecuencia: string; ultima_revision: string | null; hallazgos: number; activa: boolean };
-type Item = { id: string; title: string; institution: string | null; etapa: string; alerta: string; departamento: string | null; requiere_revision: boolean; revision_prof_at: string | null; created_at: string; mission_id: string | null };
+type Item = { id: string; title: string; institution: string | null; etapa: string; alerta: string; departamento: string | null; requiere_revision: boolean; revision_prof_at: string | null; created_at: string; mission_id: string | null; fecha_consulta: string | null };
 
 const AVISOS: Record<string, string> = { mision_pedida: "Misión planificada: el Director IA la tomará primero en la próxima ronda." };
 const ESTADO_MISION: Record<string, string> = { planificada: "badge-gold", en_curso: "badge-gold", terminada: "badge-ok", fallida: "badge-muted", cancelada: "badge-muted" };
@@ -34,7 +34,7 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
     supabase.rpc("informa_tablero"),
     supabase.from("info_missions").select("id, folio, departamento, tema, origen, estado, hallazgos, nuevas, error, created_at, ended_at").order("created_at", { ascending: false }).limit(60),
     supabase.from("info_sources").select("key, institucion, url, departamentos, frecuencia, ultima_revision, hallazgos, activa").order("institucion"),
-    supabase.from("regulatory_updates").select("id, title, institution, etapa, alerta, departamento, requiere_revision, revision_prof_at, created_at, mission_id").neq("etapa", "archivado").order("created_at", { ascending: false }).limit(150),
+    supabase.from("regulatory_updates").select("id, title, institution, etapa, alerta, departamento, requiere_revision, revision_prof_at, created_at, mission_id, fecha_consulta").neq("etapa", "archivado").order("created_at", { ascending: false }).limit(150),
   ]);
   if (tabRes.error && /informa_tablero|function/.test(tabRes.error.message)) {
     return (
@@ -50,7 +50,9 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
   const porVerificar = items.filter((i) => ["detectado", "en_investigacion", "pendiente_contraste"].includes(i.etapa));
   const enRevision = items.filter((i) => i.etapa === "revision_profesional" || (i.etapa === "verificado" && i.requiere_revision && !i.revision_prof_at));
   const porPublicar = items.filter((i) => i.etapa === "verificado" && (!i.requiere_revision || i.revision_prof_at));
-  const publicadas = items.filter((i) => ["publicado", "actualizado", "rectificado"].includes(i.etapa)).slice(0, 12);
+  const publicadasTodas = items.filter((i) => ["publicado", "actualizado", "rectificado"].includes(i.etapa));
+  const reverificar = publicadasTodas.filter((i) => (diasDesde(i.fecha_consulta) ?? 999) > DIAS_REVERIFICAR);
+  const publicadas = publicadasTodas.slice(0, 12);
   const ultimaDe = (d: Departamento) => misiones.find((m) => m.departamento === d && m.estado !== "planificada");
 
   const fila = (i: Item) => (
@@ -91,7 +93,7 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
         <div><b>{t.por_verificar ?? 0}</b><small>Por verificar</small></div>
         <div><b>{t.revision_profesional ?? 0}</b><small>En revisión profesional</small></div>
         <div><b>{t.por_publicar ?? 0}</b><small>Listas para publicar</small></div>
-        <div><b>{t.publicadas ?? 0}</b><small>Publicadas</small></div>
+        <div className={reverificar.length ? "is-alerta" : undefined}><b>{t.publicadas ?? 0}</b><small>Publicadas{reverificar.length ? ` · ${reverificar.length} por reverificar` : ""}</small></div>
         <div className={t.alertas_criticas ? "is-alerta" : undefined}><b>{t.alertas_criticas ?? 0}</b><small>Alertas importantes o urgentes</small></div>
         <div><b>{t.fuentes_al_dia ?? 0}/{t.fuentes ?? 0}</b><small>Fuentes revisadas (35 días)</small></div>
         <div><b>{t.misiones_30d ?? 0}</b><small>Misiones en 30 días{t.fallidas_30d ? ` · ${t.fallidas_30d} fallidas` : ""}</small></div>
@@ -124,6 +126,8 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
         {enRevision.length ? <ul className="inf-cola">{enRevision.map(fila)}</ul> : <p className="muted-line">Nada pendiente.</p>}
         <h3 className="sub-title">Listas para publicar ({porPublicar.length})</h3>
         {porPublicar.length ? <ul className="inf-cola">{porPublicar.map(fila)}</ul> : <p className="muted-line">Nada pendiente.</p>}
+        <h3 className="sub-title">Para reverificar: más de {DIAS_REVERIFICAR} días sin revisar ({reverificar.length})</h3>
+        {reverificar.length ? <ul className="inf-cola">{reverificar.map(fila)}</ul> : <p className="muted-line">Todo lo publicado se revisó en los últimos {DIAS_REVERIFICAR} días.</p>}
         <h3 className="sub-title">Publicadas recientes</h3>
         {publicadas.length ? <ul className="inf-cola">{publicadas.map(fila)}</ul> : <p className="muted-line">Aún no hay publicaciones.</p>}
       </section>
