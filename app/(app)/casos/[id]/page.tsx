@@ -55,6 +55,7 @@ import { Authorizations } from "./authorizations";
 import { LegalDocs } from "./legal-docs";
 import { SiiMandatePanel } from "./sii-mandate";
 import { CasePartyPanel, type CaseParty } from "./case-party";
+import { BovedaCaso, type VaultRow } from "./boveda";
 import type { SiiMandate } from "@/lib/sii-mandate";
 import { resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 import { CommentForm } from "./comment-form";
@@ -86,6 +87,7 @@ const AVISOS: Record<string, string> = {
   creado: "Solicitud creada. El equipo ENQORA la revisará y te mantendrá informado aquí.",
   partes_ok: "Partes registradas. ENQORA asignará un abogado que no represente a la contraparte.",
   partes_conflicto: "Partes registradas. Detectamos un posible conflicto de interés: la supervisión fue avisada y reasignará el caso.",
+  documento_pedido: "Pedido enviado al Archivero. Te avisaremos cuando el documento esté revisado y listo en la Bóveda del caso.",
   sii_solicitado: "Mandato Digital pedido. El cliente verá los pasos para otorgarlo en sii.cl.",
   sii_otorgado: "¡Gracias! Avisamos al profesional para que acepte el mandato en el SII.",
   sii_aceptado: "Mandato aceptado: ya puedes trabajar en el SII, solo en los trámites autorizados.",
@@ -257,7 +259,7 @@ export default async function CasePage({
 
   const supervisor = isSupervisorRole(staffRole);
   // Resultados para el cliente (0033): calificación y ahorro (el cliente solo ve el verificado, por RLS).
-  const [ratingRes, savingsRes, legalRes, siiRes, myProfileRes, partyRes] = await Promise.all([
+  const [ratingRes, savingsRes, legalRes, siiRes, myProfileRes, partyRes, vaultRes] = await Promise.all([
     supabase.from("case_ratings").select("resuelto, satisfaccion, comentario, created_at").eq("case_id", id).maybeSingle(),
     supabase.from("case_savings").select("id, monto, concepto, fundamento, evidencia_document_id, estado, registrado_por, nota").eq("case_id", id).order("created_at"),
     // Documentos legales y ficha legal del trámite (0036).
@@ -267,7 +269,10 @@ export default async function CasePage({
     supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
     // Partes del conflicto laboral (0057): solo casos del área legal.
     c.module === "legal" ? supabase.rpc("case_party", { p_case: id }) : Promise.resolve({ data: null }),
+    // Bóveda de archivos (0059): documentos del caso.
+    supabase.from("vault_documents").select("id, folio, titulo, estado, origen, version_final, created_at").eq("case_id", id).neq("estado", "anulado").order("created_at", { ascending: false }).limit(100),
   ]);
+  const vaultDocs = ((vaultRes as { data: unknown }).data ?? []) as VaultRow[];
   const party = ((partyRes as { data: unknown }).data ?? null) as CaseParty;
   const siiMandates = (siiRes.data ?? []) as SiiMandate[];
   const myName = ((myProfileRes.data as { full_name: string | null } | null)?.full_name ?? "").trim();
@@ -551,8 +556,16 @@ export default async function CasePage({
       ),
     },
     {
+      id: "boveda",
+      aliases: ["archivero", "documento"],
+      title: "Bóveda del caso",
+      emblem: <Emblem name="documentos" size="sm" />,
+      status: <span>{vaultDocs.length === 1 ? "1 documento" : `${vaultDocs.length} documentos`}</span>,
+      content: <BovedaCaso caseId={c.id} docs={vaultDocs} canPost={canPost && staffRole !== "ai_agent"} worker={worker} />,
+    },
+    {
       id: "documentos",
-      title: "Documentos del caso",
+      title: "Subir archivos al caso",
       emblem: <Emblem name="documentos" size="sm" />,
       status: <span>{visibleDocs.length === 1 ? "1 documento" : `${visibleDocs.length} documentos`}</span>,
       content: (
