@@ -43,6 +43,7 @@ export default async function MandoLayout({ children }: { children: React.ReactN
     { href: "/mando/legal", label: "Documentos legales", short: "Legal", icon: "documento", group: "operacion", bottom: false },
     { href: "/mando/derechos", label: "Derechos sobre datos", short: "Datos", icon: "documento", group: "operacion", bottom: false },
     { href: "/mando/aprendizajes", label: "Aprendizajes y rutas", short: "Rutas", icon: "casos", group: "operacion", bottom: false },
+    { href: "/mando/boveda", label: "Bóveda de archivos", short: "Bóveda", icon: "documento", group: "operacion" },
     { href: "/mando/informa", label: "ENQORA Informa", short: "Informa", icon: "novedades", group: "operacion" },
     { href: "/mando/vigilancia", label: "Vigilancia normativa", short: "Normas", icon: "novedades", group: "operacion", bottom: false },
     { href: "/mando/datos-publicos", label: "Datos públicos (SII)", short: "Datos", icon: "empresas", group: "operacion" },

@@ -10,6 +10,8 @@ import { operacion, type Run } from "@/lib/agentes/operacion";
 import { runCalculator } from "@/lib/tax-calc";
 import { analizarReglas, urgenciaLaboral } from "@/lib/cora/caso";
 import { planificar } from "@/lib/informa";
+import { interpretarPedido, TIPOS } from "@/lib/boveda";
+import { markdownSeguro } from "@/lib/markdown-seguro";
 import { knowledgeFor, PLAYBOOKS, RULES } from "@/lib/knowledge";
 import { contextoAviso, leerAvisoSII } from "@/lib/cora/avisos-sii";
 import { isNaturalPersonRut } from "@/lib/rut";
@@ -340,6 +342,23 @@ prueba("Informa: el Director IA toma primero lo pedido y luego los departamentos
 prueba("Informa: sin pedidos, investiga los dos departamentos que llevan más tiempo sin revisar", () => {
   const plan = planificar({ pedidas: [], ultimas: { tributario: "2026-11-10", contable: "2026-11-01", legal: "2026-11-02", laboral: "2026-11-12", empresas: "2026-11-11", marcas: "2026-11-09", financiero: "2026-11-08", municipal: "2026-11-07" } });
   assert.deepEqual(plan.map((m) => m.departamento), ["contable", "legal"]);
+});
+
+prueba("Bóveda: el documento se muestra sin HTML del autor y resalta lo que falta", () => {
+  const h = markdownSeguro("# Poder\n<script>alert(1)</script>\nTitular: **Marcas SpA**, RUT [COMPLETAR: RUT del titular]\n- uno\n- dos");
+  assert.ok(!h.includes("<script>"));
+  assert.match(h, /&lt;script&gt;/);
+  assert.match(h, /<h1>Poder<\/h1>/);
+  assert.match(h, /<mark class="doc-completar">\[COMPLETAR: RUT del titular\]<\/mark>/);
+  assert.match(h, /<ul>\n<li>uno<\/li>/);
+});
+
+prueba("Bóveda: el Archivero reconoce el pedido y el catálogo solo cita reglas que existen", () => {
+  assert.equal(interpretarPedido("Necesito el documento para registrar mi marca en INAPI").key, "antecedentes_marca");
+  assert.equal(interpretarPedido("Hay que preparar el finiquito de Juan").key, "finiquito");
+  assert.equal(interpretarPedido("Quiero pedir convenio y condonación en Tesorería").key, "solicitud_condonacion");
+  assert.equal(interpretarPedido("algo que no calza").key, "otro");
+  for (const t of TIPOS) for (const k of t.normas) assert.ok(RULES[k], `${t.key} cita ${k}`);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
