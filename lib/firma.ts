@@ -29,7 +29,7 @@ export const NIVELES: Record<string, string> = {
 // Texto que el firmante acepta. Si cambia, cambia la versión (queda en la evidencia de cada firma).
 export const TEXTO_ACEPTACION_VERSION = "FES-1";
 export const TEXTO_ACEPTACION =
-  "Leí el documento completo. Al ingresar mi código del autenticador, firmo electrónicamente este documento con firma electrónica simple " +
+  "Leí el documento completo. Al confirmar con mi huella, Face ID o código del autenticador, firmo electrónicamente este documento con firma electrónica simple " +
   "(Ley 19.799), con el mismo efecto que mi firma manuscrita, y acepto su contenido en la versión identificada por su huella SHA-256.";
 
 // Mapa de firma: qué documento se firma dónde. La base aplica la misma regla (private.sign_no_admitida).

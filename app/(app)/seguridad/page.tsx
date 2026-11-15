@@ -18,6 +18,7 @@ import { messageForCode } from "@/lib/db-errors";
 import { deviceLabel } from "@/lib/request-info";
 import { createClient, currentUser } from "@/lib/supabase/server";
 import { ChangePasswordForm } from "./change-password";
+import { LlavesFirma, type Llave } from "./llaves";
 
 export const metadata: Metadata = { title: "Seguridad" };
 
@@ -31,6 +32,7 @@ const fmt = (iso?: string | null) =>
 const AVISOS: Record<string, string> = {
   derecho_solicitado: "Recibimos tu solicitud sobre tus datos personales. Te responderemos dentro del plazo legal y te avisaremos aquí.",
   sesion: "Sesión cerrada. Ese dispositivo deberá ingresar de nuevo.",
+  llave_revocada: "Quitamos ese dispositivo: ya no puede firmar con huella o Face ID.",
   sesiones: "Cerramos todas las demás sesiones. Solo queda abierta esta.",
   dispositivo: "Dispositivo olvidado. Si vuelve a ingresar, te avisaremos.",
 };
@@ -90,6 +92,9 @@ export default async function SecurityPage({
       .order("created_at", { ascending: false })
       .limit(30),
   ]);
+  // ENQORA SIGN (0061): dispositivos registrados para firmar con huella o Face ID. Sin la 0061, la lista viene vacía.
+  const { data: llavesData, error: llavesError } = await supabase.from("signing_passkeys").select("id, nombre, created_at, last_used_at").is("revoked_at", null).order("created_at");
+  const llaves = (llavesData ?? []) as Llave[];
 
   const totp = factorsRes.data?.totp ?? [];
   const sessions = (sessionsRes.data ?? []) as Session[];
@@ -197,10 +202,17 @@ export default async function SecurityPage({
                 ) : (
                   <p className="empty-inline">No hay métodos activos.</p>
                 )}
-                <p className="note">Las passkeys (huella o Face ID) se añadirán como método adicional en una próxima etapa.</p>
               </div>
             ),
           },
+          ...(llavesError ? [] : [{
+            id: "llaves",
+            title: "Firmar con huella o Face ID",
+            description: "Registra tu teléfono o computador para firmar documentos de ENQORA SIGN con tu huella o rostro, sin escribir códigos.",
+            emblem: <Emblem name="seguridad" />,
+            status: <span>{llaves.length ? (llaves.length === 1 ? "1 dispositivo" : `${llaves.length} dispositivos`) : "Sin registrar"}</span>,
+            content: <LlavesFirma llaves={llaves} />,
+          }]),
           {
             id: "sesiones",
             title: "Sesiones abiertas",

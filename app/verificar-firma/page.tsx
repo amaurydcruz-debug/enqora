@@ -71,7 +71,7 @@ export default async function VerificarFirmaPage({ searchParams }: { searchParam
             <h3>Firmas</h3>
             <ul className="vf-firmas">
               {(r.firmas ?? []).map((f, i) => (
-                <li key={i}>{CALIDADES[f.calidad] ?? f.calidad}: <b>{ESTADOS_FIRMANTE[f.estado] ?? f.estado}</b>{f.firmado_at ? ` el ${fechaCL(f.firmado_at, "long")}` : ""}{f.metodo === "codigo_autenticador" ? " · cuenta ENQORA con segundo factor" : ""}</li>
+                <li key={i}>{CALIDADES[f.calidad] ?? f.calidad}: <b>{ESTADOS_FIRMANTE[f.estado] ?? f.estado}</b>{f.firmado_at ? ` el ${fechaCL(f.firmado_at, "long")}` : ""}{f.metodo === "codigo_autenticador" ? " · cuenta ENQORA con código del autenticador" : f.metodo === "llave_acceso" ? " · cuenta ENQORA con huella o Face ID del dispositivo" : ""}</li>
               ))}
             </ul>
             <p className="muted-line">Por privacidad no mostramos nombres ni contenido. Si tienes el documento, comprueba que su folio y su huella coincidan con estos datos.</p>
@@ -79,7 +79,7 @@ export default async function VerificarFirmaPage({ searchParams }: { searchParam
         ) : null}
 
         <section className="vf-info" aria-label="Sobre ENQORA SIGN">
-          <p>ENQORA SIGN usa firma electrónica simple (Ley 19.799): cada parte firma desde su cuenta ENQORA, después de leer el documento completo y con un código de su autenticador. Cada firma guarda su evidencia y la huella del documento; si alguien cambiara una sola letra, la huella dejaría de coincidir.</p>
+          <p>ENQORA SIGN usa firma electrónica simple (Ley 19.799): cada parte firma desde su cuenta ENQORA, después de leer el documento completo, con su huella o Face ID o con un código de su autenticador. Cada firma guarda su evidencia y la huella del documento; si alguien cambiara una sola letra, la huella dejaría de coincidir.</p>
         </section>
       </main>
       <EntradaPie />

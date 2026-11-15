@@ -60,6 +60,8 @@ const MESSAGES: Record<string, string> = {
   ENQ_FIRMA_SIN_LECTURA: "Antes de firmar, lee el documento hasta el final.",
   ENQ_FIRMA_HUELLA: "El documento que ves no coincide con la versión enviada a firma. Recarga la página.",
   ENQ_FIRMA_TURNO: "Todavía no es tu turno: antes debe firmar otra de las partes.",
+  ENQ_LLAVE_LIMITE: "Ya tienes 5 dispositivos para firmar. Quita uno en Seguridad antes de registrar otro.",
+  ENQ_LLAVE_NO_VALIDA: "Esa huella o Face ID no corresponde a una llave activa de tu cuenta. Regístrala de nuevo en Seguridad o firma con tu código.",
   ENQ_IMAGEN_NO_OFICIAL: "La imagen debe venir de la fuente oficial (un sitio del Estado o de un servicio oficial, con https).",
   ENQ_REVISION_PROFESIONAL: "Este contenido es de alto impacto: antes de publicarlo, un abogado o contador del equipo debe registrar su revisión profesional.",
   ENQ_CONFLICTO_INTERES: "Conflicto de interés: esta persona trabaja (o trabajó) en un caso de la contraparte. Asigna a otro profesional: nadie puede representar a ambas partes del mismo conflicto.",
