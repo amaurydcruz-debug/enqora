@@ -106,7 +106,7 @@ export default async function PublicacionPage({ params }: Props) {
           </section>
         ) : null}
       </main>
-      <EntradaPie />
+      <EntradaPie informa={false} />
     </div>
   );
 }

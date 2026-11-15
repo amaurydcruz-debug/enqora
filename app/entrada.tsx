@@ -2,6 +2,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { EnqoraClock } from "@/components/brand/enqora-clock";
+import { InformaFlotante } from "@/components/informa-flotante";
 import { CATEGORIES } from "@/lib/discovery";
 
 // Puerta de entrada fotográfica (rediseño, fase 2). Solo presentación y navegación: la portada muestra el
@@ -64,7 +65,7 @@ export function EntradaTop({ activa = "inicio" }: { activa?: Seccion }) {
   const enlaces: { k: Seccion; href: string; t: string }[] = [
     { k: "inicio", href: "/", t: "Inicio" },
     { k: "servicios", href: "/#resuelve", t: "Servicios" },
-    { k: "informa", href: "/informa", t: "Informa" },
+    { k: "informa", href: "/informa", t: "ENQORA Informa" },
     { k: "planes", href: "/explorar#precios", t: "Planes" },
     { k: "ayuda", href: "/explorar#ayuda", t: "Ayuda" },
   ];
@@ -76,7 +77,7 @@ export function EntradaTop({ activa = "inicio" }: { activa?: Seccion }) {
       </Link>
       <nav className="ent-nav" aria-label="Secciones">
         {enlaces.map((e) => (
-          <Link key={e.k} href={e.href} className={e.k === activa ? "is-active" : undefined} aria-current={e.k === activa ? "page" : undefined}>{e.t}</Link>
+          <Link key={e.k} href={e.href} className={[e.k === activa ? "is-active" : "", e.k === "informa" ? "ent-nav-informa" : ""].join(" ").trim() || undefined} aria-current={e.k === activa ? "page" : undefined}>{e.t}</Link>
         ))}
       </nav>
       <nav className="ent-account" aria-label="Cuenta">
@@ -163,8 +164,10 @@ export function MosaicoServicios() {
   );
 }
 
-export function EntradaPie() {
+export function EntradaPie({ informa = true }: { informa?: boolean } = {}) {
   return (
+    <>
+    {informa ? <InformaFlotante /> : null}
     <footer className="welcome-foot">
       <p>ENQORA nunca te pedirá tu ClaveÚnica ni tu clave del SII. Las fotografías son ilustrativas.</p>
       <p className="welcome-motto">La complejidad es nuestra. La claridad, tuya.</p>
@@ -175,5 +178,6 @@ export function EntradaPie() {
         <Link href="/privacidad">Privacidad</Link>
       </nav>
     </footer>
+    </>
   );
 }
