@@ -130,7 +130,7 @@ export default async function InformaPage({ searchParams }: { searchParams: Prom
           <Link href={cat ? `/explorar/${cat.key}#consulta` : "/#resuelve"} className="btn btn-gold btn-inline ent-cta">Pregúntale a CORA</Link>
         </section>
       </main>
-      <EntradaPie />
+      <EntradaPie informa={false} />
     </div>
   );
 }
