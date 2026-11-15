@@ -12,6 +12,8 @@ import { analizarReglas, urgenciaLaboral } from "@/lib/cora/caso";
 import { planificar } from "@/lib/informa";
 import { interpretarPedido, TIPOS } from "@/lib/boveda";
 import { markdownSeguro } from "@/lib/markdown-seguro";
+import { generateKeyPairSync, sign as firmarCripto } from "node:crypto";
+import { b64u, sha256, verificarAsercion, verificarRegistro } from "@/lib/webauthn-verificar";
 import { admiteFirma, codigoVerificacion, normalizarCodigo, FOLIO_RE } from "@/lib/firma";
 import { knowledgeFor, PLAYBOOKS, RULES } from "@/lib/knowledge";
 import { contextoAviso, leerAvisoSII } from "@/lib/cora/avisos-sii";
@@ -371,6 +373,26 @@ prueba("ENQORA SIGN: mapa de firma y código de verificación", () => {
   assert.equal(codigoVerificacion(sello), "A1B2-C3D4-E5F6-0718-293A");
   assert.equal(normalizarCodigo("A1B2-C3D4-E5F6-0718-293A"), sello.slice(0, 20));
   assert.ok(FOLIO_RE.test("FIR-2026-000123") && FOLIO_RE.test("DOC-2026-000001") && !FOLIO_RE.test("FIR-26-1"));
+});
+
+prueba("ENQORA SIGN: verificación de llave de acceso (WebAuthn ES256 y EdDSA)", () => {
+  const rpId = "enqora.cl", origin = "https://enqora.cl", desafio = b64u(sha256("doc|firmante"));
+  const authData = (flags: number, contador: number) => { const b = Buffer.alloc(37); sha256(rpId).copy(b, 0); b[32] = flags; b.writeUInt32BE(contador, 33); return b; };
+  const cd = (type: string, ch = desafio, o = origin) => Buffer.from(JSON.stringify({ type, challenge: ch, origin: o }));
+  for (const [tipo, alg] of [["ec", -7], ["ed25519", -8]] as const) {
+    const { publicKey, privateKey } = tipo === "ec" ? generateKeyPairSync("ec", { namedCurve: "P-256" }) : generateKeyPairSync("ed25519");
+    const spki = b64u(publicKey.export({ format: "der", type: "spki" }));
+    verificarRegistro({ credentialId: "credencial-de-prueba-123", clientDataJSON: b64u(cd("webauthn.create")), authenticatorData: b64u(authData(0x05, 0)), publicKey: spki, alg }, desafio, rpId, origin);
+    assert.throws(() => verificarRegistro({ credentialId: "credencial-de-prueba-123", clientDataJSON: b64u(cd("webauthn.create")), authenticatorData: b64u(authData(0x01, 0)), publicKey: spki, alg }, desafio, rpId, origin), /uv/);
+    const ad = authData(0x05, 7), cdj = cd("webauthn.get");
+    const datos = Buffer.concat([ad, sha256(cdj)]);
+    const sig = alg === -8 ? firmarCripto(null, datos, privateKey) : firmarCripto("sha256", datos, { key: privateKey, dsaEncoding: "der" });
+    const as = { credentialId: "credencial-de-prueba-123", clientDataJSON: b64u(cdj), authenticatorData: b64u(ad), signature: b64u(sig) };
+    assert.equal(verificarAsercion(as, { public_key: spki, alg }, desafio, rpId, origin).contador, 7);
+    assert.throws(() => verificarAsercion(as, { public_key: spki, alg }, b64u(sha256("otro documento")), rpId, origin), /desafio/);
+    assert.throws(() => verificarAsercion(as, { public_key: spki, alg }, desafio, "phishing.cl", origin), /rpId/);
+    assert.throws(() => verificarAsercion({ ...as, signature: b64u(Buffer.from(sig).reverse()) }, { public_key: spki, alg }, desafio, rpId, origin));
+  }
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

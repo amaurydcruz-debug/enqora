@@ -403,7 +403,7 @@ begin
   select jsonb_build_object('nombre', legal_name, 'rut', rut) into v_emp from public.companies where id = v_r.company_id;
   return jsonb_build_object(
     'firmante', jsonb_build_object('id', v_s.id, 'nombre', v_s.nombre, 'calidad', v_s.calidad, 'estado', v_s.estado,
-      'leido_at', v_s.leido_at, 'firmado_at', v_s.firmado_at, 'firma_hash', v_s.firma_hash, 'rechazo_motivo', v_s.rechazo_motivo),
+      'leido_at', v_s.leido_at, 'firmado_at', v_s.firmado_at, 'firma_hash', v_s.firma_hash, 'rechazo_motivo', v_s.rechazo_motivo, 'metodo', v_s.metodo),
     'solicitud', jsonb_build_object('id', v_r.id, 'folio', v_r.folio, 'estado', v_r.estado, 'nivel', v_r.nivel, 'mensaje', v_r.mensaje,
       'vence_at', v_r.vence_at, 'vencida', v_r.vence_at < now(), 'secuencial', v_r.secuencial, 'sello', v_r.sello, 'completada_at', v_r.completada_at),
     'documento', jsonb_build_object('id', v_d.id, 'folio', v_d.folio, 'titulo', v_d.titulo, 'clase', v_d.clase, 'version', v_r.version,

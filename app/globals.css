@@ -3647,3 +3647,7 @@ fieldset.mini-form legend { padding: 0 6px; }
 .vf-firmas { margin: 6px 0 12px; padding-left: 18px; }
 .vf-info { max-width: 860px; margin: 22px auto 40px; color: var(--text-3); font-size: 0.9rem; }
 @media (max-width: 640px) { .firma-partes li span { margin-left: 0; width: 100%; } }
+.firma-huella { display: grid; gap: 10px; justify-items: start; padding: 4px 0 6px; }
+.firma-huella .btn-gold { min-width: 260px; }
+.llaves-firma { display: grid; gap: 12px; justify-items: start; }
+.llaves-firma .rows { width: 100%; }

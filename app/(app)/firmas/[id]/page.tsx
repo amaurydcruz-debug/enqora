@@ -15,7 +15,7 @@ export const dynamic = "force-dynamic";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Datos = {
-  firmante: { id: string; nombre: string; calidad: Calidad; estado: string; leido_at: string | null; firmado_at: string | null; firma_hash: string | null; rechazo_motivo: string | null };
+  firmante: { id: string; nombre: string; calidad: Calidad; estado: string; leido_at: string | null; firmado_at: string | null; firma_hash: string | null; rechazo_motivo: string | null; metodo: string | null };
   solicitud: { id: string; folio: string; estado: string; nivel: string; mensaje: string | null; vence_at: string; vencida: boolean; secuencial: boolean; sello: string | null; completada_at: string | null };
   documento: { id: string; folio: string; titulo: string; clase: string; version: number; sha256: string; cuerpo: string | null; anulado: boolean; case_id: string | null };
   empresa: { nombre: string; rut: string } | null;
@@ -40,6 +40,8 @@ export default async function FirmarPage({ params, searchParams }: { params: Pro
   const { firmante: f, solicitud: s, documento: d } = x;
   const abierta = s.estado === "pendiente" && !s.vencida && !d.anulado && f.estado === "pendiente";
   const codigo = codigoVerificacion(s.sello);
+  // ENQORA SIGN (0061): ¿tiene este firmante huella o Face ID registrados? Sin la 0061, solo código.
+  const { count: llaves } = await supabase.from("signing_passkeys").select("id", { count: "exact", head: true }).is("revoked_at", null);
 
   return (
     <div className="page firma-page">
@@ -88,14 +90,14 @@ export default async function FirmarPage({ params, searchParams }: { params: Pro
       </article>
 
       {abierta ? (
-        x.turno ? <FirmarPanel signer={f.id} sha={d.sha256} leido={!!f.leido_at} />
+        x.turno ? <FirmarPanel signer={f.id} sha={d.sha256} leido={!!f.leido_at} conLlave={(llaves ?? 0) > 0} />
           : <Notice kind="info">Todavía no es tu turno: antes debe firmar otra de las partes. Te avisaremos cuando te toque.</Notice>
       ) : f.estado === "firmado" ? (
         <section className="card firma-ok" aria-labelledby="ok-t">
           <h2 id="ok-t">Firmaste este documento</h2>
           <dl className="kv">
             <div><dt>Fecha y hora</dt><dd>{f.firmado_at ? fechaCL(f.firmado_at, "long") : ""}</dd></div>
-            <div><dt>Método</dt><dd>Cuenta ENQORA + código del autenticador</dd></div>
+            <div><dt>Método</dt><dd>{x.firmante.metodo === "llave_acceso" ? "Cuenta ENQORA + huella o Face ID del dispositivo" : "Cuenta ENQORA + código del autenticador"}</dd></div>
             {f.firma_hash ? <div><dt>Huella de tu firma</dt><dd className="mono">{f.firma_hash}</dd></div> : null}
             {codigo ? <div><dt>Código de verificación</dt><dd className="mono">{s.folio} · {codigo}</dd></div> : <div><dt>Estado</dt><dd>Esperando la firma de las demás partes.</dd></div>}
           </dl>
