@@ -71,6 +71,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const items: NavItem[] = [
     { href: "/panel", label: "Centro de control", short: "Control", icon: "control", group: "empresa" },
     { href: "/casos", label: "Casos", short: "Casos", icon: "casos", group: "empresa" },
+    { href: "/firmas", label: "Mis firmas", short: "Firmas", icon: "documento", group: "empresa", bottom: false },
     { href: "/contabilidad", label: "Contabilidad", short: "Contable", icon: "contabilidad", group: "empresa" },
     { href: "/empresas", label: "Empresas", short: "Empresas", icon: "empresas", group: "empresa", bottom: false },
     { href: "/facturacion", label: "Planes y pagos", short: "Pagos", icon: "pagos", group: "empresa" },

@@ -89,6 +89,8 @@ export const ACCIONES: Record<string, string> = {
   borrador: "Nueva versión del borrador", enviado_a_revision: "Enviado a revisión profesional", visualizado: "Previsualizado",
   aprobado: "Aprobado por el revisor", observado: "Observado por el revisor", autorizado_enviado: "Autorizado y enviado",
   asignado: "Responsables asignados", anulado: "Anulado", retencion: "Retención actualizada", descargado: "Descargado",
+  firma_solicitada: "Enviado a firma electrónica", leido_para_firma: "Leído completo por un firmante", firmado: "Firmado por una parte",
+  firma_completada: "Firmado por todas las partes", firma_rechazada: "Una parte rechazó firmar", firma_anulada: "Solicitud de firma anulada",
 };
 
 // El equipo documental de ENQORA.

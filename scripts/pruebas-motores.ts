@@ -12,6 +12,7 @@ import { analizarReglas, urgenciaLaboral } from "@/lib/cora/caso";
 import { planificar } from "@/lib/informa";
 import { interpretarPedido, TIPOS } from "@/lib/boveda";
 import { markdownSeguro } from "@/lib/markdown-seguro";
+import { admiteFirma, codigoVerificacion, normalizarCodigo, FOLIO_RE } from "@/lib/firma";
 import { knowledgeFor, PLAYBOOKS, RULES } from "@/lib/knowledge";
 import { contextoAviso, leerAvisoSII } from "@/lib/cora/avisos-sii";
 import { isNaturalPersonRut } from "@/lib/rut";
@@ -359,6 +360,17 @@ prueba("Bóveda: el Archivero reconoce el pedido y el catálogo solo cita reglas
   assert.equal(interpretarPedido("Quiero pedir convenio y condonación en Tesorería").key, "solicitud_condonacion");
   assert.equal(interpretarPedido("algo que no calza").key, "otro");
   for (const t of TIPOS) for (const k of t.normas) assert.ok(RULES[k], `${t.key} cita ${k}`);
+});
+
+prueba("ENQORA SIGN: mapa de firma y código de verificación", () => {
+  assert.equal(admiteFirma("contrato_trabajo", "contrato").ok, true);
+  assert.equal(admiteFirma("finiquito", "contrato").ok, false);
+  assert.equal(admiteFirma("x", "respaldo_laboral").ok, false);
+  for (const t of TIPOS) if (t.key !== "finiquito") assert.equal(admiteFirma(t.key, t.clase).ok, true, t.key);
+  const sello = "a1b2c3d4e5f60718293a4b5c6d7e8f9012345678901234567890abcdefabcdef";
+  assert.equal(codigoVerificacion(sello), "A1B2-C3D4-E5F6-0718-293A");
+  assert.equal(normalizarCodigo("A1B2-C3D4-E5F6-0718-293A"), sello.slice(0, 20));
+  assert.ok(FOLIO_RE.test("FIR-2026-000123") && FOLIO_RE.test("DOC-2026-000001") && !FOLIO_RE.test("FIR-26-1"));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

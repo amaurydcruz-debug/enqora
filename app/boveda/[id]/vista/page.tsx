@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { CLASES, ESTADOS } from "@/lib/boveda";
+import { CALIDADES, NIVELES, codigoVerificacion, type Calidad } from "@/lib/firma";
 import { fechaCL } from "@/lib/informa";
 import { markdownSeguro } from "@/lib/markdown-seguro";
 import { myStaffRole } from "@/lib/staff";
@@ -41,6 +42,10 @@ export default async function VistaPage({ params, searchParams }: { params: Prom
   const final = doc.version_final === version && doc.estado === "enviado";
   const empresa = co as { legal_name: string; rut: string } | null;
   const equipo = !!(await myStaffRole());
+  // ENQORA SIGN (0060): firmas de esta versión. Si la 0060 no está pegada, la hoja se muestra sin firmas.
+  const { data: fs } = final ? await supabase.rpc("sign_resumen_documento", { p_doc: id }) : { data: null };
+  const firma = (Array.isArray(fs) ? fs : []).find((r: { estado: string; version: number }) => r.estado === "completada" && r.version === version) as
+    { folio: string; nivel: string; sello: string; completada_at: string; firmantes: { nombre: string; calidad: Calidad; firmado_at: string; firma_hash: string }[] } | undefined;
 
   return (
     <div className="doc-pagina-fondo">
@@ -66,6 +71,17 @@ export default async function VistaPage({ params, searchParams }: { params: Prom
           <span>Huella SHA-256 de esta versión: <code>{ver.sha256}</code></span>
           <span>{final ? `Autorizado y emitido por ENQORA el ${fechaCL(doc.autorizado_at, "long")}.` : `Versión ${version} preparada el ${fechaCL(ver.created_at)} por ${ver.autor_tipo === "agente" ? `el ${ver.autor_agente ?? "agente"} de ENQORA` : "el equipo ENQORA"}. Pendiente de revisión y autorización.`}</span>
         </footer>
+        {firma ? (
+          <section className="doc-firmas" aria-label="Firmas electrónicas">
+            <h2>Firmado electrónicamente</h2>
+            <ul>
+              {firma.firmantes.map((f) => (
+                <li key={f.firma_hash}><b>{f.nombre}</b> · {CALIDADES[f.calidad] ?? f.calidad} · {fechaCL(f.firmado_at, "long")} · huella <code>{f.firma_hash.slice(0, 16)}…</code></li>
+              ))}
+            </ul>
+            <p>{NIVELES[firma.nivel] ?? firma.nivel}, con cuenta ENQORA y código del autenticador. Solicitud {firma.folio}. Código de verificación: <b>{codigoVerificacion(firma.sello)}</b>. Compruébalo en enqora.cl/verificar-firma.</p>
+          </section>
+        ) : null}
       </article>
     </div>
   );
