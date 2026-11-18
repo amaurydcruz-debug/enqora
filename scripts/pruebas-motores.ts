@@ -395,6 +395,17 @@ prueba("ENQORA SIGN: verificación de llave de acceso (WebAuthn ES256 y EdDSA)",
   }
 });
 
+prueba("CORA: recepción final antes de la patente del local", () => {
+  const base = { venta: "facturas", deudas: "no", contador: "contador", trabajadores: "no", lugar: "local", cuentas: "si", crecer: "no", marca: "no" } as const;
+  const hoy = new Date("2026-11-17T12:00:00-03:00");
+  const ids = (x: object) => investigarPersona({ ...base, ...x } as PersonaAnswers, [], hoy).necesidades.map((n) => n.servicio?.id ?? "");
+  assert.ok(preguntaVisible("recepcion", { venta: "facturas", lugar: "local" }));
+  assert.ok(!preguntaVisible("recepcion", { venta: "facturas", lugar: "casa" }));
+  assert.ok(ids({ recepcion: "si" }).includes("patente") && !ids({ recepcion: "si" }).includes("recepcion_patente"));
+  assert.ok(ids({ recepcion: "no" }).includes("recepcion_patente") && !ids({ recepcion: "no" }).includes("patente"));
+  assert.ok(ids({ recepcion: "no_se" }).includes("recepcion_patente"));
+});
+
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
 if (fallos.length) {
   console.log(fallos.join("\n"));

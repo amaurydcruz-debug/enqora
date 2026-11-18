@@ -18,6 +18,7 @@ export type PersonaAnswers = NaturalAnswers & {
   futuro?: "retomar" | "cerrar" | "no_se";
   deudas?: "si" | "no" | "no_se";
   antiguedad?: "antiguas" | "recientes" | "no_se"; // de cuándo son las deudas (prescripción)
+  recepcion?: "si" | "no" | "no_se"; // el local tiene recepción final de la DOM (requisito previo de la patente)
 };
 
 // Preguntas que solo aplican según lo ya respondido (una persona sin movimiento no responde sobre su local o su marca).
@@ -27,6 +28,7 @@ export function preguntaVisible(key: keyof PersonaAnswers, a: Partial<PersonaAns
   if (key === "deudas") return a.venta !== "sin_inicio";
   if (key === "antiguedad") return a.venta !== "sin_inicio" && a.deudas === "si";
   if (key === "contador") return a.venta !== "sin_inicio" && !inactivo;
+  if (key === "recepcion") return !inactivo && a.lugar === "local";
   if (["trabajadores", "lugar", "cuentas", "crecer", "marca"].includes(key)) return !inactivo;
   return true;
 }
@@ -45,6 +47,7 @@ export const PREGUNTAS_PERSONA: { key: keyof PersonaAnswers; q: string; porque: 
   { key: "trabajadores", q: "¿Tienes trabajadores contratados?", porque: "Con trabajadores se suman contratos, cotizaciones y prevención de riesgos.", options: [["no", "No"], ["si", "Sí"]] },
   { key: "contador", q: "¿Quién lleva tus impuestos?", porque: "Así sabemos si tus declaraciones ya tienen respaldo profesional o conviene revisarlas.", options: [["nadie", "Yo mismo"], ["contador", "Un contador"], ["no_se", "No lo tengo claro"]] },
   { key: "lugar", q: "¿Dónde funciona tu negocio?", porque: "Un local requiere patente municipal y, según el rubro, permisos.", options: [["local", "En un local"], ["casa", "Desde mi casa"], ["online", "Solo en línea"]] },
+  { key: "recepcion", q: "¿El local tiene recepción final de la Dirección de Obras Municipales?", porque: "Sin recepción final (recepción definitiva) el local no puede usarse para un negocio y la municipalidad normalmente no otorga la patente definitiva.", options: [["si", "Sí, tiene recepción final"], ["no", "No tiene"], ["no_se", "No lo sé"]] },
   { key: "cuentas", q: "¿Separas tu dinero personal del dinero del negocio?", porque: "Separar las cuentas ordena tus impuestos y te deja ver si el negocio gana.", options: [["si", "Sí"], ["no", "No"]] },
   { key: "crecer", q: "¿Quieres crecer en los próximos 12 meses (más ventas, socios o contratar)?", porque: "Si quieres crecer, conviene revisar tu estructura y los programas de apoyo vigentes.", options: [["si", "Sí"], ["no", "No"], ["no_se", "No lo sé"]] },
   { key: "marca", q: "¿Tu negocio tiene un nombre o marca que quieras proteger?", porque: "Una marca registrada en INAPI es un activo de tu negocio.", options: [["si", "Sí"], ["no", "No"]] },
@@ -166,10 +169,23 @@ export function investigarPersona(a: PersonaAnswers, catalog: Catalog, today = n
       servicio: svc("remuneraciones", "CON-04", "Remuneraciones", "contabilidad", "Liquidaciones y cotizaciones al día.") });
   }
   if (a.lugar === "local") {
-    add({ id: "p_patente", prioridad: "media", estado: "requiere_documentacion",
-      encontro: "Tu negocio funciona en un local: requiere patente municipal y, según el rubro, permisos sectoriales.",
-      hacer: "Confirmar que la patente esté vigente y que tengas los permisos de tu rubro.",
-      servicio: svc("patente", "FOR-02", "Patente municipal", "formalizacion", "Patente y permisos de tu local.") });
+    // La recepción final es el antecedente de la patente (LGUC art. 145; DL 3.063 art. 26): primero se confirma.
+    if (a.recepcion === "si") {
+      add({ id: "p_patente", prioridad: "media", estado: "requiere_documentacion",
+        encontro: "Tu negocio funciona en un local con recepción final: puedes tramitar la patente municipal.",
+        hacer: "Confirmar que la patente esté vigente, o pedirla con el certificado de recepción final, y revisar los permisos de tu rubro.",
+        servicio: svc("patente", "FOR-02", "Patente municipal", "formalizacion", "Patente y permisos de tu local.") });
+    } else {
+      add({ id: "p_recepcion", prioridad: "alta", estado: "requiere_documentacion",
+        encontro: a.recepcion === "no"
+          ? "Tu local no tiene recepción final: sin ella no puede destinarse a un negocio y la municipalidad normalmente no otorga la patente definitiva."
+          : "No sabes si tu local tiene recepción final, que la municipalidad exige normalmente para otorgar la patente.",
+        consecuencias: "Funcionar sin patente expone a multas y clausura. Usar un local sin recepción final también puede ser sancionado.",
+        hacer: a.recepcion === "no"
+          ? "Gestionar la recepción final (o la regularización del local) con un arquitecto ante la Dirección de Obras y, en paralelo, revisar si la municipalidad otorga patente provisoria."
+          : "Pedir a la Dirección de Obras Municipales el certificado de recepción final del local (o revisarlo en la escritura o con el dueño).",
+        servicio: svc("recepcion_patente", "FOR-04", "Recepción final y patente municipal", "formalizacion", "Primero la recepción final del local y después la patente.") });
+    }
   }
   if (a.cuentas === "no") {
     add({ id: "p_cuentas", prioridad: "media", encontro: "Declaras que no separas tu dinero personal del dinero del negocio.",

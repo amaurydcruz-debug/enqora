@@ -59,7 +59,7 @@ const REGLAS: [RegExp, string][] = [
   [/\b(marca|logo|inapi|nombre comercial)\w*/, "marcas"],
   [/\b(trabajador|empleado|contrato|despido|finiquito|sueldo|liquidaci|cotizaci|previred|ley karin|direccion del trabajo|reglamento interno|mutual|prevencion de riesgos|datos personales|privacidad|ley 21\.?719)\w*/, "profesionales"],
   [/\b(constituir|crear (mi |una )?empresa|nueva empresa|sociedad|socio|spa|eirl)\b/, "constitucion"],
-  [/\b(patente|permiso|inicio de actividades|formaliz|municipal|resolucion sanitaria|termino de giro|cerrar (?:mi |la )?empresa|disolver|disolucion)\w*/, "formalizacion"],
+  [/\b(patente|recepci[oó]n (?:final|definitiva)|permiso|inicio de actividades|formaliz|municipal|resolucion sanitaria|termino de giro|cerrar (?:mi |la )?empresa|disolver|disolucion)\w*/, "formalizacion"],
   [/\b(licitaci|mercado publico|fondo|sercotec|corfo|financiamiento|credito|crecer)\w*/, "crecimiento"],
   [/\b(inventario|caja|clientes|ventas|cobranza)\b/, "gestion"],
 ];
@@ -146,7 +146,7 @@ export const OBJETIVOS: { id: string; texto: string; categoria: string; pista: R
   { id: "vender", texto: "Vender más (también al Estado)", categoria: "crecimiento", pista: /mercado público|estado|licitaci|proveedor|ventas/i },
   { id: "marca", texto: "Proteger mi marca", categoria: "marcas", pista: /marca|inapi/i },
   { id: "financiar", texto: "Conseguir financiamiento o fondos", categoria: "crecimiento", pista: /fondo|sercotec|corfo|financ|crece/i },
-  { id: "formalizar", texto: "Formalizar o modificar mi empresa", categoria: "formalizacion", pista: /patente|permiso|socie|estatut|accionista|formaliz/i },
+  { id: "formalizar", texto: "Formalizar o modificar mi empresa", categoria: "formalizacion", pista: /patente|recepci[oó]n final|permiso|socie|estatut|accionista|formaliz/i },
 ];
 export function objetivosOrdenados(textos: string[]): typeof OBJETIVOS {
   const t = textos.join(" ");

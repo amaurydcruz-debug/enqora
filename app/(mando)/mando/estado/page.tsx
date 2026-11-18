@@ -67,7 +67,7 @@ export default async function SystemStatusPage() {
   if (!isSupervisorRole(role)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }, { error: m56Error }, { error: m57Error }, { error: m58Error }, { error: m59Error }, { error: m60Error }, { error: m61Error }] = await Promise.all([
+  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }, { error: m56Error }, { error: m57Error }, { error: m58Error }, { error: m59Error }, { error: m60Error }, { error: m61Error }, { data: m62Data }] = await Promise.all([
     supabase.rpc("system_status"), supabase.rpc("audit_stats"), supabase.rpc("avisos_entregas", { p_dias: 7 }),
     supabase.rpc("migraciones_estado"),
     supabase.from("field_task_types").select("code", { count: "exact", head: true }),
@@ -85,6 +85,8 @@ export default async function SystemStatusPage() {
     supabase.rpc("sign_verificar", { p_folio: "", p_codigo: "" }),
     // 0061: firma con huella o Face ID.
     supabase.from("signing_passkeys").select("id", { count: "exact", head: true }),
+    // 0062: servicio combinado de recepción final y patente.
+    supabase.from("services").select("code").eq("code", "FOR-04"),
   ]);
   // Entregas de avisos por canal, últimos 7 días (0051).
   const entregas = (Array.isArray(entregasData) ? entregasData : []) as { canal: string; enviados: number; pendientes: number; fallidos: number; omitidos: number; ultimo_envio: string | null; ultimo_error: string | null }[];
@@ -106,6 +108,7 @@ export default async function SystemStatusPage() {
     ["0059", !m59Error] as [string, boolean], // Bóveda de archivos
     ["0060", !m60Error] as [string, boolean], // ENQORA SIGN: firma electrónica simple
     ["0061", !m61Error] as [string, boolean], // ENQORA SIGN: firma con huella o Face ID
+    ["0062", (m62Data ?? []).length > 0] as [string, boolean], // Recepción final y patente municipal
   ].sort(([x], [y]) => x.localeCompare(y));
   const missingMigrations = migrations.filter(([, ok]) => !ok).map(([k]) => k);
   const lastMigration = migrations.at(-1)?.[0] ?? "0016";
