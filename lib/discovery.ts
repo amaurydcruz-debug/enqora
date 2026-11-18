@@ -48,7 +48,7 @@ export const CATEGORIES: Category[] = [
     title: "Formalización",
     lead: "Inicio de actividades, patentes y permisos.",
     detail: "Ponemos tu empresa en regla: inicio de actividades ante el SII, patente municipal según tu comuna y los permisos de tu rubro.",
-    solves: ["Inicio de actividades", "Patente municipal", "Permisos sanitarios o sectoriales", "Cambio de domicilio"],
+    solves: ["Inicio de actividades", "Recepción final del local y patente municipal", "Permisos sanitarios o sectoriales", "Cambio de domicilio"],
     module: "formaliza",
     emblem: "formaliza",
     services: { module: "formaliza" },
