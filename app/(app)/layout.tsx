@@ -7,6 +7,7 @@ import { createClient, currentUser } from "@/lib/supabase/server";
 import { activeCompany } from "@/lib/companies";
 import { ROLES } from "@/lib/company-constants";
 import { formatRut } from "@/lib/rut";
+import { FondoApp } from "@/components/fondo-app";
 import { AppNav, type NavItem } from "@/components/app-nav";
 import { SignOutLink } from "@/components/sign-out-link";
 import { UserMenu } from "@/components/user-menu";
@@ -68,17 +69,15 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const displayName = (me as { full_name: string | null } | null)?.full_name || user.email || "";
   const initial = (displayName || "?")[0].toUpperCase();
 
+  // Navegación simple: lo que el cliente usa siempre. Lo demás (contabilidad, empresas, pagos, detalle) vive en el menú de la cuenta.
   const items: NavItem[] = [
-    { href: "/panel", label: "Centro de control", short: "Control", icon: "control", group: "empresa" },
-    { href: "/casos", label: "Casos", short: "Casos", icon: "casos", group: "empresa" },
-    { href: "/firmas", label: "Mis firmas", short: "Firmas", icon: "documento", group: "empresa", bottom: false },
-    { href: "/contabilidad", label: "Contabilidad", short: "Contable", icon: "contabilidad", group: "empresa" },
-    { href: "/empresas", label: "Empresas", short: "Empresas", icon: "empresas", group: "empresa", bottom: false },
-    { href: "/facturacion", label: "Planes y pagos", short: "Pagos", icon: "pagos", group: "empresa" },
+    { href: "/panel", label: "Inicio", short: "Inicio", icon: "control", group: "empresa" },
+    { href: "/casos", label: "Mis trámites", short: "Trámites", icon: "casos", group: "empresa" },
+    { href: "/firmas", label: "Mis firmas", short: "Firmas", icon: "documento", group: "empresa" },
     {
       href: "/seguridad",
       label: "Seguridad",
-      short: "Seguridad",
+      short: "Cuenta",
       icon: "seguridad",
       group: "empresa",
       alert: alerts ? `${alerts} alertas de seguridad` : undefined,
@@ -105,14 +104,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </div>
       {companyName ? (
         <Link href="/empresas" className="menu-link"><IconBuilding size={16} /> {companyName} · cambiar</Link>
-      ) : null}
+      ) : (
+        <Link href="/empresas/nueva" className="menu-link"><IconBuilding size={16} /> Registrar mi empresa</Link>
+      )}
+      {active ? <Link href="/panel/detalle" className="menu-link">Detalle de mi empresa</Link> : null}
+      {active ? <Link href="/contabilidad" className="menu-link">Contabilidad</Link> : null}
+      <Link href="/facturacion" className="menu-link">Planes y pagos</Link>
+      <Link href="/notificaciones" className="menu-link">Avisos</Link>
       <Link href="/seguridad" className="menu-link"><IconShield size={16} /> Seguridad de la cuenta</Link>
       <SignOutLink label="Cerrar sesión" className="menu-link menu-signout" icon />
     </UserMenu>
   );
 
   return (
-    <div className="shell">
+    <div className="shell shell-fondo">
       <aside className="side">
         <Link href="/panel" className="brand-mark">
           <img src="/brand/enqora-icon.png" alt="" width={34} height={34} />
@@ -136,6 +141,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
 
       <div className="frame">
+        <FondoApp />
         <header className="topbar">
           <Link href="/panel" className="brand-mark topbar-brand">
             <img src="/brand/enqora-icon.png" alt="" width={30} height={30} />

@@ -3651,3 +3651,57 @@ fieldset.mini-form legend { padding: 0 6px; }
 .firma-huella .btn-gold { min-width: 260px; }
 .llaves-firma { display: grid; gap: 12px; justify-items: start; }
 .llaves-firma .rows { width: 100%; }
+
+/* Inicio del cliente (simple y premium): hero con fotografía, acciones, mis trámites y Trámites desplegable */
+.shell-fondo .app-main { position: relative; z-index: 1; }
+.ps { display: grid; gap: 18px; max-width: 980px; }
+.ps-hero { position: relative; overflow: hidden; isolation: isolate; border-radius: 22px; min-height: clamp(260px, 30vw, 340px); display: flex; align-items: flex-end; border: 1px solid rgba(229, 199, 131, 0.28); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); }
+.ps-hero-foto { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 20% 25%; z-index: -2; }
+.ps-hero::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, rgba(5, 9, 20, 0.05) 0%, rgba(5, 9, 20, 0.7) 48%, rgba(5, 9, 20, 0.94) 100%), linear-gradient(0deg, rgba(5, 9, 20, 0.85) 0%, rgba(5, 9, 20, 0) 55%); }
+.ps-hero-txt { width: 100%; padding: 26px clamp(18px, 4vw, 36px); display: grid; gap: 10px; justify-items: end; text-align: right; }
+.ps-hero-txt .eyebrow { color: var(--gold-bright); }
+.ps-hero-txt h1 { margin: 0; font-size: clamp(2rem, 4.4vw, 3rem); line-height: 1.05; background: linear-gradient(180deg, #ffffff 0%, #d9dee8 55%, #aab3c2 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.ps-hero-txt p { margin: 0; font-size: clamp(1.05rem, 2vw, 1.25rem); color: var(--gold-bright); font-family: var(--font-brand), serif; }
+.ps-hero-acciones { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; margin-top: 6px; }
+.ps-card { position: relative; border-radius: 18px; padding: clamp(16px, 3vw, 22px); background: linear-gradient(180deg, rgba(16, 29, 52, 0.72), rgba(11, 20, 37, 0.62)); border: 1px solid var(--hairline-strong); backdrop-filter: blur(8px); }
+.ps-card h2 { margin: 0 0 12px; font-size: 1.08rem; }
+.ps-card-cab { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.ps-link { color: var(--gold-bright); font-size: 0.9rem; }
+.ps-accion { border-color: rgba(229, 199, 131, 0.45); }
+.ps-filas { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ps-filas li { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 12px; background: rgba(5, 9, 20, 0.35); border: 1px solid var(--hairline); }
+.ps-filas li > span:first-child { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.ps-filas li b { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
+.ps-filas li small { color: var(--text-3); font-size: 0.84rem; }
+.ps-abrir { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; border-radius: 14px; border: 1px solid rgba(229, 199, 131, 0.45); background: linear-gradient(135deg, rgba(198, 166, 107, 0.16), rgba(16, 29, 52, 0.4)); color: var(--text); text-align: left; cursor: pointer; }
+.ps-abrir b { display: block; font-size: 1.15rem; color: var(--gold-bright); font-family: var(--font-brand), sans-serif; letter-spacing: 0.04em; }
+.ps-abrir small { color: var(--text-2); font-size: 0.92rem; }
+.ps-abrir-icono { width: 36px; height: 36px; flex: none; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--gold); color: var(--gold-bright); font-size: 1.3rem; }
+.ps-abrir:hover, .ps-abrir:focus-visible { border-color: var(--gold-bright); }
+.ps-lista { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 10px; }
+.ps-tile { position: relative; width: 100%; height: 100%; min-height: 96px; display: flex; align-items: center; gap: 14px; padding: 10px 14px 10px 10px; border-radius: 14px; border: 1px solid var(--hairline-strong); background: rgba(5, 9, 20, 0.45); color: var(--text); text-align: left; cursor: pointer; transition: border-color 0.2s, transform 0.2s; }
+.ps-tile:hover, .ps-tile:focus-visible { border-color: var(--gold); transform: translateY(-1px); }
+.ps-tile-foto { width: 76px; height: 76px; flex: none; border-radius: 10px; object-fit: cover; border: 1px solid rgba(229, 199, 131, 0.3); }
+.ps-tile-txt { flex: 1; display: grid; gap: 3px; min-width: 0; }
+.ps-tile-txt b { font-size: 0.98rem; }
+.ps-tile-txt small { color: var(--text-3); font-size: 0.82rem; line-height: 1.35; }
+.ps-tile-ir { color: var(--gold-bright); font-size: 1.1rem; }
+.ps-elegido { display: grid; gap: 14px; }
+.ps-elegido-cab { display: flex; align-items: center; gap: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--hairline); }
+.ps-elegido-foto { width: 84px; height: 84px; flex: none; border-radius: 12px; object-fit: cover; border: 1px solid rgba(229, 199, 131, 0.4); }
+.ps-elegido-txt { flex: 1; min-width: 0; }
+.ps-elegido-txt h3 { margin: 2px 0 4px; font-size: 1.2rem; color: var(--gold-bright); }
+.ps-elegido-txt p { margin: 0; color: var(--text-3); font-size: 0.9rem; }
+.ps .cora-caso { margin: 0; }
+.ps-pie { margin: 2px 0 10px; text-align: center; color: var(--text-3); font-size: 0.9rem; }
+.ps-pie a { color: var(--text-2); }
+@media (max-width: 640px) {
+  .ps-hero { border-radius: 16px; min-height: 300px; }
+  .ps-hero-foto { object-position: 15% 20%; }
+  .ps-hero-txt { justify-items: start; text-align: left; }
+  .ps-hero-acciones { justify-content: flex-start; }
+  .ps-filas li { flex-wrap: wrap; }
+  .ps-filas li > span:first-child { flex-basis: 100%; }
+  .ps-filas li .badge { margin-right: auto; }
+  .ps-elegido-foto { width: 64px; height: 64px; }
+}
