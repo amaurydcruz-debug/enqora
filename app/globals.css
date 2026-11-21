@@ -3831,3 +3831,23 @@ fieldset.mini-form legend { padding: 0 6px; }
 .pq-lista form { display: grid; gap: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--hairline); background: rgba(5, 9, 20, 0.35); }
 .pq-opciones { display: flex; flex-wrap: wrap; gap: 6px; }
 @media (max-width: 640px) { .cz-lista label { grid-template-columns: auto 1fr; } }
+
+/* Empresa al día (0071) */
+.ead { display: grid; gap: 16px; }
+.ead h2 small { font-weight: 400; margin-left: 8px; }
+.ead-checks { display: grid; gap: 8px; margin-top: 10px; }
+.ead-frente h3 { margin: 14px 0 6px; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+.ead-lista, .ead-pend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.ead-lista li, .ead-pend li { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--hairline); }
+.ead-lista li > span:first-child, .ead-pend li > span:first-child { display: grid; gap: 3px; flex: 1 1 320px; min-width: 0; }
+.ead-lista small, .ead-pend small { color: var(--text-3); font-size: 0.8rem; }
+.ead-opciones { display: inline-flex; gap: 6px; }
+.ead-puntaje { font-size: 1.2rem; color: var(--gold-bright, var(--gold)); }
+.ead-semaforo { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.ead-semaforo li { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: center; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--hairline); }
+.ead-semaforo li small { grid-column: 2; color: var(--text-3); font-size: 0.8rem; }
+.ead-luz { grid-row: span 2; width: 14px; height: 14px; border-radius: 50%; background: #7fb98a; box-shadow: 0 0 0 3px rgba(127, 185, 138, 0.2); }
+.ead-semaforo li.is-amarillo .ead-luz { background: #e0a23b; box-shadow: 0 0 0 3px rgba(224, 162, 59, 0.2); }
+.ead-semaforo li.is-rojo .ead-luz { background: #d9534f; box-shadow: 0 0 0 3px rgba(217, 83, 79, 0.2); }
+.ead-mini { margin: 0; }
+.ead-pend { counter-reset: none; }

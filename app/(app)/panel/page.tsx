@@ -71,7 +71,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const caseIds = casos.map((c) => c.id);
 
   // Solo lo que espera una acción del cliente.
-  const [quoteRes, authRes, taskRes, firmasRes, solRes, mesRes, pregRes, abonoRes] = await Promise.all([
+  const [quoteRes, authRes, taskRes, firmasRes, solRes, mesRes, pregRes, abonoRes, diagRes] = await Promise.all([
     active ? supabase.from("quotes").select("id, case_id, service_name, final_price").eq("company_id", active.id).eq("status", "enviada").gte("valid_until", todayCL()).order("sent_at").limit(5) : Promise.resolve({ data: [] }),
     active && ["owner", "admin"].includes(active.role)
       ? supabase.from("client_authorizations").select("id, case_id, title").eq("company_id", active.id).eq("status", "pendiente").order("requested_at").limit(5)
@@ -89,7 +89,11 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
     active && active.role !== "viewer"
       ? supabase.from("charges").select("id, case_id, etapa, amount, status").eq("company_id", active.id).in("etapa", ["abono", "saldo"]).in("status", ["pendiente", "vencido"]).limit(5)
       : Promise.resolve({ data: [] }),
+    // Diagnóstico «Empresa al día» (0071): último semáforo.
+    active ? supabase.from("diagnosticos_empresa").select("version, puntaje, resultado, creado").eq("company_id", active.id).order("version", { ascending: false }).limit(1).maybeSingle()
+      : Promise.resolve({ data: null }),
   ]);
+  const diag = (diagRes.data ?? null) as { version: number; puntaje: number; creado: string; resultado: { frentes?: { frente: string; nombre: string; semaforo: string; pendientes: number }[] } } | null;
   const preguntas = ((pregRes.data ?? []) as PreguntaCliente[]);
   const mes = (mesRes.data && typeof mesRes.data === "object" && (mesRes.data as TuMes).lleva ? mesRes.data : null) as TuMes | null;
   const puedeAprobar = !!active && ["owner", "admin"].includes(active.role);
@@ -152,6 +156,18 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
       ) : null}
 
       {preguntas.length ? <PreguntasCard preguntas={preguntas} /> : null}
+      {active ? (
+        <section className="ps-card" aria-labelledby="ead-p">
+          <div className="ps-card-cab"><h2 id="ead-p">Empresa al día{diag ? ` · ${diag.puntaje}%` : ""}</h2><Link href="/empresa-al-dia" className="ps-link">{diag ? "Actualizar" : "Hacer diagnóstico"}</Link></div>
+          {diag?.resultado?.frentes?.length ? (
+            <ul className="ead-semaforo ead-mini">
+              {diag.resultado.frentes.map((f) => (
+                <li key={f.frente} className={`is-${f.semaforo}`}><span className="ead-luz" aria-hidden="true" /><b>{f.nombre}</b>{f.pendientes ? <small>{f.pendientes} pendiente(s)</small> : <small>Al día</small>}</li>
+              ))}
+            </ul>
+          ) : <p className="muted-line">En 5 minutos ves cómo está tu empresa ante el SII, la municipalidad, la Dirección del Trabajo, la previsión, la mutual y tus clientes, y qué resolver primero.</p>}
+        </section>
+      ) : null}
       {mes ? <TuMesCard mes={mes} puedeAprobar={puedeAprobar} /> : null}
 
       {hayTramites ? (
