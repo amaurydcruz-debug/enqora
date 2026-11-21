@@ -25,6 +25,7 @@ import { estadoDocumento, renderPreview, resumenLegal, type CaseLegalStatus } fr
 import { anonimizar, armarFuentes, informePorReglas, sanear, type Entrada } from "@/lib/cora/informe-ingreso";
 import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
+import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
 import { alertaCruce, medioDePago, resumirPorDia } from "@/lib/pos";
 import { CATEGORIA_DE_RESPUESTA, preguntasPara, proponer } from "@/lib/conciliador";
@@ -519,6 +520,27 @@ prueba("Conciliador: propone (no aplica) y pregunta lo que no puede explicar", (
   assert.equal(q[0].movement_id, "e");
   assert.ok(q[0].opciones.includes("Retiro personal"));
   assert.equal(CATEGORIA_DE_RESPUESTA["No lo reconozco"], null);
+});
+
+prueba("Empresa al día: preguntas por tamaño y semáforo por riesgo", () => {
+  const solo = { tipo: "persona" as const, trabajadores: 0, local: false, rubro_regulado: false, vende_a_personas: true };
+  const ids = (p: typeof solo) => preguntasEmpresa(p).map((q) => q.id);
+  assert.ok(!ids(solo).includes("contratos"));
+  assert.ok(ids({ ...solo, trabajadores: 1 }).includes("karin"));
+  assert.ok(!ids({ ...solo, trabajadores: 4 }).includes("lre"));
+  assert.ok(ids({ ...solo, trabajadores: 5 }).includes("lre"));
+  assert.ok(ids({ ...solo, trabajadores: 12 }).includes("delegado"));
+  assert.ok(!ids({ ...solo, trabajadores: 30 }).includes("delegado"));
+  assert.ok(ids({ ...solo, trabajadores: 30 }).includes("comite"));
+  assert.ok(ids({ ...solo, local: true }).includes("recepcion"));
+  const todoSi = Object.fromEntries(preguntasEmpresa(solo).map((q) => [q.id, "si" as const]));
+  const r1 = diagnosticar(solo, todoSi);
+  assert.equal(r1.puntaje, 100);
+  assert.ok(r1.frentes.every((f) => f.semaforo === "verde"));
+  const r2 = diagnosticar(solo, { ...todoSi, f29: "no", marca: "no_se" });
+  assert.equal(r2.frentes.find((f) => f.frente === "sii")?.semaforo, "rojo");
+  assert.equal(r2.frentes.find((f) => f.frente === "municipal")?.semaforo, "amarillo");
+  assert.equal(r2.pendientes[0].id, "f29");
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

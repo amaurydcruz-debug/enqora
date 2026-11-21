@@ -69,7 +69,7 @@ export default async function SystemStatusPage() {
   if (!isSupervisorRole(role)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }, { error: m56Error }, { error: m57Error }, { error: m58Error }, { error: m59Error }, { error: m60Error }, { error: m61Error }, { data: m62Data }, { error: m63Error }, { error: m64Error }, { error: m65Error }, { error: m66Error }, { error: m67Error }, { error: m68Error }, { error: m69Error }, { error: m70Error }] = await Promise.all([
+  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }, { error: m56Error }, { error: m57Error }, { error: m58Error }, { error: m59Error }, { error: m60Error }, { error: m61Error }, { data: m62Data }, { error: m63Error }, { error: m64Error }, { error: m65Error }, { error: m66Error }, { error: m67Error }, { error: m68Error }, { error: m69Error }, { error: m70Error }, { error: m71Error }] = await Promise.all([
     supabase.rpc("system_status"), supabase.rpc("audit_stats"), supabase.rpc("avisos_entregas", { p_dias: 7 }),
     supabase.rpc("migraciones_estado"),
     supabase.from("field_task_types").select("code", { count: "exact", head: true }),
@@ -105,6 +105,8 @@ export default async function SystemStatusPage() {
     supabase.from("preguntas_mes").select("id", { count: "exact", head: true }),
     // 0070: abono antes de ejecutar.
     supabase.from("charges").select("etapa", { count: "exact", head: true }),
+    // 0071: diagnóstico «Empresa al día».
+    supabase.from("diagnosticos_empresa").select("id", { count: "exact", head: true }),
   ]);
   // Entregas de avisos por canal, últimos 7 días (0051).
   const entregas = (Array.isArray(entregasData) ? entregasData : []) as { canal: string; enviados: number; pendientes: number; fallidos: number; omitidos: number; ultimo_envio: string | null; ultimo_error: string | null }[];
@@ -135,6 +137,7 @@ export default async function SystemStatusPage() {
     ["0068", !m68Error] as [string, boolean], // Punto de venta
     ["0069", !m69Error] as [string, boolean], // Conciliador y preguntas al cliente
     ["0070", !m70Error] as [string, boolean], // Abono antes de ejecutar
+    ["0071", !m71Error] as [string, boolean], // Diagnóstico Empresa al día
   ].sort(([x], [y]) => x.localeCompare(y));
   const missingMigrations = migrations.filter(([, ok]) => !ok).map(([k]) => k);
   const lastMigration = migrations.at(-1)?.[0] ?? "0016";
