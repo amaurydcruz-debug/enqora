@@ -3673,6 +3673,21 @@ fieldset.mini-form legend { padding: 0 6px; }
 .ps-filas li > span:first-child { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .ps-filas li b { font-weight: 600; color: var(--text); overflow-wrap: anywhere; }
 .ps-filas li small { color: var(--text-3); font-size: 0.84rem; }
+.ps-filas li { flex-wrap: wrap; }
+/* Enviar documentos o fotos desde «Mis trámites» (0064) */
+.ps-docs { flex-basis: 100%; border-top: 1px solid var(--hairline); padding-top: 8px; }
+.ps-docs > summary { cursor: pointer; list-style: none; color: var(--gold, #d4af37); font-size: 0.88rem; font-weight: 600; display: inline-flex; align-items: center; gap: 6px; }
+.ps-docs > summary::-webkit-details-marker { display: none; }
+.ps-docs > summary::before { content: "+"; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; border: 1px solid currentColor; font-size: 0.8rem; line-height: 1; }
+.ps-docs[open] > summary::before { content: "−"; }
+.ps-docs .upload { margin-top: 10px; }
+.upload-compacto .hint { font-size: 0.78rem; }
+/* Unir en PDF numerado (equipo) */
+.pdf-unir { display: grid; gap: 10px; margin-top: 12px; padding: 12px 14px; border: 1px dashed var(--hairline); border-radius: 12px; }
+.pdf-unir ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 260px; overflow: auto; }
+.pdf-unir li label { display: flex; gap: 8px; align-items: center; font-size: 0.9rem; }
+.pdf-unir li small { color: var(--text-3); }
+.linea-chip { display: inline-block; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--hairline); font-size: 0.75rem; letter-spacing: 0.04em; color: var(--text-2, inherit); margin-left: 6px; vertical-align: middle; }
 .ps-abrir { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; border-radius: 14px; border: 1px solid rgba(229, 199, 131, 0.45); background: linear-gradient(135deg, rgba(198, 166, 107, 0.16), rgba(16, 29, 52, 0.4)); color: var(--text); text-align: left; cursor: pointer; }
 .ps-abrir b { display: block; font-size: 1.15rem; color: var(--gold-bright); font-family: var(--font-brand), sans-serif; letter-spacing: 0.04em; }
 .ps-abrir small { color: var(--text-2); font-size: 0.92rem; }

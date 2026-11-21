@@ -10,6 +10,8 @@ import { CATEGORIES, categoryByKey, INTENT_COOKIE, SOLICITUD_COOKIE } from "@/li
 import { CLOSED, NEEDS_CLIENT, NEXT_STEP, statusLabel, statusTone, type CaseRow } from "@/lib/cases";
 import { clp, todayCL } from "@/lib/pricing";
 import { createClient, currentUser } from "@/lib/supabase/server";
+import { nombreLinea } from "@/lib/lineas";
+import { SubirDocumentos } from "@/components/subir-documentos";
 import { Tramites, type Tramite } from "./tramites";
 
 export const metadata: Metadata = { title: "Inicio" };
@@ -28,7 +30,7 @@ function saludo() {
 const ESTADO_SOLICITUD: Record<string, string> = { nueva: "Recibida", en_revision: "En revisión", cotizada: "Propuesta enviada", cerrada: "Cerrada" };
 
 type Accion = { id: string; texto: string; detalle: string; href: string; boton: string };
-type Solicitud = { id: string; codigo: string | null; estado: string; creada: string; areas: string[]; resumen: string; caso: string | null; folio: string | null };
+type Solicitud = { id: string; codigo: string | null; linea?: string | null; documentos?: number; estado: string; creada: string; areas: string[]; resumen: string; caso: string | null; folio: string | null };
 
 // Inicio del cliente: simple a propósito. Arriba, qué quiere resolver; si hay algo que hacer, solo eso;
 // sus trámites en curso; y «Trámites» para elegir UNA solución. El detalle de la empresa vive en /panel/detalle.
@@ -90,6 +92,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
     key: c.key, titulo: c.title, texto: c.lead, foto: FOTO_SERVICIO[c.key] ?? null, necesidades: (c.necesidades ?? c.solves).slice(0, 6),
   }));
   const hayTramites = casos.length + solicitudes.length > 0;
+  const puedeEnviar = !!active && active.role !== "viewer";
 
   return (
     <div className="page ps">
@@ -103,7 +106,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
           <p>¿Qué quieres que ENQORA resuelva hoy?</p>
           <div className="ps-hero-acciones">
             <a href="#tramites" className="btn btn-gold btn-inline">Nueva solicitud</a>
-            {hayTramites ? <a href="#mis-tramites" className="btn btn-ghost btn-inline">Mis trámites</a> : null}
+            {hayTramites ? <a href="#mis-tramites" className="btn btn-ghost btn-inline">Enviar documentos</a> : null}
           </div>
         </div>
       </header>
@@ -133,19 +136,32 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
               <li key={c.id}>
                 <span>
                   <b>{c.title}</b>
-                  <small>{c.folio} · {NEXT_STEP[c.status] ?? "En curso"}</small>
+                  <small>{c.folio}{nombreLinea(c.folio) ? ` · ${nombreLinea(c.folio)}` : ""} · {NEXT_STEP[c.status] ?? "En curso"}</small>
                 </span>
                 <span className={`badge badge-${statusTone(c.status)}`}>{statusLabel(c.status)}</span>
                 <Link href={`/casos/${c.id}`} className="btn btn-ghost btn-inline btn-sm">Ver</Link>
+                {puedeEnviar ? (
+                  <details className="ps-docs">
+                    <summary>Enviar documentos o fotos</summary>
+                    <SubirDocumentos destino={{ tipo: "caso", id: c.id }} compacto />
+                  </details>
+                ) : null}
               </li>
             ))}
             {solicitudes.map((s) => (
               <li key={s.id}>
                 <span>
                   <b>{s.resumen || "Solicitud enviada"}</b>
-                  <small>{s.codigo ?? "Solicitud"} · enviada el {fecha(s.creada)} · un profesional te responde con la solución y su precio</small>
+                  <small>
+                    {s.codigo ?? "Solicitud"}{nombreLinea(s.codigo) ? ` · ${nombreLinea(s.codigo)}` : ""} · enviada el {fecha(s.creada)}
+                    {s.documentos ? ` · ${s.documentos} ${s.documentos === 1 ? "documento" : "documentos"}` : ""} · un profesional te responde con la solución y su precio
+                  </small>
                 </span>
                 <span className="badge badge-gold">{ESTADO_SOLICITUD[s.estado] ?? s.estado}</span>
+                <details className="ps-docs">
+                  <summary>Enviar documentos o fotos</summary>
+                  <SubirDocumentos destino={{ tipo: "solicitud", id: s.id }} compacto />
+                </details>
               </li>
             ))}
           </ul>

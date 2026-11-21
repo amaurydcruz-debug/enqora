@@ -61,6 +61,8 @@ import { resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 import { CommentForm } from "./comment-form";
 import { MirrorConsole } from "./mirror-console";
 import { UploadDocument } from "./upload";
+import { UnirPdf } from "./unir-pdf";
+import { nombreLinea } from "@/lib/lineas";
 import { AgentRunner } from "./agent-runner";
 import { AgentProposals, type AgentAudit, type AgentProposal, type AgentRun } from "./agent-proposals";
 import { auditEnabled } from "@/lib/audit";
@@ -193,7 +195,7 @@ type Event = {
   created_at: string;
 };
 type Task = { id: string; title: string; assignee_id: string | null; status: string; visibility: string; due_date: string | null };
-type Doc = { id: string; file_name: string; size_bytes: number | null; visibility: string; uploaded_by: string | null; created_at: string };
+type Doc = { id: string; file_name: string; mime_type: string | null; size_bytes: number | null; visibility: string; uploaded_by: string | null; created_at: string };
 type Assignment = { user_id: string; role_in_case: string; assigned_at: string };
 type Profile = { id: string; email: string; full_name: string | null };
 type Staff = { user_id: string; role: StaffRole; active: boolean };
@@ -224,7 +226,7 @@ export default async function CasePage({
     supabase.from("companies").select("legal_name, trade_name, rut").eq("id", c.company_id).maybeSingle(),
     supabase.from("case_events").select("id, actor_id, kind, body, visibility, metadata, created_at").eq("case_id", id).order("created_at"),
     supabase.from("case_tasks").select("id, title, assignee_id, status, visibility, due_date").eq("case_id", id).order("created_at"),
-    supabase.from("case_documents").select("id, file_name, size_bytes, visibility, uploaded_by, created_at").eq("case_id", id).order("created_at", { ascending: false }),
+    supabase.from("case_documents").select("id, file_name, mime_type, size_bytes, visibility, uploaded_by, created_at").eq("case_id", id).order("created_at", { ascending: false }),
     supabase.from("case_assignments").select("user_id, role_in_case, assigned_at").eq("case_id", id),
     supabase.from("company_members").select("role").eq("company_id", c.company_id).eq("user_id", user.id).maybeSingle(),
     supabase
@@ -592,6 +594,7 @@ export default async function CasePage({
             <p className="muted-line">Aún no hay documentos en tu caso.</p>
           )}
           {canPost ? <UploadDocument caseId={c.id} canInternal={worker} /> : null}
+          {worker && staffRole !== "ai_agent" ? <UnirPdf caseId={c.id} docs={visibleDocs} /> : null}
         </>
       ),
     },
@@ -756,7 +759,7 @@ export default async function CasePage({
       content: (
         <>
           <dl className="data-grid">
-            <div><dt>Folio</dt><dd className="mono">{c.folio}</dd></div>
+            <div><dt>Folio</dt><dd className="mono">{c.folio}{nombreLinea(c.folio) ? <span className="linea-chip">{nombreLinea(c.folio)}</span> : null}</dd></div>
             <div><dt>Servicio</dt><dd>{MODULES[c.module]?.name ?? c.module}</dd></div>
             <div><dt>Empresa</dt><dd>{company ? `${company.trade_name || company.legal_name} · ${formatRut(company.rut)}` : "—"}{company ? <> · <Link href={`/empresas/${c.company_id}/cumplimiento`}>Cumplimiento</Link></> : null}</dd></div>
             <div><dt>Creado</dt><dd>{fmt(c.created_at)}</dd></div>

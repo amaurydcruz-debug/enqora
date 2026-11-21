@@ -6,6 +6,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { DOCUMENTOS, nombreCategoria, type AnalisisCaso } from "@/lib/cora/caso";
 import { formatRut } from "@/lib/rut";
 import { myStaffRole } from "@/lib/staff";
+import { nombreLinea } from "@/lib/lineas";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Solicitudes de clientes" };
@@ -30,6 +31,15 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("solicitudes_caso_listar", { p_estado: filtro });
   const lista = ((data ?? []) as Solicitud[]);
+  // Documentos y fotos que el cliente envió a cada solicitud (0064), con enlace temporal de 10 minutos.
+  type DocSol = { solicitud: string; id: string; nombre: string; tamano: number; fecha: string; path: string; en_caso: boolean; url?: string };
+  const { data: docsData } = lista.length ? await supabase.rpc("solicitudes_documentos_equipo", { p_ids: lista.map((s) => s.id) }) : { data: [] };
+  const docsSol = (Array.isArray(docsData) ? docsData : []) as DocSol[];
+  if (docsSol.length) {
+    const { data: firmadas } = await supabase.storage.from("expedientes").createSignedUrls(docsSol.map((d) => d.path), 600);
+    const porPath = new Map(((firmadas ?? []) as { path: string | null; signedUrl: string }[]).map((f) => [f.path ?? "", f.signedUrl]));
+    for (const d of docsSol) d.url = porPath.get(d.path) ?? undefined;
+  }
 
   return (
     <div className="page">
@@ -79,8 +89,17 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
               {s.analisis?.categorias?.length ? <span className="muted-line">Área sugerida: {s.analisis.categorias.map(nombreCategoria).join(" y ")}{s.analisis.origen === "reglas" ? " (por reglas)" : ""}</span> : null}
               {s.analisis?.documentos?.length ? <span className="muted-line">Documentos a pedir: {s.analisis.documentos.map((d) => DOCUMENTOS[d]?.nombre ?? d).join(" · ")}</span> : null}
               {s.nota ? <span className="muted-line">Nota del equipo: {s.nota}</span> : null}
+              {docsSol.some((d) => d.solicitud === s.id) ? (
+                <span className="muted-line">
+                  Documentos del cliente:{" "}
+                  {docsSol.filter((d) => d.solicitud === s.id).map((d, i) => (
+                    <span key={d.id}>{i ? " · " : ""}{d.url ? <a href={d.url} target="_blank" rel="noopener noreferrer">{d.nombre}</a> : d.nombre}{d.en_caso ? " (en el caso)" : ""}</span>
+                  ))}
+                  {s.case_id ? null : " — pasan solos al expediente al vincular el caso."}
+                </span>
+              ) : null}
               <span className="muted-line">
-                {s.referencia ? <>Código <b className="mono">{s.referencia}</b> · </> : null}
+                {s.referencia ? <>Código <b className="mono">{s.referencia}</b>{nombreLinea(s.referencia) ? ` (${nombreLinea(s.referencia)})` : ""} · </> : null}
                 {s.con_cuenta ? "Ya tiene cuenta ENQORA" : "Sin cuenta ENQORA aún"}
                 {s.con_cuenta && s.vinculada_via === "navegador" ? <> · <b>Unida por navegador: confirma con la persona que es su solicitud</b></> : null}
                 {s.folio && s.case_id ? <> · Caso <Link href={`/casos/${s.case_id}`}>{s.folio}</Link></> : " · Sin caso vinculado"}
@@ -89,7 +108,7 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
             {!s.case_id ? (
               <form action={vincularSolicitudAction} className="inline-form" style={{ flexWrap: "wrap", marginTop: 6 }}>
                 <input type="hidden" name="id" value={s.id} />
-                <input name="folio" className="input input-sm" placeholder="Folio del caso (ENQ-2026-00015)" maxLength={30} required aria-label="Folio del caso" />
+                <input name="folio" className="input input-sm" placeholder="Folio del caso (LAB-2026-00031)" maxLength={30} required aria-label="Folio del caso" />
                 <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="Vinculando…">Vincular al caso</SubmitButton>
               </form>
             ) : null}
