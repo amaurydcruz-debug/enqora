@@ -68,7 +68,9 @@ const ENTIDADES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"
 const desescapar = (s: string) =>
   s.replace(/&(#x[0-9a-f]+|#\d+|amp|lt|gt|quot|apos);/gi, (_, e: string) =>
     e[0] === "#" ? String.fromCodePoint(e[1].toLowerCase() === "x" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10)) : ENTIDADES[e.toLowerCase()] ?? _);
-const textoDe = (xml: string) => desescapar([...xml.matchAll(/<t(?:\s[^>]*)?>([\s\S]*?)<\/t>/g)].map((m) => m[1]).join(""));
+const P = "(?:[A-Za-z_][\\w.-]*:)?"; // prefijo de espacio de nombres opcional (ej.: <x:row>)
+const RE = (s: string, f = "g") => new RegExp(s.replaceAll("§", P), f);
+const textoDe = (xml: string) => desescapar([...xml.matchAll(RE("<§t(?:\\s[^>]*)?>([\\s\\S]*?)<\\/§t>"))].map((m) => m[1]).join(""));
 
 // Columna «A», «B»… «AA» → índice desde 0.
 function columna(ref: string): number {
@@ -78,32 +80,32 @@ function columna(ref: string): number {
   return n - 1;
 }
 
-export type HojaXlsx = { hoja: string; filas: string[][]; totalFilasLeidas: number; truncado: boolean };
+export type HojaXlsx = { hoja: string; filas: string[][]; totalFilasLeidas: number; truncado: boolean; diagnostico: string };
 
 // Lee la primera hoja. maxFilas limita cuántas filas se devuelven (la lectura se detiene ahí).
 export function leerXlsx(buf: Buffer, maxFilas = Number.POSITIVE_INFINITY): HojaXlsx {
   const zip = entradasZip(buf);
   const muestra = Number.isFinite(maxFilas);
   const comp = zip.get("xl/sharedStrings.xml");
-  const compartidas = comp ? [...leerEntrada(buf, comp, muestra ? 4_000_000 : Infinity).matchAll(/<si>([\s\S]*?)<\/si>/g)].map((m) => textoDe(m[1])) : [];
+  const compartidas = comp ? [...leerEntrada(buf, comp, muestra ? 4_000_000 : Infinity).matchAll(RE("<§si\\b[^>]*>([\\s\\S]*?)<\\/§si>"))].map((m) => textoDe(m[1])) : [];
   const libro = zip.get("xl/workbook.xml") ? leerEntrada(buf, zip.get("xl/workbook.xml")!) : "";
-  const hojaNombre = desescapar(/<sheet\b[^>]*\bname="([^"]*)"/.exec(libro)?.[1] ?? "Hoja1");
-  const ruta = [...zip.keys()].filter((k) => /^xl\/worksheets\/sheet\d+\.xml$/.test(k)).sort((a, b) => Number(/\d+/.exec(a)![0]) - Number(/\d+/.exec(b)![0]))[0];
+  const hojaNombre = desescapar(RE("<§sheet\\b[^>]*\\bname=\"([^\"]*)\"", "").exec(libro)?.[1] ?? "Hoja1");
+  const ruta = [...zip.keys()].filter((k) => /^xl\/worksheets\/[^/]+\.xml$/i.test(k)).sort((a, b) => Number(/\d+/.exec(a)?.[0] ?? 0) - Number(/\d+/.exec(b)?.[0] ?? 0))[0];
   if (!ruta) throw new Error("El archivo no tiene hojas.");
   const xml = leerEntrada(buf, zip.get(ruta)!, muestra ? 1_000_000 : Infinity);
   const filas: string[][] = [];
   let leidas = 0;
   let truncado = false;
-  for (const m of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
+  for (const m of xml.matchAll(RE("<§row\\b[^>]*>([\\s\\S]*?)<\\/§row>"))) {
     leidas++;
     if (filas.length >= maxFilas) { truncado = true; break; }
     const fila: string[] = [];
-    for (const c of m[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
+    for (const c of m[1].matchAll(RE("<§c\\b([^>]*?)(?:\\/>|>([\\s\\S]*?)<\\/§c>)"))) {
       const attrs = c[1];
       const cuerpo = c[2] ?? "";
       const ref = /\br="([A-Z]+\d+)"/.exec(attrs)?.[1];
       const tipo = /\bt="([^"]+)"/.exec(attrs)?.[1];
-      const v = /<v>([\s\S]*?)<\/v>/.exec(cuerpo)?.[1];
+      const v = RE("<§v>([\\s\\S]*?)<\\/§v>", "").exec(cuerpo)?.[1];
       let valor = "";
       if (tipo === "s" && v != null) valor = compartidas[Number(v)] ?? "(…)";
       else if (tipo === "inlineStr") valor = textoDe(cuerpo);
@@ -114,5 +116,6 @@ export function leerXlsx(buf: Buffer, maxFilas = Number.POSITIVE_INFINITY): Hoja
     }
     filas.push(fila);
   }
-  return { hoja: hojaNombre, filas, totalFilasLeidas: leidas, truncado };
+  const diagnostico = filas.length ? "" : `Entradas: ${[...zip.keys()].slice(0, 30).join(", ")} · hoja leída: ${ruta} · inicio: ${xml.slice(0, 400)}`;
+  return { hoja: hojaNombre, filas, totalFilasLeidas: leidas, truncado, diagnostico };
 }
