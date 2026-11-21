@@ -2,6 +2,9 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { gastoRevisarAction } from "@/app/actions/gastos";
 import { alertaCruce } from "@/lib/pos";
+import { CATEGORIA_DE_RESPUESTA, preguntasPara, proponer } from "@/lib/conciliador";
+import { anularPreguntaAction, aplicarPreguntaAction } from "@/app/actions/conciliador";
+import { Conciliador } from "./conciliador";
 import { PosImporter } from "./pos-importer";
 import { CATEGORIAS_GASTO, DOCUMENTOS_GASTO } from "@/lib/gastos";
 import { notFound } from "next/navigation";
@@ -52,6 +55,8 @@ const AVISOS: Record<string, string> = {
   libro_vaciado: "Libro vaciado (los documentos conciliados se conservaron). Puedes volver a cargarlo.",
   banco_vaciado: "Movimientos de la cuenta eliminados (los conciliados se conservaron).",
   conciliado: "Conciliación registrada.",
+  pregunta_aplicada: "Respuesta del cliente aplicada en la conciliación.",
+  pregunta_anulada: "Pregunta anulada.",
   clasificado: "Movimiento clasificado.",
   desconciliado: "Conciliación deshecha.",
   f29_calculado: "Borrador del F29 calculado con los documentos cargados.",
@@ -145,6 +150,22 @@ export default async function PeriodPage({
   const canBook = company.canBook;
   const reviewer = !!staffRole && ["accountant_pro", "enqora_admin", "ops_director"].includes(staffRole);
   const accounts = [...new Set(moves.map((m) => m.account_label))];
+  // Agente conciliador y preguntas al cliente (0069).
+  const desdePos = new Date(Date.parse(`${period}T12:00:00Z`) - 7 * 86_400_000).toISOString().slice(0, 10);
+  const [{ data: qRows }, { data: posRows }] = await Promise.all([
+    supabase.from("preguntas_mes").select("id, movement_id, pregunta, opciones, respuesta, nota, estado, respondida_at").eq("company_id", company.id).eq("period", period).neq("estado", "anulada").order("creada"),
+    supabase.from("pos_dias").select("fecha, debito, credito").eq("company_id", company.id).gte("fecha", desdePos).lte("fecha", new Date(Date.UTC(Number(period.slice(0, 4)), Number(period.slice(5, 7)), 0)).toISOString().slice(0, 10)),
+  ]);
+  const preguntasMes = (qRows ?? []) as { id: string; movement_id: string | null; pregunta: string; opciones: string[]; respuesta: string | null; nota: string | null; estado: string; respondida_at: string | null }[];
+  const tarjetasPorDia = new Map<string, number>();
+  for (const r of (posRows ?? []) as { fecha: string; debito: number; credito: number }[]) tarjetasPorDia.set(r.fecha, (tarjetasPorDia.get(r.fecha) ?? 0) + Number(r.debito) + Number(r.credito));
+  const conPregunta = new Set(preguntasMes.map((q) => q.movement_id).filter(Boolean));
+  const pendientesAgente = pending.filter((m) => !conPregunta.has(m.id)).map((m) => ({ id: m.id, movement_date: m.movement_date, description: m.description, amount: Number(m.amount) }));
+  const propuestas = locked ? [] : proponer(pendientesAgente, suggestions, [...tarjetasPorDia].map(([fecha, tarjetas]) => ({ fecha, tarjetas })));
+  const preguntasNuevas = locked ? [] : preguntasPara(pendientesAgente, propuestas);
+  const puedePreguntar = (!!staffRole && staffRole !== "ai_agent") || company.role === "accountant";
+  const movMap = Object.fromEntries(moves.map((m) => [m.id, { fecha: m.movement_date, glosa: m.description, monto: Number(m.amount) }]));
+  const docMap = Object.fromEntries(docs.map((d) => [d.id, `${docLabel(d.doc_type)} ${d.folio}${d.counterpart_name ? ` · ${d.counterpart_name}` : ""}`]));
   const hidden = (
     <>
       <input type="hidden" name="company_id" value={company.id} />
@@ -324,6 +345,51 @@ export default async function PeriodPage({
             </details>
           ) : null}
           <p className="muted-line">Un movimiento se concilia con un solo documento del mismo monto. Pagos parciales o agrupados se clasifican y se revisan con tu contador.</p>
+        </div>
+      ),
+    },
+    {
+      id: "conciliador",
+      title: "Agente conciliador y preguntas al cliente",
+      description: `${propuestas.length} propuesta(s) · ${preguntasMes.filter((q) => q.estado === "respondida").length} respuesta(s) por aplicar`,
+      emblem: <Emblem name="contabilidad" size="sm" />,
+      tone: preguntasMes.some((q) => q.estado === "respondida") ? "gold" : "default",
+      content: (
+        <div className="catalog-body">
+          {canBook || puedePreguntar ? (
+            <Conciliador companyId={company.id} period={period} propuestas={propuestas} preguntas={preguntasNuevas}
+              movimientos={movMap} documentos={docMap} puedePreguntar={puedePreguntar} />
+          ) : null}
+          {preguntasMes.length ? (
+            <>
+              <h4>Preguntas enviadas</h4>
+              <ul className="ps-filas">
+                {preguntasMes.map((q) => (
+                  <li key={q.id}>
+                    <span><b>{q.pregunta}</b><small>{q.estado === "abierta" ? "Esperando la respuesta del cliente" : q.estado === "aplicada" ? `Aplicada · ${q.respuesta}` : `Respuesta: ${q.respuesta}${q.nota ? ` · «${q.nota}»` : ""}`}</small></span>
+                    {q.estado === "respondida" && puedePreguntar ? (
+                      <form action={aplicarPreguntaAction} className="upload-row">
+                        <input type="hidden" name="id" value={q.id} />
+                        <input type="hidden" name="periodo" value={periodo} />
+                        <input type="hidden" name="empresa" value={company.id} />
+                        <select name="categoria" className="input input-sm" defaultValue={CATEGORIA_DE_RESPUESTA[q.respuesta ?? ""] ?? ""} aria-label="Categoría">
+                          <option value="">Cerrar sin conciliar (investigar)</option>
+                          {Object.entries(RECON_CATEGORIES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                        </select>
+                        <SubmitButton variant="gold" className="btn-inline btn-sm" pendingText="…">Aplicar</SubmitButton>
+                      </form>
+                    ) : null}
+                    {q.estado === "abierta" && puedePreguntar ? (
+                      <form action={anularPreguntaAction}>
+                        <input type="hidden" name="id" value={q.id} /><input type="hidden" name="periodo" value={periodo} /><input type="hidden" name="empresa" value={company.id} />
+                        <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Anular</SubmitButton>
+                      </form>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : null}
         </div>
       ),
     },

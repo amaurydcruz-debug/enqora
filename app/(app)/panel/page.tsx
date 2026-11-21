@@ -14,6 +14,7 @@ import { nombreLinea } from "@/lib/lineas";
 import { SubirDocumentos } from "@/components/subir-documentos";
 import { Tramites, type Tramite } from "./tramites";
 import { TuMesCard } from "./tu-mes";
+import { PreguntasCard, type PreguntaCliente } from "./preguntas";
 import type { TuMes } from "@/lib/accounting";
 import { messageForCode } from "@/lib/db-errors";
 
@@ -25,6 +26,7 @@ const AVISOS: Record<string, string> = {
   onboarding: "Guardamos tus respuestas.",
   mes_aprobado: "Aprobaste tu mes. Quedó la constancia y ENQORA presenta el F29.",
   mes_observado: "Enviamos tu observación al contador. Te avisamos cuando el mes esté corregido.",
+  respuesta: "Gracias: tu respuesta quedó registrada para tu contador.",
 };
 const TZ = "America/Santiago";
 const fecha = (iso: string) => new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", timeZone: TZ }).format(new Date(iso));
@@ -69,7 +71,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const caseIds = casos.map((c) => c.id);
 
   // Solo lo que espera una acción del cliente.
-  const [quoteRes, authRes, taskRes, firmasRes, solRes, mesRes] = await Promise.all([
+  const [quoteRes, authRes, taskRes, firmasRes, solRes, mesRes, pregRes] = await Promise.all([
     active ? supabase.from("quotes").select("id, case_id, service_name, final_price").eq("company_id", active.id).eq("status", "enviada").gte("valid_until", todayCL()).order("sent_at").limit(5) : Promise.resolve({ data: [] }),
     active && ["owner", "admin"].includes(active.role)
       ? supabase.from("client_authorizations").select("id, case_id, title").eq("company_id", active.id).eq("status", "pendiente").order("requested_at").limit(5)
@@ -79,10 +81,16 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
     supabase.rpc("mis_solicitudes"),
     // «Tu mes» (0066): cierre mensual de la contabilidad, si la empresa la lleva con ENQORA.
     active ? supabase.rpc("tu_mes", { p_company: active.id }) : Promise.resolve({ data: null }),
+    // Preguntas del contador sobre movimientos del banco (0069).
+    active && active.role !== "viewer"
+      ? supabase.from("preguntas_mes").select("id, pregunta, opciones").eq("company_id", active.id).eq("estado", "abierta").order("creada").limit(10)
+      : Promise.resolve({ data: [] }),
   ]);
+  const preguntas = ((pregRes.data ?? []) as PreguntaCliente[]);
   const mes = (mesRes.data && typeof mesRes.data === "object" && (mesRes.data as TuMes).lleva ? mesRes.data : null) as TuMes | null;
   const puedeAprobar = !!active && ["owner", "admin"].includes(active.role);
   const acciones: Accion[] = [
+    ...(preguntas.length ? [{ id: "preg", texto: `Tu contador tiene ${preguntas.length} pregunta(s)`, detalle: "Sobre movimientos de tu banco", href: "#preguntas", boton: "Responder" }] : []),
     ...(mes?.etapa === "por_aprobar" && puedeAprobar ? [{ id: "mes", texto: "Tu mes está listo para aprobar", detalle: mes.f29 ? `Total a pagar referencial ${clp(mes.f29.total)}` : "Resumen del F29", href: "#tu-mes", boton: "Revisar" }] : []),
     ...((quoteRes.data ?? []) as { id: string; case_id: string; service_name: string; final_price: number }[]).map((q) => ({
       id: `q${q.id}`, texto: `Propuesta lista: ${q.service_name}`, detalle: clp(Number(q.final_price)), href: `/casos/${q.case_id}#cotizacion`, boton: "Revisar" })),
@@ -136,6 +144,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
         </section>
       ) : null}
 
+      {preguntas.length ? <PreguntasCard preguntas={preguntas} /> : null}
       {mes ? <TuMesCard mes={mes} puedeAprobar={puedeAprobar} /> : null}
 
       {hayTramites ? (
