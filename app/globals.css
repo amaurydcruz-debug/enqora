@@ -3812,3 +3812,10 @@ fieldset.mini-form legend { padding: 0 6px; }
   .gx-revisar { grid-template-columns: 1fr; }
   .gx-totales { grid-template-columns: 1fr 1fr 1fr; }
 }
+
+/* Punto de venta (0068) */
+.pos-imp { display: grid; gap: 10px; margin-top: 8px; }
+.pos-clave { display: grid; gap: 6px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--gold); background: rgba(198, 166, 107, 0.08); }
+.pos-clave code { font-size: 0.85rem; word-break: break-all; padding: 8px; border-radius: 8px; background: rgba(0, 0, 0, 0.35); user-select: all; }
+.pos-clave small { color: var(--text-3); }
+.pos-codigo { margin: 8px 0; padding: 12px 14px; border-radius: 12px; background: rgba(0, 0, 0, 0.35); border: 1px solid var(--hairline); font-size: 0.8rem; overflow-x: auto; white-space: pre; }
