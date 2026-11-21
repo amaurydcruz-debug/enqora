@@ -49,7 +49,7 @@ export function InformeIngreso({
     return (
       <div className="ii ii-vacio">
         <b>Informe de ingreso</b>
-        <p className="muted-line">El enjambre aún no entrega el informe de esta solicitud (llega en segundos al recibirla; si falló, el cron lo completa cada 15 minutos).</p>
+        <p className="muted-line">El enjambre aún no entrega el informe de esta solicitud (llega en segundos al recibirla; si falló, usa «Generar informe ahora» o espera el cron diario).</p>
         <form action={regenerarInformeAction}>
           <input type="hidden" name="id" value={sol.id} />
           <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="El enjambre está analizando…">Generar informe ahora</SubmitButton>

@@ -94,7 +94,7 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
     // El aviso al equipo de la nueva solicitud (0042) sale de inmediato, sin esperar a que alguien entre a la app.
     await flushDeliveries(origen, true);
     // Informe de ingreso (0065): el enjambre analiza la solicitud de inmediato, en su propia ejecución.
-    // Si este arranque fallara, el cron de cada 15 minutos la completa.
+    // Si este arranque fallara, el cron diario la completa (o el equipo con «Generar informe ahora»).
     if (typeof solId === "string" && process.env.CRON_SECRET) {
       const url = new URL("/api/cron/informes", origen);
       url.searchParams.set("sol", solId);

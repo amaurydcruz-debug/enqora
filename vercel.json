@@ -26,7 +26,7 @@
     },
     {
       "path": "/api/cron/informes",
-      "schedule": "*/15 * * * *"
+      "schedule": "30 14 * * *"
     }
   ]
 }
