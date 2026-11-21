@@ -509,8 +509,9 @@ prueba("Conciliador: propone (no aplica) y pregunta lo que no puede explicar", (
   const p = proponer(movs, [{ movement_id: "a", document_id: "doc1", score: 4, days: 2 }], [{ fecha: "2026-10-20", tarjetas: 200000 }]);
   const de = (id: string) => p.find((x) => x.movement_id === id);
   assert.equal(de("a")?.tipo, "documento"); assert.equal(de("a")?.certeza, "alta");
-  assert.equal(de("b")?.tipo === "categoria" && de("b")?.categoria, "comision_bancaria");
-  assert.equal(de("c")?.tipo === "categoria" && de("c")?.categoria, "remuneraciones");
+  const cat = (id: string) => { const x = de(id); return x?.tipo === "categoria" ? x.categoria : null; };
+  assert.equal(cat("b"), "comision_bancaria");
+  assert.equal(cat("c"), "remuneraciones");
   assert.equal(de("d")?.certeza, "alta");
   assert.equal(de("e"), undefined);
   const q = preguntasPara(movs, p);
