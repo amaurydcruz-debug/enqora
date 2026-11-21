@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
   if (casosErr) console.error("[ENQORA vigilancia de casos]", casosErr.message);
   // Investigaciones del robot que quedaron colgadas: se cierran como fallidas (0048).
   await supabase.rpc("svc_research_vencer", { p_token: service }).then(() => undefined, () => undefined);
+  // Contabilidad mensual (0066): días 1–5 faltan datos del mes; días 13–17 el mes espera la aprobación del cliente.
+  const { data: mes, error: mesErr } = await supabase.rpc("svc_recordatorios_mes", { p_token: service });
+  if (mesErr) console.error("[ENQORA contabilidad mensual]", mesErr.message);
   await flushDeliveries(request.nextUrl.origin, true);
-  return NextResponse.json({ ok: true, resultado: data, casos: casos ?? null });
+  return NextResponse.json({ ok: true, resultado: data, casos: casos ?? null, mes: mes ?? null });
 }

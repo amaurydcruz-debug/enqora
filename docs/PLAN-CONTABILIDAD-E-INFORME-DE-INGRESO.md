@@ -24,7 +24,7 @@ Experiencia del cliente:
 Ciclo interno: días 1–5 reunir datos y avisar faltantes · 6–12 conciliación por agentes + revisión del contador · 13–17 aprobación del cliente · hasta el 20 presentación del F29 (comprobante a la Bóveda) · abril F22 con los 12 meses ordenados. Agentes preparan, el contador revisa, el cliente aprueba.
 
 Etapas:
-1. Base: plan mensual, Mandato Digital, importador RCV/cartola (ya existe), cierre mensual con aprobación y tarjeta «Tu mes».
+1. **Construida (21-11-2026, migración 0066):** tarjeta «Tu mes» en el inicio, aprobación del cliente con constancia del monto, «Tengo una observación», el equipo solo presenta lo aprobado por el cliente, recordatorios días 1–5 y 13–17. Base: plan mensual, Mandato Digital, importador RCV/cartola (ya existe), cierre mensual con aprobación y tarjeta «Tu mes».
 2. Gastos fáciles: foto y voz con lectura automática.
 3. Integraciones: Vania POS, archivos de otros POS, bancos.
 4. Automatización: conciliación y preguntas automáticas por agentes.

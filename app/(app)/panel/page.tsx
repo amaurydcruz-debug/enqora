@@ -13,6 +13,9 @@ import { createClient, currentUser } from "@/lib/supabase/server";
 import { nombreLinea } from "@/lib/lineas";
 import { SubirDocumentos } from "@/components/subir-documentos";
 import { Tramites, type Tramite } from "./tramites";
+import { TuMesCard } from "./tu-mes";
+import type { TuMes } from "@/lib/accounting";
+import { messageForCode } from "@/lib/db-errors";
 
 export const metadata: Metadata = { title: "Inicio" };
 
@@ -20,6 +23,8 @@ const AVISOS: Record<string, string> = {
   mfa: "Segundo factor activado. Tu cuenta quedó protegida.",
   clave: "Contraseña actualizada. Cerramos las demás sesiones de tu cuenta.",
   onboarding: "Guardamos tus respuestas.",
+  mes_aprobado: "Aprobaste tu mes. Quedó la constancia y ENQORA presenta el F29.",
+  mes_observado: "Enviamos tu observación al contador. Te avisamos cuando el mes esté corregido.",
 };
 const TZ = "America/Santiago";
 const fecha = (iso: string) => new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", timeZone: TZ }).format(new Date(iso));
@@ -34,7 +39,7 @@ type Solicitud = { id: string; codigo: string | null; linea?: string | null; doc
 
 // Inicio del cliente: simple a propósito. Arriba, qué quiere resolver; si hay algo que hacer, solo eso;
 // sus trámites en curso; y «Trámites» para elegir UNA solución. El detalle de la empresa vive en /panel/detalle.
-export default async function PanelPage({ searchParams }: { searchParams: Promise<{ aviso?: string; tramite?: string }> }) {
+export default async function PanelPage({ searchParams }: { searchParams: Promise<{ aviso?: string; tramite?: string; error?: string }> }) {
   const sp = await searchParams;
   const jar = await cookies();
   const intent = categoryByKey(jar.get(INTENT_COOKIE)?.value);
@@ -64,7 +69,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const caseIds = casos.map((c) => c.id);
 
   // Solo lo que espera una acción del cliente.
-  const [quoteRes, authRes, taskRes, firmasRes, solRes] = await Promise.all([
+  const [quoteRes, authRes, taskRes, firmasRes, solRes, mesRes] = await Promise.all([
     active ? supabase.from("quotes").select("id, case_id, service_name, final_price").eq("company_id", active.id).eq("status", "enviada").gte("valid_until", todayCL()).order("sent_at").limit(5) : Promise.resolve({ data: [] }),
     active && ["owner", "admin"].includes(active.role)
       ? supabase.from("client_authorizations").select("id, case_id, title").eq("company_id", active.id).eq("status", "pendiente").order("requested_at").limit(5)
@@ -72,8 +77,13 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
     caseIds.length ? supabase.from("case_tasks").select("id, case_id, title").eq("assignee_id", user?.id ?? "").in("status", ["pendiente", "en_curso", "bloqueada"]).in("case_id", caseIds).limit(5) : Promise.resolve({ data: [] }),
     supabase.rpc("sign_mis_firmas"),
     supabase.rpc("mis_solicitudes"),
+    // «Tu mes» (0066): cierre mensual de la contabilidad, si la empresa la lleva con ENQORA.
+    active ? supabase.rpc("tu_mes", { p_company: active.id }) : Promise.resolve({ data: null }),
   ]);
+  const mes = (mesRes.data && typeof mesRes.data === "object" && (mesRes.data as TuMes).lleva ? mesRes.data : null) as TuMes | null;
+  const puedeAprobar = !!active && ["owner", "admin"].includes(active.role);
   const acciones: Accion[] = [
+    ...(mes?.etapa === "por_aprobar" && puedeAprobar ? [{ id: "mes", texto: "Tu mes está listo para aprobar", detalle: mes.f29 ? `Total a pagar referencial ${clp(mes.f29.total)}` : "Resumen del F29", href: "#tu-mes", boton: "Revisar" }] : []),
     ...((quoteRes.data ?? []) as { id: string; case_id: string; service_name: string; final_price: number }[]).map((q) => ({
       id: `q${q.id}`, texto: `Propuesta lista: ${q.service_name}`, detalle: clp(Number(q.final_price)), href: `/casos/${q.case_id}#cotizacion`, boton: "Revisar" })),
     ...((authRes.data ?? []) as { id: string; case_id: string; title: string }[]).map((a) => ({
@@ -97,6 +107,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   return (
     <div className="page ps">
       {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
+      {sp.error ? <Notice kind="error">{messageForCode(sp.error) ?? "No pudimos completar la operación."}</Notice> : null}
 
       <header className="ps-hero">
         <img src="/entrada/hero.webp" alt="" className="ps-hero-foto" fetchPriority="high" />
@@ -124,6 +135,8 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
           </ul>
         </section>
       ) : null}
+
+      {mes ? <TuMesCard mes={mes} puedeAprobar={puedeAprobar} /> : null}
 
       {hayTramites ? (
         <section className="ps-card" id="mis-tramites" aria-labelledby="ps-mis-t">

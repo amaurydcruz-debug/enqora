@@ -3755,3 +3755,26 @@ fieldset.mini-form legend { padding: 0 6px; }
   .ii-datos > div { grid-template-columns: 1fr; gap: 2px; }
   .ii-lista li { flex-direction: column; gap: 4px; }
 }
+
+/* «Tu mes» (0066) · cierre mensual de la contabilidad en el inicio del cliente */
+.tm-pasos { list-style: none; margin: 4px 0 14px; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; counter-reset: none; }
+.tm-pasos li { position: relative; display: grid; gap: 2px; padding: 10px 12px 10px 44px; border-radius: 12px; border: 1px solid var(--hairline); background: rgba(5, 9, 20, 0.3); color: var(--text-3); }
+.tm-pasos li b { color: var(--text-2, var(--text)); font-weight: 600; font-size: 0.92rem; }
+.tm-pasos li small { font-size: 0.78rem; }
+.tm-num { position: absolute; left: 12px; top: 11px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 0.75rem; border: 1px solid var(--hairline); }
+.tm-pasos li.is-hecho .tm-num { background: rgba(127, 185, 138, 0.2); border-color: #7fb98a; color: #8fc79a; }
+.tm-pasos li.is-actual { border-color: var(--gold); background: rgba(198, 166, 107, 0.08); }
+.tm-pasos li.is-actual b { color: var(--text); }
+.tm-pasos li.is-actual .tm-num { border-color: var(--gold); color: var(--gold); }
+.tm-resumen { display: grid; gap: 12px; margin-top: 6px; }
+.tm-resumen dl { margin: 0; display: grid; gap: 6px; }
+.tm-resumen dl > div { display: grid; grid-template-columns: 200px 1fr; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--hairline); }
+.tm-resumen dt { color: var(--text-3); font-size: 0.88rem; }
+.tm-resumen dd { margin: 0; }
+.tm-total dd { font-size: 1.25rem; font-weight: 700; color: var(--gold-bright); }
+.tm-aprobar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.tm-pie { margin: 10px 0 0; color: var(--text-3); font-size: 0.78rem; }
+@media (max-width: 760px) {
+  .tm-pasos { grid-template-columns: 1fr 1fr; }
+  .tm-resumen dl > div { grid-template-columns: 1fr; gap: 2px; }
+}

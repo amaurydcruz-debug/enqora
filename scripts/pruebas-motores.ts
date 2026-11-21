@@ -24,6 +24,7 @@ import { investigarPersona, PREGUNTAS_PERSONA, preguntaVisible, type PersonaAnsw
 import { estadoDocumento, renderPreview, resumenLegal, type CaseLegalStatus } from "@/lib/legal";
 import { anonimizar, armarFuentes, informePorReglas, sanear, type Entrada } from "@/lib/cora/informe-ingreso";
 import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
+import { pasoDe } from "@/lib/accounting";
 
 let ok = 0;
 const fallos: string[] = [];
@@ -447,6 +448,15 @@ prueba("Informe de ingreso: solo fuentes de la lista, plazo fijo y precio del ca
   assert.equal(reglas.confianza, "baja");
   assert.equal(reglas.servicio, null);
   assert.equal(anonimizar("RUT 12.345.678-5, correo a@b.cl"), "RUT [RUT], correo [correo]");
+});
+
+prueba("Tu mes: cada etapa cae en su paso", () => {
+  assert.equal(pasoDe("esperando_datos"), 0);
+  assert.equal(pasoDe("datos"), 0);
+  assert.equal(pasoDe("revision"), 1);
+  assert.equal(pasoDe("por_aprobar"), 2);
+  assert.equal(pasoDe("aprobado_cliente"), 3);
+  assert.equal(pasoDe("presentado"), 3);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
