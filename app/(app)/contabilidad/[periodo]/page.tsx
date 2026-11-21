@@ -404,6 +404,14 @@ export default async function PeriodPage({
             )
           ) : null}
 
+          {vat?.status === "aprobado" ? (
+            vat.cliente_aprobo_at ? (
+              <Callout kind="info" title="Aprobado por el cliente">{vat.cliente_aprobo_texto ?? "El cliente aprobó su mes."}</Callout>
+            ) : (
+              <p className="muted-line">Esperando que el cliente apruebe su mes en «Tu mes» (inicio). El equipo ENQORA solo registra la presentación de un F29 aprobado por el cliente.</p>
+            )
+          ) : null}
+          {vat?.cliente_observacion && vat.status !== "presentado" ? <Callout kind="warn" title="Observación del cliente">{vat.cliente_observacion}</Callout> : null}
           {vat && ["borrador", "aprobado"].includes(vat.status) && canBook ? (
             <details className="more inline-more">
               <summary>Registrar presentación en el SII</summary>

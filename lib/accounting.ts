@@ -58,6 +58,10 @@ export type VatReturn = {
   decision_note: string | null;
   presented_folio: string | null;
   presented_on: string | null;
+  // Aprobación del cliente (0066).
+  cliente_aprobo_at?: string | null;
+  cliente_aprobo_texto?: string | null;
+  cliente_observacion?: string | null;
 };
 
 export const DOC_TYPES: Record<number, string> = {
@@ -120,4 +124,29 @@ export const nextMonthLabel = (d: string) => {
   const dt = new Date(`${d.slice(0, 7)}-01T12:00:00Z`);
   dt.setUTCMonth(dt.getUTCMonth() + 1);
   return new Intl.DateTimeFormat("es-CL", { month: "long", year: "numeric", timeZone: "UTC" }).format(dt);
+};
+
+// ---------- «Tu mes» (0066): ciclo mensual de la contabilidad ----------
+export type EtapaMes = "esperando_datos" | "datos" | "revision" | "por_aprobar" | "aprobado_cliente" | "presentado";
+export type TuMes = {
+  periodo: string; etapa: EtapaMes; lleva: boolean; faltan: ("ventas" | "compras" | "cartola")[];
+  ventas: number; compras: number; movimientos: number; mandato: boolean; plan: string | null; vence_12: string; vence_20: string;
+  f29: null | {
+    id: string; estado: VatReturn["status"]; version: number; debito: number; credito: number; iva: number; remanente: number;
+    ppm: number; retenciones: number; total: number; nota_revision: string | null; aprobado_cliente: string | null;
+    texto_aprobacion: string | null; folio: string | null; presentado: string | null; observacion: string | null;
+  };
+};
+// Los 4 pasos que ve el cliente (la etapa «esperando_datos» y «datos» son el mismo paso: reunir datos).
+export const PASOS_MES: { clave: EtapaMes[]; titulo: string; texto: string }[] = [
+  { clave: ["esperando_datos", "datos"], titulo: "Datos del mes", texto: "Ventas y compras del SII y la cartola del banco." },
+  { clave: ["revision"], titulo: "En revisión", texto: "Los agentes concilian y un contador ENQORA revisa." },
+  { clave: ["por_aprobar"], titulo: "Listo para aprobar", texto: "Revisa el resumen y apruébalo." },
+  { clave: ["aprobado_cliente", "presentado"], titulo: "Presentado", texto: "F29 presentado con su folio del SII." },
+];
+export const pasoDe = (e: EtapaMes) => PASOS_MES.findIndex((p) => p.clave.includes(e));
+export const FALTA_TEXTO: Record<string, { titulo: string; conMandato: string; sinMandato: string }> = {
+  ventas: { titulo: "Ventas del mes", conMandato: "ENQORA las trae del Registro de Compras y Ventas del SII con tu Mandato Digital.", sinMandato: "Sube el detalle de ventas del Registro de Compras y Ventas (se descarga en sii.cl)." },
+  compras: { titulo: "Compras del mes", conMandato: "ENQORA las trae del Registro de Compras y Ventas del SII con tu Mandato Digital.", sinMandato: "Sube el detalle de compras del Registro de Compras y Ventas (se descarga en sii.cl)." },
+  cartola: { titulo: "Cartola del banco", conMandato: "Sube la cartola del mes (Excel o CSV de tu banco).", sinMandato: "Sube la cartola del mes (Excel o CSV de tu banco)." },
 };
