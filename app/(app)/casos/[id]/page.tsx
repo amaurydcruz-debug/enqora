@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { Notice } from "@/components/auth-card";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { SubmitButton } from "@/components/submit-button";
+import { clp } from "@/lib/pricing";
 import {
   assignAction,
   changeStatusAction,
@@ -62,6 +63,7 @@ import { CommentForm } from "./comment-form";
 import { MirrorConsole } from "./mirror-console";
 import { UploadDocument } from "./upload";
 import { UnirPdf } from "./unir-pdf";
+import { eximirPagoAction } from "@/app/actions/cases";
 import { nombreLinea } from "@/lib/lineas";
 import { AgentRunner } from "./agent-runner";
 import { AgentProposals, type AgentAudit, type AgentProposal, type AgentRun } from "./agent-proposals";
@@ -87,6 +89,7 @@ const fmtDate = (d: string | null) => (d ? fmt(`${d}T12:00:00Z`, false) : "—")
 
 const AVISOS: Record<string, string> = {
   creado: "Solicitud creada. El equipo ENQORA la revisará y te mantendrá informado aquí.",
+  exencion: "Excepción de pago registrada en la bitácora del caso.",
   partes_ok: "Partes registradas. ENQORA asignará un abogado que no represente a la contraparte.",
   partes_conflicto: "Partes registradas. Detectamos un posible conflicto de interés: la supervisión fue avisada y reasignará el caso.",
   documento_pedido: "Pedido enviado al Archivero. Te avisaremos cuando el documento esté revisado y listo en la Bóveda del caso.",
@@ -260,6 +263,12 @@ export default async function CasePage({
   const memberRole = (memberRes.data as { role: string } | null)?.role ?? null;
 
   const supervisor = isSupervisorRole(staffRole);
+  // Abono antes de ejecutar y saldo al terminar (0070).
+  const { data: pagoData } = await supabase.rpc("caso_estado_pago", { p_case: id });
+  const pago = (pagoData ?? null) as { puede_ejecutar: boolean; puede_cerrar: boolean; cotizacion_aceptada: boolean;
+    exenciones: { tipo: string; motivo: string }[]; cobros: { id: string; folio: string; etapa: string; monto: number; estado: string; vence: string }[] } | null;
+  const abonoPendiente = pago?.cotizacion_aceptada && !pago.puede_ejecutar ? pago.cobros.find((x) => x.etapa === "abono" && x.estado !== "pagado") ?? null : null;
+  const saldoPendiente = pago && !pago.puede_cerrar ? pago.cobros.find((x) => x.etapa === "saldo" && x.estado !== "pagado") ?? null : null;
   // Resultados para el cliente (0033): calificación y ahorro (el cliente solo ve el verificado, por RLS).
   const [ratingRes, savingsRes, legalRes, siiRes, myProfileRes, partyRes, vaultRes] = await Promise.all([
     supabase.from("case_ratings").select("resuelto, satisfaccion, comentario, created_at").eq("case_id", id).maybeSingle(),
@@ -1146,6 +1155,32 @@ export default async function CasePage({
           >
             ENQORA no actuará ante ninguna institución sin tu autorización explícita.
           </Callout>
+        ) : null}
+        {abonoPendiente && !["cerrado", "cancelado"].includes(c.status) ? (
+          <Callout kind="warn" title={`El trabajo comienza al confirmarse el abono: ${clp(abonoPendiente.monto)}`}
+            action={!worker ? <Link href="/facturacion#cobros" className="btn btn-gold btn-inline btn-sm">Pagar el abono</Link> : undefined}>
+            Cobro {abonoPendiente.folio} · vence el {abonoPendiente.vence.split("-").reverse().join("-")}
+            {abonoPendiente.estado === "en_revision" ? " · pago informado, en confirmación" : ""}. El saldo se cobra cuando el trabajo esté terminado.
+          </Callout>
+        ) : null}
+        {saldoPendiente && c.status === "verificacion" ? (
+          <Callout kind="info" title={`Trabajo terminado · saldo ${clp(saldoPendiente.monto)}`}
+            action={!worker ? <Link href="/facturacion#cobros" className="btn btn-gold btn-inline btn-sm">Pagar el saldo</Link> : undefined}>
+            Cobro {saldoPendiente.folio}. El caso se cierra con el saldo pagado. Tus documentos siguen disponibles en todo momento.
+          </Callout>
+        ) : null}
+        {supervisor && (abonoPendiente || saldoPendiente) ? (
+          <details className="more inline-more">
+            <summary>Registrar una excepción de pago (supervisión)</summary>
+            <form action={eximirPagoAction} className="mini-form">
+              <input type="hidden" name="case_id" value={c.id} />
+              <select name="tipo" className="input input-sm" defaultValue={abonoPendiente ? "abono" : "saldo"} aria-label="Tipo">
+                <option value="abono">Ejecutar sin abono</option><option value="saldo">Cerrar sin saldo</option>
+              </select>
+              <input name="motivo" className="input input-sm" required minLength={10} maxLength={500} placeholder="Motivo (ej.: caso pro bono aprobado por gerencia)" aria-label="Motivo" />
+              <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Registrar excepción</SubmitButton>
+            </form>
+          </details>
         ) : null}
         {published && !worker && c.status === "esperando_cliente" ? (
           <Callout

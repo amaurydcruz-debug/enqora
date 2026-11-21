@@ -31,7 +31,7 @@ Etapas:
 
 Decisiones pendientes de Amaury: segmento inicial (sugerido: pyme Pro Pyme con boletas/facturas electrónicas y pocos o ningún trabajador), planes por tamaño y precios, momento de Vania POS, quién paga el IVA (sugerido: el cliente).
 
-Modelo de cobro (en discusión): nunca se bloquea el acceso a la cuenta ni a los documentos del cliente; lo que se cobra es ejecutar el trabajo. Gratis: orientación de CORA, un diagnóstico profesional por área y la cotización. El caso no pasa a «En ejecución» sin cobro pagado y confirmado (falta construir ese bloqueo). Límite de consultas gratis y precio de la consulta adicional: por definir.
+Modelo de cobro (en discusión): nunca se bloquea el acceso a la cuenta ni a los documentos del cliente; lo que se cobra es ejecutar el trabajo. Gratis: orientación de CORA, un diagnóstico profesional por área y la cotización. **Decidido y construido (20-11-2026, migración 0070):** abono del 50% al aceptar la cotización; el caso no pasa a «En ejecución» sin el abono pagado y confirmado (arranca solo al confirmarse si ya autorizó y firmó); el saldo se emite al terminar («Verificación») y el caso se cierra con el saldo pagado; excepciones solo por la supervisión con motivo. Porcentaje configurable en Cobros. Límite de consultas gratis y precio de la consulta adicional: por definir.
 
 ## 2. Informe de ingreso («el análisis antes del médico»)
 

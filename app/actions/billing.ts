@@ -268,6 +268,7 @@ export async function saveBillingSettingsAction(fd: FormData) {
       holder_rut: text(fd, "holder_rut", 12),
       notify_email: text(fd, "notify_email", 160),
       transfer_note: text(fd, "transfer_note", 500),
+      ...(text(fd, "abono_pct", 3) ? { abono_pct: Math.min(100, Math.max(10, Number.parseInt(text(fd, "abono_pct", 3), 10) || 50)) } : {}),
     },
   });
   backTo("/mando/cobros", "configuracion", error, "datos_guardados");

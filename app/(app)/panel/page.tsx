@@ -71,7 +71,7 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
   const caseIds = casos.map((c) => c.id);
 
   // Solo lo que espera una acción del cliente.
-  const [quoteRes, authRes, taskRes, firmasRes, solRes, mesRes, pregRes] = await Promise.all([
+  const [quoteRes, authRes, taskRes, firmasRes, solRes, mesRes, pregRes, abonoRes] = await Promise.all([
     active ? supabase.from("quotes").select("id, case_id, service_name, final_price").eq("company_id", active.id).eq("status", "enviada").gte("valid_until", todayCL()).order("sent_at").limit(5) : Promise.resolve({ data: [] }),
     active && ["owner", "admin"].includes(active.role)
       ? supabase.from("client_authorizations").select("id, case_id, title").eq("company_id", active.id).eq("status", "pendiente").order("requested_at").limit(5)
@@ -85,11 +85,18 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
     active && active.role !== "viewer"
       ? supabase.from("preguntas_mes").select("id, pregunta, opciones").eq("company_id", active.id).eq("estado", "abierta").order("creada").limit(10)
       : Promise.resolve({ data: [] }),
+    // Abonos y saldos por pagar (0070): sin abono confirmado el trabajo no comienza.
+    active && active.role !== "viewer"
+      ? supabase.from("charges").select("id, case_id, etapa, amount, status").eq("company_id", active.id).in("etapa", ["abono", "saldo"]).in("status", ["pendiente", "vencido"]).limit(5)
+      : Promise.resolve({ data: [] }),
   ]);
   const preguntas = ((pregRes.data ?? []) as PreguntaCliente[]);
   const mes = (mesRes.data && typeof mesRes.data === "object" && (mesRes.data as TuMes).lleva ? mesRes.data : null) as TuMes | null;
   const puedeAprobar = !!active && ["owner", "admin"].includes(active.role);
   const acciones: Accion[] = [
+    ...((abonoRes.data ?? []) as { id: string; case_id: string | null; etapa: string; amount: number }[]).map((ch) => ({
+      id: `ch${ch.id}`, texto: ch.etapa === "abono" ? "Paga el abono para comenzar tu trámite" : "Trabajo terminado: paga el saldo",
+      detalle: clp(Number(ch.amount)), href: "/facturacion#cobros", boton: "Pagar" })),
     ...(preguntas.length ? [{ id: "preg", texto: `Tu contador tiene ${preguntas.length} pregunta(s)`, detalle: "Sobre movimientos de tu banco", href: "#preguntas", boton: "Responder" }] : []),
     ...(mes?.etapa === "por_aprobar" && puedeAprobar ? [{ id: "mes", texto: "Tu mes está listo para aprobar", detalle: mes.f29 ? `Total a pagar referencial ${clp(mes.f29.total)}` : "Resumen del F29", href: "#tu-mes", boton: "Revisar" }] : []),
     ...((quoteRes.data ?? []) as { id: string; case_id: string; service_name: string; final_price: number }[]).map((q) => ({

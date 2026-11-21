@@ -20,6 +20,8 @@ const MESSAGES: Record<string, string> = {
   ENQ_NO_ES_EQUIPO: "Esa persona no pertenece al equipo ENQORA.",
   ENQ_CASO_CERRADO: "El caso está cerrado. Solo la supervisión puede reabrirlo.",
   ENQ_CIERRE_SIN_RESULTADO: "Para cerrar el caso describe el resultado obtenido (mínimo 10 caracteres).",
+  ENQ_FALTA_ABONO: "El caso se ejecuta cuando el abono esté pagado y confirmado. Revisa el cobro en Planes y pagos.",
+  ENQ_FALTA_SALDO: "Para cerrar el caso, el saldo debe estar pagado y confirmado (o la supervisión debe registrar una excepción).",
   ENQ_PERIODO_CERRADO: "Ese mes ya fue aprobado o declarado: pide a tu contador que lo reabra para agregar o cambiar gastos.",
   ENQ_FECHA_GASTO: "La fecha del gasto no puede ser futura ni de hace más de 13 meses.",
   ENQ_MES_NO_LISTO: "Tu mes todavía no está listo para aprobar: falta la revisión del contador ENQORA.",
