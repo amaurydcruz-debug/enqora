@@ -22,6 +22,8 @@ import { solucionPersona } from "@/lib/cora/solucion-persona";
 import { enjambrePersona, fuentesDe } from "@/lib/cora/enjambre-persona";
 import { investigarPersona, PREGUNTAS_PERSONA, preguntaVisible, type PersonaAnswers } from "@/lib/cora/personas";
 import { estadoDocumento, renderPreview, resumenLegal, type CaseLegalStatus } from "@/lib/legal";
+import { anonimizar, armarFuentes, informePorReglas, sanear, type Entrada } from "@/lib/cora/informe-ingreso";
+import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 
 let ok = 0;
 const fallos: string[] = [];
@@ -404,6 +406,47 @@ prueba("CORA: recepción final antes de la patente del local", () => {
   assert.ok(ids({ recepcion: "si" }).includes("patente") && !ids({ recepcion: "si" }).includes("recepcion_patente"));
   assert.ok(ids({ recepcion: "no" }).includes("recepcion_patente") && !ids({ recepcion: "no" }).includes("patente"));
   assert.ok(ids({ recepcion: "no_se" }).includes("recepcion_patente"));
+});
+
+prueba("Líneas de servicio: folio y código de solicitud", () => {
+  assert.equal(lineaDeFolio("LAB-2026-00031"), "LAB");
+  assert.equal(lineaDeFolio("SOL-TRI-7KQ2XA"), "TRI");
+  assert.equal(lineaDeFolio("ENQ-2026-00015"), null);
+  assert.equal(lineaDeModulo("brand"), "BRA");
+  assert.equal(lineaDeCategoria("empleador"), "LAB");
+  assert.equal(lineaDeCategoria("enterprise"), null);
+});
+
+prueba("Informe de ingreso: solo fuentes de la lista, plazo fijo y precio del catálogo", () => {
+  const relato = "Me despidieron hace dos semanas sin carta de aviso y no me pagaron las horas extra.";
+  const e: Entrada = {
+    relato, analisis: { resumen: "Despido sin aviso", categorias: ["trabajador"], urgencia: urgenciaLaboral(relato, ["trabajador"]) }, linea: "LAB",
+    razonSocial: null, perfil: null, publicaciones: [], documentosCliente: ["carta.jpg"], lecciones: [], aviso: "",
+    catalogo: [{ code: "LEG-01", module: "legal", name: "Defensa del trabajador", summary: null, unit: "caso", price_from: null }, { code: "CON-01", module: "contabilidad", name: "Contabilidad", summary: null, unit: "mes", price_from: 50000 }],
+  };
+  const fuentes = armarFuentes(e);
+  const plazo = fuentes.find((f) => f.tipo === "plazo");
+  assert.ok(plazo && /60 días hábiles/.test(plazo.texto));
+  assert.ok(fuentes.some((f) => f.tipo === "documento"));
+  const norma = fuentes.find((f) => f.tipo === "norma")!;
+  const r = sanear({
+    pide: "Defensa por despido sin aviso", confianza: "media", documentos: ["carta_despido", "inventado"], faltantes: [], preguntas: [], mensaje_cliente: "Hola",
+    hechos: [{ texto: "Fue despedido", fuente: "relato", certeza: "alta" }, { texto: "Norma inventada", fuente: "F999", certeza: "alta" }],
+    ruta: [{ texto: "Revisar plazo", fuente: norma.id, certeza: "alta" }], riesgos: [], servicio: "CON-01", contraparte: "Comercial Sur",
+  }, e, fuentes);
+  assert.ok(r);
+  assert.equal(r.descartes, 1);
+  assert.equal(r.informe.hechos.length, 1);
+  assert.equal(r.informe.hechos[0].certeza, "media");
+  assert.deepEqual(r.informe.documentos, ["carta_despido"]);
+  assert.equal(r.informe.servicio, null);
+  assert.equal(r.informe.urgencia?.texto, plazo.texto);
+  assert.equal(r.informe.contraparte, "Comercial Sur");
+  assert.equal(sanear({ pide: "" }, e, fuentes), null);
+  const reglas = informePorReglas(e, fuentes);
+  assert.equal(reglas.confianza, "baja");
+  assert.equal(reglas.servicio, null);
+  assert.equal(anonimizar("RUT 12.345.678-5, correo a@b.cl"), "RUT [RUT], correo [correo]");
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

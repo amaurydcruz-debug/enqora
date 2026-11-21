@@ -3720,3 +3720,38 @@ fieldset.mini-form legend { padding: 0 6px; }
   .ps-filas li .badge { margin-right: auto; }
   .ps-elegido-foto { width: 64px; height: 64px; }
 }
+
+/* Informe de ingreso (0065) · Centro de Mando → Solicitudes */
+.ii { margin-top: 12px; padding: 14px 16px; border-radius: 14px; border: 1px solid var(--hairline); background: rgba(198, 166, 107, 0.05); display: grid; gap: 8px; }
+.ii h4 { margin: 8px 0 2px; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+.ii-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.ii-cab .badge { margin-left: auto; }
+.ii-vacio { background: transparent; border-style: dashed; }
+.ii-datos { display: grid; gap: 6px; margin: 4px 0 0; }
+.ii-datos > div { display: grid; grid-template-columns: 150px 1fr; gap: 10px; }
+.ii-datos dt { color: var(--text-3); font-size: 0.85rem; }
+.ii-datos dd { margin: 0; }
+.ii-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ii-lista li { display: flex; gap: 10px; justify-content: space-between; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--hairline); }
+.ii-lista li:last-child { border-bottom: 0; }
+.ii-meta { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+.ii-meta small { color: var(--text-3); font-size: 0.75rem; }
+.ii-fuente { display: inline-block; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--gold); color: var(--gold); font-size: 0.72rem; font-family: var(--font-mono, ui-monospace, monospace); cursor: help; }
+.ii-fuente-relato { border-color: var(--text-3); color: var(--text-3); }
+.ii-fuente-prof { border-color: #7fb98a; color: #7fb98a; }
+.ii-urgente { margin: 0; padding: 10px 12px; border-radius: 10px; border-left: 3px solid #e0a23b; background: rgba(224, 162, 59, 0.1); }
+.ii-alerta { margin: 0; padding: 10px 12px; border-radius: 10px; border-left: 3px solid #d9534f; background: rgba(217, 83, 79, 0.12); }
+.ii-nivel { text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; padding: 1px 6px; border-radius: 6px; margin-right: 4px; }
+.ii-alto { background: rgba(217, 83, 79, 0.2); color: #f08b87; }
+.ii-medio { background: rgba(224, 162, 59, 0.18); color: #e8b562; }
+.ii-bajo { background: rgba(127, 185, 138, 0.15); color: #8fc79a; }
+.ii-det > summary { cursor: pointer; color: var(--gold); font-size: 0.9rem; font-weight: 600; }
+.ii-det[open] > summary { margin-bottom: 8px; }
+.ii-fuentes { margin: 0 0 8px; padding-left: 0; list-style: none; display: grid; gap: 4px; font-size: 0.86rem; }
+.ii-fuentes small { color: var(--text-3); }
+.ii-bitacora { margin: 0; padding-left: 18px; font-size: 0.85rem; color: var(--text-2, inherit); display: grid; gap: 3px; }
+.ii-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 640px) {
+  .ii-datos > div { grid-template-columns: 1fr; gap: 2px; }
+  .ii-lista li { flex-direction: column; gap: 4px; }
+}

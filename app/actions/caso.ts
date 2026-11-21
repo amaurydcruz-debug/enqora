@@ -93,6 +93,13 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
     if (e) console.warn("[ENQORA Caso] acuse no enviado:", e);
     // El aviso al equipo de la nueva solicitud (0042) sale de inmediato, sin esperar a que alguien entre a la app.
     await flushDeliveries(origen, true);
+    // Informe de ingreso (0065): el enjambre analiza la solicitud de inmediato, en su propia ejecución.
+    // Si este arranque fallara, el cron de cada 15 minutos la completa.
+    if (typeof solId === "string" && process.env.CRON_SECRET) {
+      const url = new URL("/api/cron/informes", origen);
+      url.searchParams.set("sol", solId);
+      await fetch(url, { headers: { authorization: `Bearer ${process.env.CRON_SECRET}` }, cache: "no-store", signal: AbortSignal.timeout(12_000) }).catch(() => undefined);
+    }
   });
   // Mismo navegador → misma persona: si crea su cuenta aquí en las próximas 24 horas, la solicitud se une sola (0056).
   if (typeof solId === "string") {
