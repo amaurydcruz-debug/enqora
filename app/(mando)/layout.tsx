@@ -56,6 +56,7 @@ export default async function MandoLayout({ children }: { children: React.ReactN
     ...(supervisor ? [{ href: "/mando/laboratorio", label: "Laboratorio de IA", short: "IA", icon: "novedades", group: "operacion", bottom: false } as NavItem] : []),
     { href: "/mando/catalogo", label: "Catálogo y precios", short: "Catálogo", icon: "contabilidad", group: "configuracion", bottom: false },
     { href: "/mando/planes", label: "Planes", short: "Planes", icon: "pagos", group: "configuracion", bottom: false },
+    { href: "/mando/remuneraciones", label: "Parámetros de remuneraciones", short: "Sueldos", icon: "contabilidad", group: "configuracion", bottom: false },
     ...(supervisor
       ? ([
           { href: "/mando/cobros", label: "Cobros y clave de servicio", short: "Cobros", icon: "clave", group: "configuracion" },

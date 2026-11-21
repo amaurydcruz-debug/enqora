@@ -26,6 +26,7 @@ import { anonimizar, armarFuentes, informePorReglas, sanear, type Entrada } from
 import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
 import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
+import { impuestoUnico, leerNovedades, leerParametros, liquidar, normalizarRut, type Parametros, type Trabajador } from "@/lib/remuneraciones";
 import { tocaAvisar, vencimientos } from "@/lib/calendario-cumplimiento";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
 import { alertaCruce, medioDePago, resumirPorDia } from "@/lib/pos";
@@ -562,6 +563,40 @@ prueba("Calendario de cumplimiento: vencimientos según el perfil y avisos 7 y 1
   assert.ok(!tocaAvisar("2026-12-08", f29));
   const fechas = vencimientos({ ...base, trabajadores: 6 }, "2026-12-20", 60).map((v) => v.fecha);
   assert.deepEqual(fechas, [...fechas].sort());
+});
+
+prueba("Remuneraciones: liquidación, topes, impuesto único y validaciones", () => {
+  // Valores de PRUEBA (no son los oficiales del mes): solo verifican la aritmética del motor.
+  const p: Parametros = { uf: 40000, utm: 72000, imm: 539000, tope_afp_uf: 90, tope_afc_uf: 135.2, afp: { Modelo: 10.58 }, sis: 1.62,
+    aporte_empleador: 1, afc_indefinido_trab: 0.6, afc_indefinido_emp: 2.4, afc_plazo_emp: 3, salud_legal: 7 };
+  const t: Trabajador = { id: "t", nombre: "Ana", tipo_contrato: "indefinido", sueldo_base: 800000, jornada_horas: 42, afp: "Modelo", salud: "fonasa",
+    plan_isapre_uf: null, colacion: 50000, movilizacion: 0, gratificacion: "art50" };
+  const n = leerNovedades({})!;
+  const l = liquidar(t, n, p, 0.93);
+  assert.equal(l.total_imponible, 1000000); // 800.000 + gratificación 25% (200.000, bajo el tope 213.354)
+  assert.equal(l.base_tributable, 818200);
+  assert.equal(l.descuentos.find((d) => d.concepto.startsWith("Impuesto")), undefined); // 11,4 UTM: exento
+  assert.equal(l.liquido, 868200);
+  assert.equal(l.costo_empresa, 1109500);
+  assert.equal(impuestoUnico(2000000, 72000), 41120);
+  assert.equal(impuestoUnico(10000000, 72000), 1820960);
+  assert.equal(impuestoUnico(972000, 72000), 0);
+  const alto = liquidar({ ...t, sueldo_base: 5000000, gratificacion: "ninguna", colacion: 0 }, n, p, 0.93);
+  assert.equal(alto.descuentos[0].monto, Math.round(3600000 * 0.1058)); // AFP sobre el tope de 90 UF
+  assert.ok(alto.advertencias.some((a) => a.includes("tope")));
+  const plazo = liquidar({ ...t, tipo_contrato: "plazo_fijo" }, n, p, 0.93);
+  assert.ok(!plazo.descuentos.some((d) => d.concepto.startsWith("Seguro")));
+  assert.equal(plazo.aportes_empleador[0].monto, 30000);
+  const isapre = liquidar({ ...t, salud: "isapre", plan_isapre_uf: 3 }, n, p, 0.93);
+  assert.equal(isapre.descuentos[1].monto, 120000); // plan 3 UF > 7%
+  assert.equal(isapre.base_tributable, 818200); // rebaja solo el 7% legal
+  const medio = liquidar(t, { ...n, dias_trabajados: 15 }, p, 0.93);
+  assert.equal(medio.haberes_imponibles[0].monto, 400000);
+  assert.equal(normalizarRut("12.345.678-5"), "12345678-5");
+  assert.equal(normalizarRut("12345678-K"), null);
+  assert.equal(leerParametros({ ...p, uf: "40000" }), null);
+  assert.equal(leerParametros({ ...p, afp: {} }), null);
+  assert.equal(leerNovedades({ dias_trabajados: 31 }), null);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
