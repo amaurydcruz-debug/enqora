@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dbCode } from "@/lib/db-errors";
+import { generarPolitica, PLANTILLA_DATOS_VERSION, validarPolitica } from "@/lib/plantilla-datos";
 import { generarDocumento, PLANTILLAS_VERSION, TIPOS_DOC, validarDatos, type TipoDoc } from "@/lib/plantillas-laborales";
 import { todayCL } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
@@ -45,4 +46,22 @@ export async function revisarDocumentoLaboralAction(form: FormData): Promise<voi
   });
   revalidatePath("/mando/laboral");
   redirect(`/mando/laboral?${error ? `error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}` : `aviso=${decision}`}`);
+}
+
+// Política de tratamiento de datos personales (0076): mismo flujo de revisión jurídica.
+export async function generarPoliticaDatosAction(form: FormData): Promise<void> {
+  const company = txt(form, "empresa");
+  if (!UUID.test(company)) redirect("/datos-personales?error=ENQ_DATOS_INVALIDOS");
+  const datos = validarPolitica({
+    ...Object.fromEntries(["razon_social", "rut", "domicilio", "representante", "correo", "sitio", "encargado", "internacional", "automatizadas"].map((k) => [k, txt(form, k)])),
+    grupos: form.getAll("grupos").map(String), destinatarios: form.getAll("destinatarios").map(String),
+  });
+  if (typeof datos === "string") redirect(`/datos-personales?mensaje=${encodeURIComponent(datos)}`);
+  const fecha = todayCL().split("-").reverse().join("-");
+  const { error } = await (await createClient()).rpc("doc_laboral_generar", {
+    p_company: company, p_tipo: "politica_datos", p_plantilla: PLANTILLA_DATOS_VERSION, p_datos: datos, p_contenido: generarPolitica(datos, fecha),
+  });
+  if (error) redirect(`/datos-personales?error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}`);
+  revalidatePath("/datos-personales");
+  redirect("/datos-personales?aviso=enviado");
 }

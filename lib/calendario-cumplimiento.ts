@@ -73,7 +73,7 @@ export function vencimientos(p: Perfil, desde: string, dias = 60): Vencimiento[]
   if (conTrab) add({ clave: "jornada40:2028-04-26", fecha: "2028-04-26", titulo: "Jornada de 40 horas", institucion: "Dirección del Trabajo", categoria: "empleador",
     detalle: "Desde el 26-04-2028 el máximo semanal baja de 42 a 40 horas, sin rebajar sueldos." });
   add({ clave: "datos:2026-12-01", fecha: "2026-12-01", titulo: "Ley de datos personales (21.719)", institucion: "Agencia de Protección de Datos", categoria: "profesionales",
-    detalle: "Vigencia fijada para el 1-12-2026; hay un proyecto en trámite para postergarla al 15-10-2027." });
+    detalle: "Fecha legal vigente: 1-12-2026. El Congreso despachó el 17-11-2026 la postergación al 15-10-2027; rige cuando se publique en el Diario Oficial." });
 
   return out.sort((a, b) => a.fecha.localeCompare(b.fecha) || a.titulo.localeCompare(b.titulo));
 }

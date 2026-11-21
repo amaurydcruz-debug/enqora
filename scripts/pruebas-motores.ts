@@ -28,6 +28,7 @@ import { pasoDe } from "@/lib/accounting";
 import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
+import { generarPolitica, validarPolitica } from "@/lib/plantilla-datos";
 import { impuestoUnico, leerNovedades, leerParametros, liquidar, normalizarRut, type Parametros, type Trabajador } from "@/lib/remuneraciones";
 import { tocaAvisar, vencimientos } from "@/lib/calendario-cumplimiento";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
@@ -651,6 +652,22 @@ prueba("Ley Karin: validación de datos y borradores del protocolo y del procedi
   assert.ok(pr.includes("3 días") && pr.includes("30 días") && pr.includes("15 días") && pr.includes("25%"));
   assert.ok(recordatorios({ ...d, trabajadores: 25 }).some((x) => x.includes("SEREMI")));
   assert.ok(recordatorios(d).some((x) => x.includes("al firmar cada contrato")));
+});
+
+prueba("Política de datos personales: validación y contenido del art. 14 ter", () => {
+  const base = { razon_social: "Andes SpA", rut: "76086428-5", domicilio: "Av. Siempre Viva 123, Santiago", representante: "Ana Pérez",
+    correo: "privacidad@andes.cl", sitio: "", encargado: "", internacional: "", automatizadas: "no" };
+  assert.equal(typeof validarPolitica({ ...base, grupos: [] }), "string");
+  assert.equal(typeof validarPolitica({ ...base, correo: "x", grupos: ["clientes"] }), "string");
+  const d = validarPolitica({ ...base, grupos: ["clientes", "trabajadores", "inventado"], destinatarios: ["contabilidad", "publicos"] });
+  assert.ok(typeof d !== "string");
+  if (typeof d === "string") return;
+  assert.deepEqual(d.grupos, ["clientes", "trabajadores"]);
+  const p = generarPolitica(d, "21-11-2026");
+  for (const x of ["Andes SpA", "privacidad@andes.cl", "Clientes:", "Personas trabajadoras:", "portabilidad", "30 días corridos", "Agencia de Protección de Datos Personales", "No transferimos datos personales fuera de Chile"]) assert.ok(p.includes(x), x);
+  assert.ok(!p.includes("Postulantes"));
+  const p2 = generarPolitica({ ...d, internacional: "nube en Estados Unidos", automatizadas: true }, "21-11-2026");
+  assert.ok(p2.includes("nube en Estados Unidos") && p2.includes("lógica aplicada"));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

@@ -5,11 +5,14 @@ import { Notice } from "@/components/auth-card";
 import { Callout } from "@/components/disclosure";
 import { SubmitButton } from "@/components/submit-button";
 import { messageForCode } from "@/lib/db-errors";
-import { TIPOS_DOC, type TipoDoc } from "@/lib/plantillas-laborales";
+import { TIPOS_DOC as KARIN } from "@/lib/plantillas-laborales";
+
+const TIPOS_DOC: Record<string, string> = { ...KARIN, politica_datos: "Política de tratamiento de datos personales (Ley 21.719)" };
+type TipoDoc = string;
 import { myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Revisión de documentos laborales" };
+export const metadata: Metadata = { title: "Revisión de documentos" };
 
 type Doc = { id: string; company_id: string; tipo: TipoDoc; version: number; estado: string; contenido: string; plantilla: string; creado: string; observacion: string | null };
 const AVISOS: Record<string, string> = { aprobar: "Documento aprobado. La empresa ya puede imprimirlo.", observar: "Observaciones enviadas a la empresa." };
@@ -37,12 +40,12 @@ export default async function RevisionLaboralPage({ searchParams }: { searchPara
       <header className="hero">
         <div className="hero-main">
           <span className="eyebrow">Operación</span>
-          <h1>Documentos laborales · Ley Karin</h1>
-          <p className="hero-lead">Protocolos y procedimientos que prepararon las empresas con la plantilla de ENQORA. Nada llega al cliente como definitivo sin tu aprobación.</p>
+          <h1>Revisión de documentos para clientes</h1>
+          <p className="hero-lead">Protocolos de la Ley Karin y políticas de datos personales que prepararon las empresas con las plantillas de ENQORA. Nada llega al cliente como definitivo sin tu aprobación.</p>
         </div>
       </header>
       <Callout kind="warn" title="Qué revisar">
-        Que los datos de la empresa sean coherentes, que los plazos y sanciones coincidan con los artículos 211-A y siguientes del Código del Trabajo vigentes, y que el protocolo cumpla los contenidos mínimos de la SUSESO. Puedes corregir el texto antes de aprobar: se guarda como una versión nueva y la original queda en el historial.
+        Que los datos de la empresa sean coherentes. Ley Karin: plazos y sanciones de los artículos 211-A y siguientes del Código del Trabajo y contenidos mínimos de la SUSESO. Datos personales: información del artículo 14 ter de la Ley 19.628 (modificada por la Ley 21.719), plazos de conservación y fundamentos de cada tratamiento. Puedes corregir el texto antes de aprobar: se guarda como una versión nueva y la original queda en el historial.
       </Callout>
 
       <section className="card">
