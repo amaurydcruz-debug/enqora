@@ -49,6 +49,7 @@ export default async function MarcasInapiPage({ searchParams }: { searchParams: 
           {"error" in muestra ? <Callout kind="risk" title="No se pudo leer">{muestra.error}</Callout> : (
             <>
               <p className="muted-line">{mb(muestra.bytes)} · hoja «{muestra.hoja.hoja}» · primeras {muestra.hoja.filas.length} filas{muestra.hoja.truncado ? " (hay más)" : ""}. Las fechas pueden verse como número de serie de Excel.</p>
+              {muestra.hoja.diagnostico ? <pre className="doc-editor" style={{ minHeight: 0, whiteSpace: "pre-wrap" }}>{muestra.hoja.diagnostico}</pre> : null}
               <div className="table-scroll">
                 <table className="ledger-table">
                   <tbody>
