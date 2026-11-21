@@ -274,6 +274,9 @@ export default async function ChargesAdminPage({ searchParams }: { searchParams:
                   <div className="field"><label htmlFor="b-mail">Correo para avisos</label><input id="b-mail" name="notify_email" type="email" className="input" maxLength={160} defaultValue={bank.notify_email ?? ""} /></div>
                 </div>
                 <div className="field"><label htmlFor="b-note">Indicaciones al cliente</label><textarea id="b-note" name="transfer_note" className="input" rows={2} maxLength={500} defaultValue={bank.transfer_note ?? ""} /></div>
+                <div className="field"><label htmlFor="b-abono">Abono antes de ejecutar (% del precio)</label>
+                  <input id="b-abono" name="abono_pct" type="number" min={10} max={100} className="input mono" defaultValue={(bank as { abono_pct?: number }).abono_pct ?? 50} />
+                  <span className="hint">Al aceptar una cotización se cobra este porcentaje; el caso se ejecuta cuando se confirma el pago y el saldo se cobra al terminar. 100 = todo por adelantado.</span></div>
                 <div className="panel-actions"><SubmitButton className="btn-inline" pendingText="Guardando…">Guardar datos</SubmitButton></div>
               </form>
             ) : (

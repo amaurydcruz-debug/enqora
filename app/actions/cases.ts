@@ -261,3 +261,12 @@ export async function setStaffRoleAction(_: CaseFormState, fd: FormData): Promis
   revalidatePath("/mando/equipo");
   return { ok: role ? `${email} quedó en el equipo ENQORA.` : `${email} fue desactivado del equipo.` };
 }
+
+// ---------- Abono antes de ejecutar (0070): excepción de la supervisión ----------
+export async function eximirPagoAction(fd: FormData): Promise<void> {
+  const caseId = uuid(fd, "case_id");
+  if (!caseId) redirect("/casos");
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("eximir_pago_caso", { p_case: caseId, p_tipo: text(fd, "tipo", 10), p_motivo: text(fd, "motivo", 500) });
+  back(caseId, error, "exencion");
+}
