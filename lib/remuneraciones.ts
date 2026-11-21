@@ -10,8 +10,12 @@ export type Parametros = {
   tope_afp_uf: number;        // tope imponible AFP, salud y accidentes (UF)
   tope_afc_uf: number;        // tope imponible seguro de cesantía (UF)
   afp: Record<string, number>;// tasa de cargo del trabajador por AFP (10% + comisión), en %
-  sis: number;                // % de cargo del empleador (revisar si ya está incluido en el aporte)
-  aporte_empleador: number;   // % total del aporte del empleador (Ley 21.735) del período
+  // Aporte del empleador, Ley 21.735 (desde agosto de 2026 se declara en cuatro partes en Previred):
+  sis: number;                // Seguro de Invalidez y Sobrevivencia (campo 29)
+  aporte_ci: number;          // capitalización individual, a la cuenta del trabajador (va junto a la cotización AFP, campo 28)
+  aporte_ev: number;          // Seguro Social · compensación por expectativa de vida (campo 94)
+  aporte_rp: number;          // Seguro Social · cotización con rentabilidad protegida (campo 95)
+  ccaf_salud?: number;        // parte del 7% de Fonasa que se entera en la CCAF (solo si la empresa está en una CCAF)
   afc_indefinido_trab: number; afc_indefinido_emp: number; afc_plazo_emp: number; // %
   salud_legal: number;        // % (7)
 };
@@ -22,7 +26,14 @@ export type Trabajador = {
 };
 export type Novedades = { dias_trabajados: number; horas_extra: number; bonos_imponibles: number; anticipos: number; otros_descuentos: number };
 export type Linea = { concepto: string; monto: number; nota?: string };
+// Montos estructurados para Previred y el LRE (cada uno en pesos).
+export type Montos = {
+  sueldo: number; horas_extra: number; bonos: number; gratificacion: number; colacion: number; movilizacion: number;
+  base_afp: number; base_afc: number; afp: number; salud_legal: number; salud_adicional: number; afc_trab: number; impuesto: number;
+  anticipos: number; otros: number; afc_emp: number; sis: number; aporte_ci: number; aporte_ev: number; aporte_rp: number; mutual: number;
+};
 export type Liquidacion = {
+  montos: Montos;
   haberes_imponibles: Linea[]; haberes_no_imponibles: Linea[]; descuentos: Linea[]; aportes_empleador: Linea[];
   total_imponible: number; base_tributable: number; total_haberes: number; total_descuentos: number; liquido: number; costo_empresa: number;
   advertencias: string[];
@@ -51,7 +62,7 @@ const pct = (v: number, p: number) => r((v * p) / 100);
 export function faltantes(p: Partial<Parametros> | null, t?: Trabajador): string[] {
   if (!p) return ["parámetros del mes"];
   const out: string[] = [];
-  for (const k of ["uf", "utm", "imm", "tope_afp_uf", "tope_afc_uf", "sis", "aporte_empleador", "afc_indefinido_trab", "afc_indefinido_emp", "afc_plazo_emp", "salud_legal"] as const) {
+  for (const k of ["uf", "utm", "imm", "tope_afp_uf", "tope_afc_uf", "sis", "aporte_ci", "aporte_ev", "aporte_rp", "afc_indefinido_trab", "afc_indefinido_emp", "afc_plazo_emp", "salud_legal"] as const) {
     if (!(typeof p[k] === "number" && (p[k] as number) >= 0)) out.push(k);
   }
   if (t && !(p.afp && typeof p.afp[t.afp] === "number")) out.push(`tasa de la AFP ${t.afp}`);
@@ -101,16 +112,32 @@ export function liquidar(t: Trabajador, n: Novedades, p: Parametros, tasaMutual:
   if (n.otros_descuentos > 0) descuentos.push({ concepto: "Otros descuentos", monto: r(n.otros_descuentos) });
 
   const afcEmp = pct(baseAfc, t.tipo_contrato === "indefinido" ? p.afc_indefinido_emp : p.afc_plazo_emp);
+  // Ley 21.735: capitalización individual y rentabilidad protegida solo por días trabajados; SIS y expectativa de vida
+  // sobre la misma renta imponible (las licencias médicas, que usan la RIMA, aún no están contempladas).
+  const sis = pct(baseAfp, p.sis);
+  const ci = pct(baseAfp, p.aporte_ci);
+  const ev = pct(baseAfp, p.aporte_ev);
+  const rp = pct(baseAfp, p.aporte_rp);
+  const mutual = pct(baseAfp, tasaMutual);
   const aportes: Linea[] = [
     { concepto: `Seguro de cesantía empleador (${t.tipo_contrato === "indefinido" ? p.afc_indefinido_emp : p.afc_plazo_emp}%)`, monto: afcEmp },
-    { concepto: `SIS (${p.sis}%)`, monto: pct(baseAfp, p.sis) },
-    { concepto: `Aporte del empleador a pensiones, Ley 21.735 (${p.aporte_empleador}%)`, monto: pct(baseAfp, p.aporte_empleador) },
-    { concepto: `Mutual, Ley 16.744 (${tasaMutual}%)`, monto: pct(baseAfp, tasaMutual) },
-  ];
+    { concepto: `SIS (${p.sis}%)`, monto: sis },
+    { concepto: `Capitalización individual, Ley 21.735 (${p.aporte_ci}%)`, monto: ci },
+    { concepto: `Seguro Social · expectativa de vida (${p.aporte_ev}%)`, monto: ev },
+    { concepto: `Seguro Social · rentabilidad protegida (${p.aporte_rp}%)`, monto: rp },
+    { concepto: `Mutual o ISL, Ley 16.744 (${tasaMutual}%)`, monto: mutual },
+  ].filter((l) => l.monto > 0 || l.concepto.startsWith("Mutual"));
   const totalHab = totalImp + noImp.reduce((s, l) => s + l.monto, 0);
   const totalDesc = descuentos.reduce((s, l) => s + l.monto, 0);
   if (totalHab - totalDesc < 0) adv.push("Los descuentos superan los haberes: revisa anticipos y otros descuentos.");
+  const montos: Montos = {
+    sueldo, horas_extra: extra, bonos: r(Math.max(0, n.bonos_imponibles)), gratificacion: grat,
+    colacion: noImp.find((l) => l.concepto === "Colación")?.monto ?? 0, movilizacion: noImp.find((l) => l.concepto === "Movilización")?.monto ?? 0,
+    base_afp: baseAfp, base_afc: baseAfc, afp, salud_legal: saludLegal, salud_adicional: salud - saludLegal, afc_trab: afcTrab, impuesto,
+    anticipos: r(Math.max(0, n.anticipos)), otros: r(Math.max(0, n.otros_descuentos)), afc_emp: afcEmp, sis, aporte_ci: ci, aporte_ev: ev, aporte_rp: rp, mutual,
+  };
   return {
+    montos,
     haberes_imponibles: imponibles, haberes_no_imponibles: noImp, descuentos, aportes_empleador: aportes,
     total_imponible: totalImp, base_tributable: baseTrib, total_haberes: totalHab, total_descuentos: totalDesc,
     liquido: totalHab - totalDesc, costo_empresa: totalHab + aportes.reduce((s, l) => s + l.monto, 0), advertencias: adv,
@@ -118,19 +145,21 @@ export function liquidar(t: Trabajador, n: Novedades, p: Parametros, tasaMutual:
 }
 
 // ---------- Utilidades compartidas (página, acciones y pruebas) ----------
-export const MOTOR_REM = "rem-2026-11";
+export const MOTOR_REM = "rem-2026-11b";
 export const AFPS = ["Capital", "Cuprum", "Habitat", "Modelo", "PlanVital", "Provida", "Uno"] as const;
 export const MUTUALES = ["ACHS", "IST", "Mutual de Seguridad", "ISL"] as const;
 export const CONTRATOS: Record<Trabajador["tipo_contrato"], string> = { indefinido: "Indefinido", plazo_fijo: "Plazo fijo", obra: "Obra o faena" };
-export const CLAVES_PARAMETROS: { k: Exclude<keyof Parametros, "afp">; etiqueta: string; unidad: "$" | "UF" | "%" }[] = [
+export const CLAVES_PARAMETROS: { k: Exclude<keyof Parametros, "afp" | "ccaf_salud">; etiqueta: string; unidad: "$" | "UF" | "%" }[] = [
   { k: "uf", etiqueta: "UF del último día del mes", unidad: "$" },
   { k: "utm", etiqueta: "UTM del mes", unidad: "$" },
   { k: "imm", etiqueta: "Ingreso mínimo mensual", unidad: "$" },
   { k: "tope_afp_uf", etiqueta: "Tope imponible AFP, salud y accidentes", unidad: "UF" },
   { k: "tope_afc_uf", etiqueta: "Tope imponible seguro de cesantía", unidad: "UF" },
   { k: "salud_legal", etiqueta: "Cotización legal de salud", unidad: "%" },
-  { k: "sis", etiqueta: "SIS de cargo del empleador (0 si ya va dentro del aporte)", unidad: "%" },
-  { k: "aporte_empleador", etiqueta: "Aporte del empleador Ley 21.735 (sin SIS si este se informa aparte)", unidad: "%" },
+  { k: "sis", etiqueta: "SIS · cargo del empleador (campo 29)", unidad: "%" },
+  { k: "aporte_ci", etiqueta: "Ley 21.735 · capitalización individual", unidad: "%" },
+  { k: "aporte_ev", etiqueta: "Ley 21.735 · expectativa de vida (campo 94)", unidad: "%" },
+  { k: "aporte_rp", etiqueta: "Ley 21.735 · rentabilidad protegida (campo 95)", unidad: "%" },
   { k: "afc_indefinido_trab", etiqueta: "Seguro de cesantía · trabajador (indefinido)", unidad: "%" },
   { k: "afc_indefinido_emp", etiqueta: "Seguro de cesantía · empleador (indefinido)", unidad: "%" },
   { k: "afc_plazo_emp", etiqueta: "Seguro de cesantía · empleador (plazo fijo u obra)", unidad: "%" },
@@ -172,7 +201,9 @@ export function leerParametros(v: unknown): Parametros | null {
     tasas[nombre] = t;
   }
   if (!Object.keys(tasas).length) return null;
-  return { ...(out as Omit<Parametros, "afp">), afp: tasas };
+  const ccaf = o.ccaf_salud;
+  if (ccaf !== undefined && ccaf !== null && (typeof ccaf !== "number" || ccaf < 0 || ccaf > 7)) return null;
+  return { ...(out as Omit<Parametros, "afp">), afp: tasas, ...(typeof ccaf === "number" ? { ccaf_salud: ccaf } : {}) };
 }
 
 export function leerNovedades(o: Partial<Record<keyof Novedades, unknown>>): Novedades | null {

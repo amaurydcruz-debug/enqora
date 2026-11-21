@@ -9,6 +9,8 @@ import { SubmitButton } from "@/components/submit-button";
 import { booksCompany } from "@/lib/accounting-server";
 import { messageForCode } from "@/lib/db-errors";
 import { clp, todayCL } from "@/lib/pricing";
+import { CAUSALES, CCAFS, ISAPRES, JORNADAS_LRE } from "@/lib/rem-archivos";
+import { prepararArchivos } from "@/lib/rem-archivos-server";
 import { AFPS, CONTRATOS, MUTUALES, periodoValido, type Liquidacion, type Linea, type Novedades } from "@/lib/remuneraciones";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,13 +20,15 @@ type Trab = {
   id: string; rut: string; nombre: string; cargo: string | null; fecha_ingreso: string; tipo_contrato: "indefinido" | "plazo_fijo" | "obra";
   sueldo_base: number; jornada_horas: number; afp: string; salud: "fonasa" | "isapre"; isapre: string | null; plan_isapre_uf: number | null;
   colacion: number; movilizacion: number; gratificacion: "art50" | "ninguna"; activo: boolean; fecha_baja: string | null; motivo_baja: string | null;
+  apellido_paterno: string | null; apellido_materno: string | null; nombres: string | null; sexo: "M" | "F" | null; extranjero: boolean;
+  comuna: number | null; jornada_lre: number | null; fun: string | null; causal_termino: number | null;
 };
 type Liq = {
   id: string; trabajador_id: string; version: number; estado: "borrador" | "aprobada" | "anulada"; detalle: Liquidacion; novedades: Novedades;
   total_imponible: number; liquido: number; costo_empresa: number; creado: string; aprobado_at: string | null; motivo_anulacion: string | null;
 };
 const AVISOS: Record<string, string> = {
-  mutual: "Mutual guardada.", trabajador: "Trabajador agregado.", trabajador_editado: "Ficha actualizada (el cambio quedó en la bitácora).",
+  mutual: "Datos de la empresa guardados.", trabajador: "Trabajador agregado.", trabajador_editado: "Ficha actualizada (el cambio quedó en la bitácora).",
   baja: "Trabajador dado de baja. Su historial se conserva.", calculada: "Liquidación calculada como borrador. Revísala y apruébala.",
   aprobada: "Liquidación aprobada.", anulada: "Liquidación anulada con su motivo.",
 };
@@ -56,18 +60,21 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   const hoy = todayCL();
   const periodo = sp.periodo && periodoValido(sp.periodo) ? sp.periodo : hoy.slice(0, 7);
   const supabase = await createClient();
-  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }] = await Promise.all([
-    supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja")
+  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep] = await Promise.all([
+    supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja, apellido_paterno, apellido_materno, nombres, sexo, extranjero, comuna, jornada_lre, fun, causal_termino")
       .eq("company_id", company.id).order("activo", { ascending: false }).order("nombre"),
     supabase.from("rem_liquidaciones").select("id, trabajador_id, version, estado, detalle, novedades, total_imponible, liquido, costo_empresa, creado, aprobado_at, motivo_anulacion")
       .eq("company_id", company.id).eq("periodo", periodo).order("version", { ascending: false }),
     supabase.from("rem_parametros").select("id, version, fuente, aprobado_at").eq("periodo", periodo).eq("estado", "aprobado").maybeSingle(),
-    supabase.from("rem_empresa").select("mutual, tasa_mutual").eq("company_id", company.id).maybeSingle(),
+    supabase.from("rem_empresa").select("mutual, tasa_mutual, ccaf, mutual_sucursal").eq("company_id", company.id).maybeSingle(),
+    supabase.from("rem_exportaciones").select("tipo, trabajadores, sha256, creado").eq("company_id", company.id).eq("periodo", periodo).order("creado", { ascending: false }).limit(6),
+    prepararArchivos(company.id, periodo),
   ]);
+  const exportes = (xRows ?? []) as { tipo: string; trabajadores: number; sha256: string; creado: string }[];
   const trabajadores = (tRows ?? []) as Trab[];
   const liqs = (lRows ?? []) as Liq[];
   const parametros = par as { id: string; version: number; fuente: string; aprobado_at: string } | null;
-  const mutual = emp as { mutual: string; tasa_mutual: number } | null;
+  const mutual = emp as { mutual: string; tasa_mutual: number; ccaf: number; mutual_sucursal: number | null } | null;
   const activos = trabajadores.filter((t) => t.activo);
   const aprobadas = liqs.filter((l) => l.estado === "aprobada");
   const suma = (k: "liquido" | "costo_empresa" | "total_imponible") => aprobadas.reduce((s, l) => s + Number(l[k]), 0);
@@ -111,7 +118,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
       </section>
 
       <section className="ps-card" aria-labelledby="rem-mutual">
-        <div className="ps-card-cab"><h2 id="rem-mutual">Mutual de seguridad</h2></div>
+        <div className="ps-card-cab"><h2 id="rem-mutual">Datos previsionales de la empresa</h2></div>
         <form action={guardarMutualAction} className="form-grid">
           <input type="hidden" name="empresa" value={company.id} />
           <input type="hidden" name="periodo" value={periodo} />
@@ -126,6 +133,17 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
             <label htmlFor="rem-mutual-tasa">Tasa total (%)</label>
             <input id="rem-mutual-tasa" name="tasa" className="input" inputMode="decimal" required defaultValue={mutual ? String(mutual.tasa_mutual).replace(".", ",") : ""} placeholder="Ej.: 0,93" />
             <span className="hint">Básica más adicional, según el certificado de tu mutual.</span>
+          </div>
+          <div className="field">
+            <label htmlFor="rem-mutual-suc">Sucursal de pago de la mutual</label>
+            <input id="rem-mutual-suc" name="sucursal" className="input" inputMode="numeric" defaultValue={mutual?.mutual_sucursal ?? ""} placeholder="Ej.: 1" />
+            <span className="hint">Código que asigna la mutual (Previred, campo 99). No aplica al ISL.</span>
+          </div>
+          <div className="field">
+            <label htmlFor="rem-ccaf">Caja de compensación</label>
+            <select id="rem-ccaf" name="ccaf" className="input" defaultValue={String(mutual?.ccaf ?? 0)}>
+              {Object.entries(CCAFS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
           </div>
           <div className="field"><label>&nbsp;</label><SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="Guardando…">Guardar</SubmitButton></div>
         </form>
@@ -143,7 +161,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
                     <b>{t.nombre}</b>
                     <small>
                       {t.rut} · {t.cargo ? `${t.cargo} · ` : ""}{CONTRATOS[t.tipo_contrato]} · {clp(Number(t.sueldo_base))} base · {Number(t.jornada_horas)} h · AFP {t.afp} · {t.salud === "isapre" ? `Isapre ${t.isapre ?? ""} (${String(t.plan_isapre_uf).replace(".", ",")} UF)` : "Fonasa"}
-                      {t.activo ? "" : ` · baja ${t.fecha_baja}${t.motivo_baja ? `: ${t.motivo_baja}` : ""}`}
+                      {t.activo ? "" : ` · baja ${t.fecha_baja}${t.causal_termino ? ` · ${CAUSALES[t.causal_termino] ?? ""}` : ""}${t.motivo_baja ? `: ${t.motivo_baja}` : ""}`}
                     </small>
                   </span>
                   {liq ? <b className="mono">{clp(Number(liq.liquido))}</b> : null}
@@ -176,7 +194,11 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
                           <input type="hidden" name="id" value={t.id} />
                           <input type="hidden" name="periodo" value={periodo} />
                           <input name="fecha" type="date" className="input input-sm" required defaultValue={hoy} aria-label="Fecha de término" />
-                          <input name="motivo" className="input input-sm" required minLength={3} maxLength={300} placeholder="Causal o motivo" aria-label="Motivo" />
+                          <select name="causal" className="input input-sm" required defaultValue="" aria-label="Causal de término">
+                            <option value="" disabled>Causal legal…</option>
+                            {Object.entries(CAUSALES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                          </select>
+                          <input name="motivo" className="input input-sm" maxLength={300} placeholder="Nota (opcional)" aria-label="Nota" />
                           <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Dar de baja</SubmitButton>
                         </form>
                       </details>
@@ -193,8 +215,42 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
         </details>
       </section>
 
+      <section className="ps-card" id="archivos" aria-labelledby="rem-archivos">
+        <div className="ps-card-cab"><h2 id="rem-archivos">Archivos de {nombreMes(periodo)}</h2></div>
+        {prep.filas.length === 0 ? (
+          <p className="muted-line">Los archivos se generan con las liquidaciones aprobadas del mes. Aún no hay ninguna aprobada.</p>
+        ) : (
+          <>
+            {prep.faltanEmpresa.length || prep.filas.some((f) => f.faltan.length) ? (
+              <ul className="rem-adv">
+                {prep.faltanEmpresa.map((x) => <li key={x}>Empresa: falta {x}.</li>)}
+                {prep.filas.filter((f) => f.faltan.length).map((f) => <li key={f.ficha.rut}>{f.ficha.nombre}: falta {f.faltan.join(", ")}.</li>)}
+              </ul>
+            ) : null}
+            <div className="upload-row">
+              {prep.listo ? (
+                <>
+                  <a className="btn btn-gold btn-inline btn-sm" href={`/remuneraciones/archivo?tipo=previred&periodo=${periodo}`}>Nómina Previred (.txt)</a>
+                  <a className="btn btn-ghost btn-inline btn-sm" href={`/remuneraciones/archivo?tipo=lre&periodo=${periodo}`}>Libro de Remuneraciones (.csv)</a>
+                </>
+              ) : <span className="muted-line">Completa los datos pendientes para descargar.</span>}
+            </div>
+            <p className="muted-line">
+              {prep.filas.length} liquidación(es) aprobada(s). Previred: formato estándar por separador de 105 campos (al cargar, elige ese formato y revisa la cuadratura antes de pagar). LRE: carga masiva CSV en el portal de la Dirección del Trabajo, dentro de los 15 primeros días hábiles del mes siguiente. Los aportes de la Ley 21.735 se informan en el código 4155 mientras la Dirección del Trabajo no publique códigos propios.
+            </p>
+            {exportes.length ? (
+              <ul className="ps-filas">
+                {exportes.map((x) => (
+                  <li key={x.sha256 + x.creado}><span><b>{x.tipo === "previred" ? "Previred" : "LRE"} · {x.trabajadores} trabajador(es)</b><small>{new Date(x.creado).toLocaleString("es-CL", { timeZone: "America/Santiago" })} · huella {x.sha256.slice(0, 12)}…</small></span></li>
+                ))}
+              </ul>
+            ) : null}
+          </>
+        )}
+      </section>
+
       <Callout kind="info" title="Cálculo referencial, con revisión humana">
-        La liquidación usa las reglas generales (gratificación del art. 50 con tope de 4,75 ingresos mínimos al año, horas extra con recargo del 50%, impuesto único por tramos en UTM). Casos especiales —licencias médicas, semana corrida, pactos de isapre en pesos, APV o cargas familiares— se ajustan con tu contador antes de aprobar.
+        La liquidación usa las reglas generales (gratificación del art. 50 con tope de 4,75 ingresos mínimos al año, horas extra con recargo del 50%, impuesto único por tramos en UTM). Casos especiales —licencias médicas, semana corrida, pactos de isapre en pesos, APV, cargas familiares, pensionados o un ingreso y retiro en el mismo mes— se ajustan con tu contador antes de aprobar.
       </Callout>
     </div>
   );
@@ -267,9 +323,37 @@ function FichaForm({ empresa, periodo, t }: { empresa: string; periodo: string; 
         <label htmlFor={`${p}-rut`}>RUT</label>
         <input id={`${p}-rut`} name="rut" className="input" required={!t} disabled={!!t} defaultValue={t?.rut} placeholder="12.345.678-5" autoComplete="off" />
       </div>
-      <div className="field field-wide">
-        <label htmlFor={`${p}-nombre`}>Nombre completo</label>
-        <input id={`${p}-nombre`} name="nombre" className="input" required minLength={3} maxLength={120} defaultValue={t?.nombre} autoComplete="off" />
+      <div className="field">
+        <label htmlFor={`${p}-nom`}>Nombres</label>
+        <input id={`${p}-nom`} name="nombres" className="input" required maxLength={30} defaultValue={t?.nombres ?? (t && !t.apellido_paterno ? t.nombre : "")} autoComplete="off" />
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-ap`}>Apellido paterno</label>
+        <input id={`${p}-ap`} name="apellido_paterno" className="input" required maxLength={30} defaultValue={t?.apellido_paterno ?? ""} autoComplete="off" />
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-am`}>Apellido materno</label>
+        <input id={`${p}-am`} name="apellido_materno" className="input" maxLength={30} defaultValue={t?.apellido_materno ?? ""} autoComplete="off" />
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-sexo`}>Sexo (registro civil)</label>
+        <select id={`${p}-sexo`} name="sexo" className="input" defaultValue={t?.sexo ?? ""} required>
+          <option value="" disabled>Elige…</option>
+          <option value="F">Femenino</option>
+          <option value="M">Masculino</option>
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-nac`}>Nacionalidad</label>
+        <select id={`${p}-nac`} name="extranjero" className="input" defaultValue={t?.extranjero ? "si" : "no"}>
+          <option value="no">Chilena</option>
+          <option value="si">Extranjera</option>
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-com`}>Comuna donde trabaja (código)</label>
+        <input id={`${p}-com`} name="comuna" className="input" inputMode="numeric" required defaultValue={t?.comuna ?? ""} placeholder="Ej.: 13101 (Santiago)" />
+        <span className="hint">Código de comuna de la tabla del LRE (Dirección del Trabajo).</span>
       </div>
       <div className="field">
         <label htmlFor={`${p}-cargo`}>Cargo</label>
@@ -294,6 +378,12 @@ function FichaForm({ empresa, periodo, t }: { empresa: string; periodo: string; 
         <input id={`${p}-jor`} name="jornada_horas" className="input" inputMode="decimal" required defaultValue={t ? String(t.jornada_horas) : "42"} />
       </div>
       <div className="field">
+        <label htmlFor={`${p}-jlre`}>Tipo de jornada (LRE)</label>
+        <select id={`${p}-jlre`} name="jornada_lre" className="input" defaultValue={String(t?.jornada_lre ?? 101)}>
+          {Object.entries(JORNADAS_LRE).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+      </div>
+      <div className="field">
         <label htmlFor={`${p}-afp`}>AFP</label>
         <select id={`${p}-afp`} name="afp" className="input" defaultValue={t?.afp ?? ""} required>
           <option value="" disabled>Elige…</option>
@@ -309,7 +399,14 @@ function FichaForm({ empresa, periodo, t }: { empresa: string; periodo: string; 
       </div>
       <div className="field">
         <label htmlFor={`${p}-isa`}>Isapre (si aplica)</label>
-        <input id={`${p}-isa`} name="isapre" className="input" maxLength={40} defaultValue={t?.isapre ?? ""} />
+        <select id={`${p}-isa`} name="isapre" className="input" defaultValue={t?.isapre && t.isapre in ISAPRES ? t.isapre : ""}>
+          <option value="">—</option>
+          {Object.keys(ISAPRES).map((i) => <option key={i} value={i}>{i}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-fun`}>N° de FUN (isapre)</label>
+        <input id={`${p}-fun`} name="fun" className="input" maxLength={16} defaultValue={t?.fun ?? ""} />
       </div>
       <div className="field">
         <label htmlFor={`${p}-plan`}>Plan isapre (UF)</label>

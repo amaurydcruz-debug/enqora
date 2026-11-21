@@ -52,7 +52,7 @@ export default async function ParametrosRemPage({ searchParams }: { searchParams
       </header>
 
       <Callout kind="warn" title="Antes de aprobar">
-        Compara cada valor con la fuente oficial del mes (indicadores de Previred, valores del SII y comunicados de la Superintendencia de Pensiones). Revisa en especial si el SIS ya va incluido en el aporte del empleador de la Ley 21.735 para no cobrarlo dos veces, y cuál tope imponible rige en el mes.
+        Compara cada valor con la fuente oficial del mes (indicadores de Previred, valores del SII y comunicados de la Superintendencia de Pensiones). Desde agosto de 2026 el aporte del empleador de la Ley 21.735 se informa en partes: SIS (campo 29), capitalización individual (va con la cotización AFP), expectativa de vida (campo 94) y rentabilidad protegida (campo 95). Confirma también qué tope imponible rige en el mes y la distribución vigente del 7% entre Fonasa y la CCAF.
       </Callout>
 
       {puedeAprobar || role === "ai_agent" ? (
@@ -70,6 +70,10 @@ export default async function ParametrosRemPage({ searchParams }: { searchParams
                 <input id={`rp-${k}`} name={k} className="input" inputMode="decimal" required defaultValue={base ? String(base[k]).replace(".", ",") : ""} />
               </div>
             ))}
+            <div className="field">
+              <label htmlFor="rp-ccaf">Parte del 7% de Fonasa que va a la CCAF (%)</label>
+              <input id="rp-ccaf" name="ccaf_salud" className="input" inputMode="decimal" defaultValue={base?.ccaf_salud != null ? String(base.ccaf_salud).replace(".", ",") : ""} />
+            </div>
             {AFPS.map((a) => (
               <div className="field" key={a}>
                 <label htmlFor={`rp-afp-${a}`}>AFP {a} · cargo trabajador (%)</label>
@@ -100,7 +104,7 @@ export default async function ParametrosRemPage({ searchParams }: { searchParams
                   <span>
                     <b>{f.periodo} · v{f.version} · {ESTADO[f.estado] ?? f.estado}</b>
                     <small>
-                      {v ? `UF $${num(v.uf)} · UTM $${num(v.utm)} · IMM $${num(v.imm)} · topes ${num(v.tope_afp_uf)} / ${num(v.tope_afc_uf)} UF · SIS ${num(v.sis)}% · aporte ${num(v.aporte_empleador)}% · AFC ${num(v.afc_indefinido_trab)}/${num(v.afc_indefinido_emp)}/${num(v.afc_plazo_emp)}% · AFP ${Object.entries(v.afp).map(([a, t]) => `${a} ${num(t)}%`).join(", ")}` : "Valores incompletos"}
+                      {v ? `UF $${num(v.uf)} · UTM $${num(v.utm)} · IMM $${num(v.imm)} · topes ${num(v.tope_afp_uf)} / ${num(v.tope_afc_uf)} UF · SIS ${num(v.sis)}% · CI ${num(v.aporte_ci)}% · EV ${num(v.aporte_ev)}% · RP ${num(v.aporte_rp)}%${v.ccaf_salud != null ? ` · CCAF ${num(v.ccaf_salud)}%` : ""} · AFC ${num(v.afc_indefinido_trab)}/${num(v.afc_indefinido_emp)}/${num(v.afc_plazo_emp)}% · AFP ${Object.entries(v.afp).map(([a, t]) => `${a} ${num(t)}%`).join(", ")}` : "Valores incompletos"}
                     </small>
                     <small>Fuente: {f.fuente}{f.observaciones ? ` · ${f.observaciones}` : ""}</small>
                   </span>

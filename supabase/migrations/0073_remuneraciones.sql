@@ -72,18 +72,18 @@ declare
   k text;
   n numeric;
 begin
-  if jsonb_typeof(v) <> 'object' or octet_length(v::text) > 4000 then return false; end if;
+  if coalesce(jsonb_typeof(v), '') <> 'object' or octet_length(v::text) > 4000 then return false; end if;
   foreach k in array array['uf', 'utm', 'imm', 'tope_afp_uf', 'tope_afc_uf', 'sis', 'aporte_empleador', 'afc_indefinido_trab',
                            'afc_indefinido_emp', 'afc_plazo_emp', 'salud_legal'] loop
-    if jsonb_typeof(v -> k) <> 'number' then return false; end if;
+    if coalesce(jsonb_typeof(v -> k), '') <> 'number' then return false; end if;
     n := (v ->> k)::numeric;
     if n < 0 then return false; end if;
   end loop;
   if (v ->> 'uf')::numeric < 1000 or (v ->> 'utm')::numeric < 1000 or (v ->> 'imm')::numeric < 1000 then return false; end if;
   if (v ->> 'salud_legal')::numeric > 20 or (v ->> 'sis')::numeric > 10 or (v ->> 'aporte_empleador')::numeric > 20 then return false; end if;
-  if jsonb_typeof(v -> 'afp') <> 'object' or (select count(*) from jsonb_object_keys(v -> 'afp')) = 0 then return false; end if;
+  if coalesce(jsonb_typeof(v -> 'afp'), '') <> 'object' or (select count(*) from jsonb_object_keys(v -> 'afp')) = 0 then return false; end if;
   for k in select jsonb_object_keys(v -> 'afp') loop
-    if jsonb_typeof(v -> 'afp' -> k) <> 'number' or (v -> 'afp' ->> k)::numeric not between 10 and 15 then return false; end if;
+    if coalesce(jsonb_typeof(v -> 'afp' -> k), '') <> 'number' or (v -> 'afp' ->> k)::numeric not between 10 and 15 then return false; end if;
   end loop;
   return true;
 end

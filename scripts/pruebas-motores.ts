@@ -26,6 +26,7 @@ import { anonimizar, armarFuentes, informePorReglas, sanear, type Entrada } from
 import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
 import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
+import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { impuestoUnico, leerNovedades, leerParametros, liquidar, normalizarRut, type Parametros, type Trabajador } from "@/lib/remuneraciones";
 import { tocaAvisar, vencimientos } from "@/lib/calendario-cumplimiento";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
@@ -568,7 +569,7 @@ prueba("Calendario de cumplimiento: vencimientos según el perfil y avisos 7 y 1
 prueba("Remuneraciones: liquidación, topes, impuesto único y validaciones", () => {
   // Valores de PRUEBA (no son los oficiales del mes): solo verifican la aritmética del motor.
   const p: Parametros = { uf: 40000, utm: 72000, imm: 539000, tope_afp_uf: 90, tope_afc_uf: 135.2, afp: { Modelo: 10.58 }, sis: 1.62,
-    aporte_empleador: 1, afc_indefinido_trab: 0.6, afc_indefinido_emp: 2.4, afc_plazo_emp: 3, salud_legal: 7 };
+    aporte_ci: 0.1, aporte_ev: 0.5, aporte_rp: 0.4, afc_indefinido_trab: 0.6, afc_indefinido_emp: 2.4, afc_plazo_emp: 3, salud_legal: 7 };
   const t: Trabajador = { id: "t", nombre: "Ana", tipo_contrato: "indefinido", sueldo_base: 800000, jornada_horas: 42, afp: "Modelo", salud: "fonasa",
     plan_isapre_uf: null, colacion: 50000, movilizacion: 0, gratificacion: "art50" };
   const n = leerNovedades({})!;
@@ -597,6 +598,38 @@ prueba("Remuneraciones: liquidación, topes, impuesto único y validaciones", ()
   assert.equal(leerParametros({ ...p, uf: "40000" }), null);
   assert.equal(leerParametros({ ...p, afp: {} }), null);
   assert.equal(leerNovedades({ dias_trabajados: 31 }), null);
+});
+
+prueba("Remuneraciones: archivos de Previred (105 campos) y LRE", () => {
+  const p: Parametros = { uf: 40000, utm: 72000, imm: 539000, tope_afp_uf: 90, tope_afc_uf: 135.2, afp: { Uno: 10.46 }, sis: 1.5,
+    aporte_ci: 0.1, aporte_ev: 1, aporte_rp: 0.9, afc_indefinido_trab: 0.6, afc_indefinido_emp: 2.4, afc_plazo_emp: 3, salud_legal: 7 };
+  const t: Trabajador = { id: "t", nombre: "Ana", tipo_contrato: "indefinido", sueldo_base: 800000, jornada_horas: 42, afp: "Uno", salud: "fonasa",
+    plan_isapre_uf: null, colacion: 50000, movilizacion: 0, gratificacion: "art50" };
+  const liq = liquidar(t, leerNovedades({})!, p, 0.93);
+  const ficha = { rut: "12345678-5", apellido_paterno: "Pérez", apellido_materno: "Soto", nombres: "Ana", sexo: "F" as const, extranjero: false,
+    fecha_ingreso: "2026-11-03", fecha_baja: null, causal_termino: null, tipo_contrato: "indefinido" as const, jornada_horas: 42, jornada_lre: 101,
+    afp: "Uno", salud: "fonasa" as const, isapre: null, fun: null, plan_isapre_uf: null, comuna: 13101, nombre: "Ana Pérez Soto" };
+  const fila: FilaArchivo = { ficha, dias: 30, montos: liq.montos };
+  const emp = { mutual: "ACHS", tasa_mutual: 0.93, mutual_sucursal: 1, ccaf: 0 };
+  assert.deepEqual(faltantesArchivo(fila, emp), []);
+  assert.ok(faltantesArchivo({ ...fila, ficha: { ...ficha, comuna: null } }, emp).includes("comuna donde presta servicios"));
+  assert.ok(faltantesArchivo(fila, { ...emp, ccaf: 1 }).some((x) => x.includes("CCAF")));
+  const c = ["", ...archivoPrevired([fila], emp, "2026-11").trim().split(";")];
+  assert.equal(c.length, 106);
+  assert.equal(c[1], "12345678"); assert.equal(c[2], "5"); assert.equal(c[9], "112026"); assert.equal(c[15], "1"); assert.equal(c[16], "03-11-2026");
+  assert.equal(c[26], "35"); assert.equal(c[27], "1000000");
+  assert.equal(c[28], String(104600 + 1000)); // 10,46% del trabajador + 0,1% de capitalización individual
+  assert.equal(c[29], "15000"); assert.equal(c[70], "70000"); assert.equal(c[75], "07"); assert.equal(c[93], "1");
+  assert.equal(c[94], "10000"); assert.equal(c[95], "9000"); assert.equal(c[96], "01"); assert.equal(c[98], "9300"); assert.equal(c[101], "6000");
+  const lre = archivoLre([fila], emp, "2026-11").trim().split("\r\n");
+  const cab = encabezadoLre().split(";");
+  const val = lre[1].split(";");
+  assert.equal(cab.length, val.length);
+  const v = (cod: number) => val[cab.findIndex((h) => h.endsWith(`(${cod})`))];
+  assert.equal(v(1101), "12345678-5"); assert.equal(v(1102), "03/11/2026"); assert.equal(v(1105), "13"); assert.equal(v(1141), "19");
+  assert.equal(v(1143), "102"); assert.equal(v(5501), String(liq.liquido)); assert.equal(v(5210), String(liq.total_imponible));
+  assert.equal(v(4155), String(15000 + 1000 + 10000 + 9000));
+  assert.ok(esParcial(28, "2026-11") && !esParcial(30, "2026-11") && esParcial(29, "2026-03"));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
