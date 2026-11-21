@@ -33,6 +33,8 @@ export type Pedido = {
   solo?: Proveedor;
   // Módulo que llama: queda en el registro de uso de IA (0049). Sin él, la llamada no se registra.
   modulo?: ModuloIA;
+  // Imágenes o PDF para leer (p. ej., la foto de una boleta). Solo los procesa Claude (proveedor de datos privados).
+  adjuntos?: { media_type: "image/jpeg" | "image/png" | "image/webp" | "application/pdf"; base64: string }[];
 };
 
 // Uso: tokens consumidos (entrada y salida), sumando reintentos y proveedores probados. Campo adicional y opcional:
@@ -98,7 +100,8 @@ export async function llamarHerramienta(pedido: Pedido): Promise<Respuesta> {
 }
 
 async function llamar(pedido: Pedido): Promise<Respuesta> {
-  const candidatos = pedido.solo ? (configurado(pedido.solo) ? [pedido.solo] : []) : orden(pedido.datos);
+  const base = pedido.solo ? (configurado(pedido.solo) ? [pedido.solo] : []) : orden(pedido.datos);
+  const candidatos = pedido.adjuntos?.length ? base.filter((p) => p === "anthropic") : base;
   const intentos: Intento[] = [];
   if (!candidatos.length) return { input: null, motivo: "sin_proveedor", intentos };
   let uso: Uso = { entrada: 0, salida: 0 };
@@ -124,7 +127,12 @@ const httpMotivo = (status: number, err?: { type?: string; message?: string; cod
 
 // Claude: el modelo no admite forzar la herramienta (tool_choice «tool»/«any»): «auto» y un recordatorio.
 async function anthropic(p: Pedido): Promise<Salida> {
-  const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: p.prompt }];
+  const adjuntos = (p.adjuntos ?? []).map((a) => a.media_type === "application/pdf"
+    ? { type: "document", source: { type: "base64", media_type: a.media_type, data: a.base64 } }
+    : { type: "image", source: { type: "base64", media_type: a.media_type, data: a.base64 } });
+  const messages: { role: "user" | "assistant"; content: unknown }[] = [
+    { role: "user", content: adjuntos.length ? [...adjuntos, { type: "text", text: p.prompt }] : p.prompt },
+  ];
   let uso: Uso = { entrada: 0, salida: 0 };
   try {
     for (let intento = 0; intento < 2; intento++) {

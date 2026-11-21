@@ -67,7 +67,7 @@ export default async function SystemStatusPage() {
   if (!isSupervisorRole(role)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }, { error: m56Error }, { error: m57Error }, { error: m58Error }, { error: m59Error }, { error: m60Error }, { error: m61Error }, { data: m62Data }, { error: m63Error }, { error: m64Error }, { error: m65Error }, { error: m66Error }] = await Promise.all([
+  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }, { error: m56Error }, { error: m57Error }, { error: m58Error }, { error: m59Error }, { error: m60Error }, { error: m61Error }, { data: m62Data }, { error: m63Error }, { error: m64Error }, { error: m65Error }, { error: m66Error }, { error: m67Error }] = await Promise.all([
     supabase.rpc("system_status"), supabase.rpc("audit_stats"), supabase.rpc("avisos_entregas", { p_dias: 7 }),
     supabase.rpc("migraciones_estado"),
     supabase.from("field_task_types").select("code", { count: "exact", head: true }),
@@ -95,6 +95,8 @@ export default async function SystemStatusPage() {
     supabase.rpc("solicitudes_informes", { p_ids: [] }),
     // 0066: contabilidad mensual («Tu mes»).
     supabase.from("vat_returns").select("cliente_aprobo_at", { count: "exact", head: true }),
+    // 0067: registrar gasto con foto, voz o texto.
+    supabase.from("gastos").select("id", { count: "exact", head: true }),
   ]);
   // Entregas de avisos por canal, últimos 7 días (0051).
   const entregas = (Array.isArray(entregasData) ? entregasData : []) as { canal: string; enviados: number; pendientes: number; fallidos: number; omitidos: number; ultimo_envio: string | null; ultimo_error: string | null }[];
@@ -121,6 +123,7 @@ export default async function SystemStatusPage() {
     ["0064", !m64Error] as [string, boolean], // Líneas de servicio y documentos del cliente
     ["0065", !m65Error] as [string, boolean], // Informe de ingreso del enjambre
     ["0066", !m66Error] as [string, boolean], // Contabilidad mensual · Tu mes
+    ["0067", !m67Error] as [string, boolean], // Registrar gasto (foto, voz o texto)
   ].sort(([x], [y]) => x.localeCompare(y));
   const missingMigrations = migrations.filter(([, ok]) => !ok).map(([k]) => k);
   const lastMigration = migrations.at(-1)?.[0] ?? "0016";

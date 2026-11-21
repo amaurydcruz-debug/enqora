@@ -3778,3 +3778,37 @@ fieldset.mini-form legend { padding: 0 6px; }
   .tm-pasos { grid-template-columns: 1fr 1fr; }
   .tm-resumen dl > div { grid-template-columns: 1fr; gap: 2px; }
 }
+
+/* «Registrar gasto» (0067) */
+.tm-cab-acc { display: inline-flex; align-items: center; gap: 12px; }
+.gx { display: grid; gap: 12px; }
+.gx-modos { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.gx-modo { display: grid; gap: 4px; justify-items: start; text-align: left; padding: 16px; border-radius: 14px; border: 1px solid var(--hairline); background: rgba(5, 9, 20, 0.35); color: var(--text); cursor: pointer; font: inherit; }
+.gx-modo:hover, .gx-modo:focus-visible { border-color: var(--gold); background: rgba(198, 166, 107, 0.08); }
+.gx-modo b { font-size: 1rem; }
+.gx-modo small { color: var(--text-3); font-size: 0.82rem; }
+.gx-ico { font-size: 1.5rem; line-height: 1; }
+.gx-texto { display: grid; gap: 8px; }
+.gx-leyendo { margin: 0; padding: 14px; border-radius: 12px; border: 1px dashed var(--gold); color: var(--gold); text-align: center; }
+.gx-revisar { display: grid; grid-template-columns: minmax(0, 220px) 1fr; gap: 16px; align-items: start; }
+.gx-revisar:not(:has(.gx-foto)) { grid-template-columns: 1fr; }
+.gx-foto { width: 100%; border-radius: 12px; border: 1px solid var(--hairline); max-height: 360px; object-fit: contain; background: #000; }
+.gx-campos { display: grid; gap: 10px; }
+.gx-dudas { margin: 0; padding-left: 18px; color: #e8b562; font-size: 0.86rem; }
+.gx-uso { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.gx-uso legend { font-size: 0.88rem; color: var(--text-3); margin-bottom: 6px; }
+.chip-opcion { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--hairline); cursor: pointer; font-size: 0.9rem; }
+.chip-opcion input { position: absolute; opacity: 0; pointer-events: none; }
+.chip-opcion.is-on { border-color: var(--gold); color: var(--gold); background: rgba(198, 166, 107, 0.1); }
+.gx-aviso { margin: 0; padding: 10px 12px; border-radius: 10px; border-left: 3px solid var(--gold); background: rgba(198, 166, 107, 0.07); font-size: 0.86rem; }
+.gx-totales { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 0 0 12px; }
+.gx-totales > div { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--hairline); }
+.gx-totales dt { color: var(--text-3); font-size: 0.8rem; }
+.gx-totales dd { margin: 2px 0 0; font-weight: 700; font-size: 1.05rem; }
+.gx-chips { display: inline-flex; align-items: center; gap: 6px; }
+.ps-filas li.is-descartado { opacity: 0.55; }
+.ps-filas li.is-descartado b { text-decoration: line-through; }
+@media (max-width: 640px) {
+  .gx-revisar { grid-template-columns: 1fr; }
+  .gx-totales { grid-template-columns: 1fr 1fr 1fr; }
+}

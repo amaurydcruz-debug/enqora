@@ -19,7 +19,7 @@ const CALIDAD = 0.85;
 
 // Fotos de la cámara: se reducen y pasan a JPEG en el teléfono antes de subir (más rápido y liviano).
 // Si el navegador no puede leer la imagen, se sube tal cual cuando su tipo está permitido.
-async function prepararImagen(file: File): Promise<File> {
+export async function prepararImagen(file: File): Promise<File> {
   if (!file.type.startsWith("image/")) return file;
   const liviana = (file.type === "image/jpeg" || file.type === "image/png") && file.size <= 1_500_000;
   if (liviana) return file;

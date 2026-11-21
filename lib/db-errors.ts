@@ -20,6 +20,8 @@ const MESSAGES: Record<string, string> = {
   ENQ_NO_ES_EQUIPO: "Esa persona no pertenece al equipo ENQORA.",
   ENQ_CASO_CERRADO: "El caso está cerrado. Solo la supervisión puede reabrirlo.",
   ENQ_CIERRE_SIN_RESULTADO: "Para cerrar el caso describe el resultado obtenido (mínimo 10 caracteres).",
+  ENQ_PERIODO_CERRADO: "Ese mes ya fue aprobado o declarado: pide a tu contador que lo reabra para agregar o cambiar gastos.",
+  ENQ_FECHA_GASTO: "La fecha del gasto no puede ser futura ni de hace más de 13 meses.",
   ENQ_MES_NO_LISTO: "Tu mes todavía no está listo para aprobar: falta la revisión del contador ENQORA.",
   ENQ_FALTA_APROBACION_CLIENTE: "El cliente aún no aprueba su mes. El equipo solo registra la presentación de un F29 aprobado por el cliente.",
   ENQ_CONFIRMA_MES: "Marca la casilla para confirmar que revisaste el resumen de tu mes.",

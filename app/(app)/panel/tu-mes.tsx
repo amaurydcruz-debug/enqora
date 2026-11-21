@@ -24,7 +24,10 @@ export function TuMesCard({ mes, puedeAprobar }: { mes: TuMes; puedeAprobar: boo
     <section className="ps-card tm" id="tu-mes" aria-labelledby="tm-t">
       <div className="ps-card-cab">
         <h2 id="tm-t">Tu mes · {mesDe(mes.periodo)}</h2>
-        <Link href={`/contabilidad/${ym}`} className="ps-link">Ver detalle</Link>
+        <span className="tm-cab-acc">
+          <Link href="/gastos" className="btn btn-ghost btn-inline btn-sm">Registrar gasto</Link>
+          <Link href={`/contabilidad/${ym}`} className="ps-link">Ver detalle</Link>
+        </span>
       </div>
 
       <ol className="tm-pasos" aria-label="Pasos del cierre mensual">

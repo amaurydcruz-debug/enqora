@@ -109,6 +109,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       )}
       {active ? <Link href="/panel/detalle" className="menu-link">Detalle de mi empresa</Link> : null}
       {active ? <Link href="/contabilidad" className="menu-link">Contabilidad</Link> : null}
+      {active ? <Link href="/gastos" className="menu-link">Registrar gasto</Link> : null}
       <Link href="/facturacion" className="menu-link">Planes y pagos</Link>
       <Link href="/notificaciones" className="menu-link">Avisos</Link>
       <Link href="/seguridad" className="menu-link"><IconShield size={16} /> Seguridad de la cuenta</Link>

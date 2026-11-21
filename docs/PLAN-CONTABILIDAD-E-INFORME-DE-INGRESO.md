@@ -25,7 +25,7 @@ Ciclo interno: días 1–5 reunir datos y avisar faltantes · 6–12 conciliaci�
 
 Etapas:
 1. **Construida (21-11-2026, migración 0066):** tarjeta «Tu mes» en el inicio, aprobación del cliente con constancia del monto, «Tengo una observación», el equipo solo presenta lo aprobado por el cliente, recordatorios días 1–5 y 13–17. Base: plan mensual, Mandato Digital, importador RCV/cartola (ya existe), cierre mensual con aprobación y tarjeta «Tu mes».
-2. Gastos fáciles: foto y voz con lectura automática.
+2. **Construida (21-11-2026, migración 0067):** «Registrar gasto» con foto (la IA lee la boleta), voz o texto; el cliente confirma antes de guardar, clasifica negocio/personal con un toque y el contador revisa en la contabilidad del mes. Nada se borra: se descarta con motivo.
 3. Integraciones: Vania POS, archivos de otros POS, bancos.
 4. Automatización: conciliación y preguntas automáticas por agentes.
 

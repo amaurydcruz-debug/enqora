@@ -1,5 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { gastoRevisarAction } from "@/app/actions/gastos";
+import { CATEGORIAS_GASTO, DOCUMENTOS_GASTO } from "@/lib/gastos";
 import { notFound } from "next/navigation";
 import {
   clearBankAction,
@@ -113,6 +115,10 @@ export default async function PeriodPage({
     supabase.from("vat_returns").select("*").eq("company_id", company.id).eq("period", period).neq("status", "anulado").limit(1),
     supabase.from("subscriptions").select("plan_id, status").eq("company_id", company.id).in("status", ["activa", "vencida"]),
   ]);
+  // Gastos registrados por el cliente con foto, voz o texto (0067).
+  const { data: gRows } = await supabase.from("gastos").select("id, fecha, monto, descripcion, categoria, documento, proveedor, uso, estado, nota")
+    .eq("company_id", company.id).eq("period", period).order("fecha").limit(1000);
+  const gastos = (gRows ?? []) as { id: string; fecha: string; monto: number; descripcion: string; categoria: string; documento: string; proveedor: string | null; uso: string; estado: string; nota: string | null }[];
   const docs = (dRows ?? []) as AccDocument[];
   const moves = (mRows ?? []) as BankMovement[];
   const recs = ((rRows ?? []) as Reconciliation[]).filter((r) => moves.some((m) => m.id === r.movement_id));
@@ -312,6 +318,36 @@ export default async function PeriodPage({
             </details>
           ) : null}
           <p className="muted-line">Un movimiento se concilia con un solo documento del mismo monto. Pagos parciales o agrupados se clasifican y se revisan con tu contador.</p>
+        </div>
+      ),
+    },
+    {
+      id: "gastos",
+      title: "Gastos del cliente (foto, voz o texto)",
+      description: gastos.length ? `${gastos.filter((g) => g.estado === "registrado").length} por revisar de ${gastos.length}` : "Sin gastos registrados",
+      emblem: <Emblem name="contabilidad" size="sm" />,
+      content: (
+        <div className="catalog-body">
+          <p className="muted-line">Las facturas electrónicas ya vienen en el Registro de Compras: no las cuentes dos veces. Boletas y gastos sin documento van al Libro de Caja según su respaldo.</p>
+          {gastos.length ? (
+            <ul className="ps-filas">
+              {gastos.map((g) => (
+                <li key={g.id} className={g.estado === "descartado" ? "is-descartado" : ""}>
+                  <span><b>{g.descripcion}</b><small>{g.fecha} · {CATEGORIAS_GASTO[g.categoria] ?? g.categoria} · {DOCUMENTOS_GASTO[g.documento] ?? g.documento}{g.proveedor ? ` · ${g.proveedor}` : ""} · {g.uso === "personal" ? "personal" : g.uso === "negocio" ? "negocio" : "por clasificar"}{g.estado !== "registrado" ? ` · ${g.estado}` : ""}{g.nota ? ` · ${g.nota}` : ""}</small></span>
+                  <b className="mono">{clp(Number(g.monto))}</b>
+                  {g.estado === "registrado" && reviewer && staffRole !== "ai_agent" ? (
+                    <form action={gastoRevisarAction} className="upload-row">
+                      <input type="hidden" name="id" value={g.id} />
+                      <input type="hidden" name="empresa" value={company.id} />
+                      <input type="hidden" name="periodo" value={periodo} />
+                      <input name="nota" className="input input-sm" maxLength={300} placeholder="Nota (opcional)" aria-label="Nota" />
+                      <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Revisado</SubmitButton>
+                    </form>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : <p className="muted-line">El cliente registra gastos en «Registrar gasto» con la foto de la boleta o por voz.</p>}
         </div>
       ),
     },
