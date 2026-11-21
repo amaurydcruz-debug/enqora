@@ -3,16 +3,9 @@
 // NizaClasses, …, Applicants, …, FilingDate, PublicationDate, RegistrationDate, ExpirationDate, BrandName, …, SignType,
 // TypeName, SubtypeName, Status, IMAGE, LastUpdatedDate (fechas como número de serie de Excel).
 
-// Igual que private.inapi_norm en la base de datos.
-const DE = "áéíóúüñàèìòùâêîôûäëïöç";
-const A = "aeiouunaeiouaeiouaeioc";
+// Minúsculas, sin tildes ni diacríticos (Š → s, ñ → n), solo letras y números separados por un espacio.
 export function normalizarMarca(s: string): string {
-  let out = "";
-  for (const ch of String(s ?? "").toLowerCase()) {
-    const i = DE.indexOf(ch);
-    out += i >= 0 ? A[i] : ch;
-  }
-  return out.replace(/[^a-z0-9]+/g, " ").trim();
+  return String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 // Número de serie de Excel (días desde 1899-12-30) → AAAA-MM-DD.

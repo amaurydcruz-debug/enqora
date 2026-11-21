@@ -8,6 +8,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { conjuntoInapi, CONJUNTOS_MARCAS, descargarRecurso, type Conjunto } from "@/lib/inapi-datos";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
+import { prepararFilasMarcas } from "@/lib/marcas";
 import { leerXlsx, type HojaXlsx } from "@/lib/xlsx-lector";
 
 export const metadata: Metadata = { title: "Marcas INAPI · datos abiertos" };
@@ -73,17 +74,21 @@ export default async function MarcasInapiPage({ searchParams }: { searchParams: 
           <h2>Muestra · {muestra.nombre}</h2>
           {"error" in muestra ? <Callout kind="risk" title="No se pudo leer">{muestra.error}</Callout> : (
             <>
-              <p className="muted-line">{mb(muestra.bytes)} · hoja «{muestra.hoja.hoja}» · primeras {muestra.hoja.filas.length} filas{muestra.hoja.truncado ? " (hay más)" : ""}. Las fechas pueden verse como número de serie de Excel.</p>
+              <p className="muted-line">{mb(muestra.bytes)} · hoja «{muestra.hoja.hoja}» · primeras filas del archivo{muestra.hoja.truncado ? " (hay más)" : ""}.</p>
               {muestra.hoja.diagnostico ? <pre className="doc-editor" style={{ minHeight: 0, whiteSpace: "pre-wrap" }}>{muestra.hoja.diagnostico}</pre> : null}
-              <div className="table-scroll">
-                <table className="ledger-table">
-                  <tbody>
-                    {muestra.hoja.filas.map((f, i) => (
-                      <tr key={i}>{f.map((c, j) => (i === 0 ? <th key={j}>{c}</th> : <td key={j}>{c}</td>))}</tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <VistaMarcas filas={muestra.hoja.filas} />
+              <details className="ps-docs">
+                <summary>Ver columnas originales de INAPI</summary>
+                <div className="table-scroll">
+                  <table className="ledger-table">
+                    <tbody>
+                      {muestra.hoja.filas.map((f, i) => (
+                        <tr key={i}>{f.map((c, j) => (i === 0 ? <th key={j}>{c}</th> : <td key={j}>{c}</td>))}</tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </details>
             </>
           )}
         </section>
@@ -109,6 +114,40 @@ export default async function MarcasInapiPage({ searchParams }: { searchParams: 
           )}
         </section>
       ))}
+    </div>
+  );
+}
+
+const dmy = (iso: string | null) => (iso ? iso.split("-").reverse().join("-") : "—");
+
+// Vista legible: las mismas filas, ya interpretadas como las guarda ENQORA.
+function VistaMarcas({ filas }: { filas: string[][] }) {
+  const prep = prepararFilasMarcas(filas, new Date());
+  if ("error" in prep) return <Callout kind="warn" title="No se reconocieron las columnas">{prep.error}</Callout>;
+  return (
+    <div className="table-scroll">
+      <table className="ledger-table">
+        <thead>
+          <tr><th>Marca</th><th>Estado</th><th>¿Entra al buscador?</th><th>Clases</th><th>Titular</th><th>N° registro</th><th>N° solicitud</th><th>Presentada</th><th>Vence</th><th>Tipo</th><th>Etiqueta</th></tr>
+        </thead>
+        <tbody>
+          {prep.filas.map((m) => (
+            <tr key={m.clave}>
+              <td><b>{m.nombre || "(solo figura)"}</b></td>
+              <td>{m.estado}</td>
+              <td>{m.vigente ? "Sí" : "No"}</td>
+              <td>{m.clases.sort((a, b) => a - b).join(", ") || "—"}</td>
+              <td>{m.titulares || "—"}</td>
+              <td>{m.registro ?? "—"}</td>
+              <td>{m.solicitud}</td>
+              <td>{dmy(m.presentada)}</td>
+              <td>{dmy(m.vence)}</td>
+              <td>{m.tipo_signo || "—"}</td>
+              <td>{m.etiqueta ? <a href={m.etiqueta} target="_blank" rel="noopener noreferrer">ver</a> : "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
