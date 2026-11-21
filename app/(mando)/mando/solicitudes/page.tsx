@@ -7,6 +7,8 @@ import { DOCUMENTOS, nombreCategoria, type AnalisisCaso } from "@/lib/cora/caso"
 import { formatRut } from "@/lib/rut";
 import { myStaffRole } from "@/lib/staff";
 import { nombreLinea } from "@/lib/lineas";
+import { isSupervisorRole } from "@/lib/staff";
+import { InformeIngreso, type InformeRow } from "./informe";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Solicitudes de clientes" };
@@ -16,16 +18,26 @@ type Solicitud = {
   id: string; creada: string; rut: string | null; razon_social: string | null; nombre: string; canal: "correo" | "whatsapp"; contacto: string;
   relato: string; analisis: Partial<AnalisisCaso>; estado: "nueva" | "en_revision" | "cotizada" | "cerrada"; nota: string | null;
   referencia?: string | null; folio?: string | null; case_id?: string | null; con_cuenta?: boolean; vinculada_via?: string | null;
+  company_id?: string | null; linea?: string | null;
 };
 const ESTADO: Record<Solicitud["estado"], string> = { nueva: "Nueva", en_revision: "En revisión", cotizada: "Cotizada", cerrada: "Cerrada" };
 const TONO: Record<Solicitud["estado"], string> = { nueva: "gold", en_revision: "muted", cotizada: "ok", cerrada: "muted" };
 const fecha = (d: string) => new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Santiago" }).format(new Date(d));
+const ERRORES: Record<string, string> = {
+  ENQ_NO_ENCONTRADO: "No encontramos un caso con ese folio.",
+  ENQ_INFORME: "El enjambre no pudo entregar el informe ahora. Intenta nuevamente en unos minutos.",
+  ENQ_CORRECCION_CORTA: "Describe la corrección en al menos 10 caracteres.",
+  ENQ_SIN_PERMISO: "No tienes permiso para esta acción.",
+  ENQ_DATOS_INVALIDOS: "Revisa los datos e intenta nuevamente.",
+};
 const horas = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 3_600_000);
 
 // Centro de Mando → Solicitudes: los casos que cuentan los visitantes después de la consulta pública.
 // Compromiso con el cliente: cotización en 24 horas hábiles por el canal que eligió.
 export default async function SolicitudesPage({ searchParams }: { searchParams: Promise<{ estado?: string; aviso?: string; error?: string }> }) {
-  if (!(await myStaffRole())) notFound();
+  const rol = await myStaffRole();
+  if (!rol) notFound();
+  const supervisor = isSupervisorRole(rol);
   const { estado, aviso, error: errorCode } = await searchParams;
   const filtro = estado && estado in ESTADO ? estado : null;
   const supabase = await createClient();
@@ -35,6 +47,9 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
   type DocSol = { solicitud: string; id: string; nombre: string; tamano: number; fecha: string; path: string; en_caso: boolean; url?: string };
   const { data: docsData } = lista.length ? await supabase.rpc("solicitudes_documentos_equipo", { p_ids: lista.map((s) => s.id) }) : { data: [] };
   const docsSol = (Array.isArray(docsData) ? docsData : []) as DocSol[];
+  // Informe de ingreso del enjambre (0065): última versión de cada solicitud.
+  const { data: infData } = lista.length ? await supabase.rpc("solicitudes_informes", { p_ids: lista.map((s) => s.id) }) : { data: [] };
+  const informes = new Map(((Array.isArray(infData) ? infData : []) as InformeRow[]).map((r) => [r.solicitud, r]));
   if (docsSol.length) {
     const { data: firmadas } = await supabase.storage.from("expedientes").createSignedUrls(docsSol.map((d) => d.path), 600);
     const porPath = new Map(((firmadas ?? []) as { path: string | null; signedUrl: string }[]).map((f) => [f.path ?? "", f.signedUrl]));
@@ -55,7 +70,9 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
         </div>
       </header>
       {aviso === "vinculada" ? <p className="muted-line" role="status">✓ Solicitud vinculada al caso. Su relato quedó en la bitácora interna del caso.</p> : null}
-      {errorCode ? <p className="lookup-error" role="alert">{errorCode === "ENQ_NO_ENCONTRADO" ? "No encontramos un caso con ese folio." : "No pudimos vincular la solicitud."}</p> : null}
+      {aviso === "informe" ? <p className="muted-line" role="status">✓ El enjambre entregó una versión nueva del informe de ingreso.</p> : null}
+      {aviso === "corregido" ? <p className="muted-line" role="status">✓ Corrección guardada como versión nueva. El enjambre de esa línea la considerará en los próximos informes.</p> : null}
+      {errorCode ? <p className="lookup-error" role="alert">{ERRORES[errorCode] ?? "No pudimos completar la operación."}</p> : null}
 
       <nav className="inline-form" aria-label="Filtrar por estado">
         <Link href="/mando/solicitudes" className={`btn btn-inline btn-sm ${filtro ? "btn-ghost" : "btn-gold"}`}>Todas</Link>
@@ -71,12 +88,13 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
         const digitos = s.contacto.replace(/[^\d]/g, "");
         // Respuesta con texto inicial (el profesional lo completa con la propuesta y la cotización).
         const saludo = `Hola ${s.nombre.split(/\s+/)[0]}, te escribo de ENQORA por tu solicitud${s.razon_social ? ` de ${s.razon_social}` : ""}. Revisé tu caso y te propongo lo siguiente:\n\n`;
-        const href = s.canal === "whatsapp"
-          ? `https://wa.me/${digitos}?text=${encodeURIComponent(saludo)}`
-          : `mailto:${s.contacto}?subject=${encodeURIComponent("Tu solicitud en ENQORA · propuesta")}&body=${encodeURIComponent(saludo)}`;
+        const responder = (texto: string) => s.canal === "whatsapp"
+          ? `https://wa.me/${digitos}?text=${encodeURIComponent(texto)}`
+          : `mailto:${s.contacto}?subject=${encodeURIComponent("Tu solicitud en ENQORA · propuesta")}&body=${encodeURIComponent(texto)}`;
+        const href = responder(saludo);
         const h = horas(s.creada);
         return (
-          <section key={s.id} className="card">
+          <section key={s.id} id={`sol-${s.id}`} className="card">
             <div className="ref-main" style={{ gap: 6 }}>
               <span className="muted-line">
                 {fecha(s.creada)} · <span className={`status status-${TONO[s.estado]}`}>{ESTADO[s.estado]}</span>
@@ -105,6 +123,8 @@ export default async function SolicitudesPage({ searchParams }: { searchParams: 
                 {s.folio && s.case_id ? <> · Caso <Link href={`/casos/${s.case_id}`}>{s.folio}</Link></> : " · Sin caso vinculado"}
               </span>
             </div>
+            <InformeIngreso sol={s} row={informes.get(s.id) ?? null} supervisor={supervisor}
+              respuestaHref={(m) => responder(`Hola ${s.nombre.split(/\s+/)[0]}, te escribo de ENQORA por tu solicitud${s.referencia ? ` ${s.referencia}` : ""}.\n\n${m}`)} />
             {!s.case_id ? (
               <form action={vincularSolicitudAction} className="inline-form" style={{ flexWrap: "wrap", marginTop: 6 }}>
                 <input type="hidden" name="id" value={s.id} />

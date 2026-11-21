@@ -35,6 +35,8 @@ Modelo de cobro (en discusión): nunca se bloquea el acceso a la cuenta ni a los
 
 ## 2. Informe de ingreso («el análisis antes del médico»)
 
+**Construido (21-11-2026, migración 0065):** informe automático al llegar cada solicitud (y cron diario de respaldo), fuentes citadas por id (F1…), plazos con texto fijo, precio solo del catálogo vigente, conflicto calculado por la base, versiones inmutables, corrección que enseña a la línea, crear caso con un clic (supervisión) y borrador al cliente que envía una persona.
+
 Cada solicitud llega al Centro de Mando con un informe del enjambre experto en ese tema; la persona solo lee, corrige y decide.
 
 Hoy existe: análisis breve de CORA en la solicitud (resumen, área, documentos, urgencia laboral con texto fijo verificado) y seis agentes por caso (tributario, contable, legal, financiero, investigador, estratégico) que el equipo ejecuta a mano. Falta: ejecución automática al llegar, un informe único y consolidado, un agente laboral, y acciones de un clic.
