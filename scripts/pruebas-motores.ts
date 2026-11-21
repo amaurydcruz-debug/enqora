@@ -29,6 +29,7 @@ import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-a
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
 import { generarPolitica, validarPolitica } from "@/lib/plantilla-datos";
+import { esVigente, fechaExcel, normalizarMarca, prepararFilasMarcas } from "@/lib/marcas";
 import { impuestoUnico, leerNovedades, leerParametros, liquidar, normalizarRut, type Parametros, type Trabajador } from "@/lib/remuneraciones";
 import { tocaAvisar, vencimientos } from "@/lib/calendario-cumplimiento";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
@@ -668,6 +669,31 @@ prueba("Política de datos personales: validación y contenido del art. 14 ter",
   assert.ok(!p.includes("Postulantes"));
   const p2 = generarPolitica({ ...d, internacional: "nube en Estados Unidos", automatizadas: true }, "21-11-2026");
   assert.ok(p2.includes("nube en Estados Unidos") && p2.includes("lógica aplicada"));
+});
+
+prueba("Marcas INAPI: encabezados, fechas de Excel, vigencia y normalización", () => {
+  const H = ["ApplicationType","ApplicationSeq","ApplicationSerie","ApplicationNumber","RegistrationNumber","NizaClasses","VienaClasses","Regions","Applicants","Representatives","LocationApplicants","StateApplicants","LocationRepresentatives","StateRepresentatives","FilingDate","PublicationDate","RegistrationDate","ExpirationDate","BrandName","Translation","LabelDescription","ProtectionDescription","SignType","TypeName","SubtypeName","Status","IMAGE","LastUpdatedDate"];
+  const fila = (o: Record<string, string>) => H.map((h) => o[h] ?? "");
+  const filas = [[""], H,
+    fila({ ApplicationType: "M", ApplicationSeq: "A", ApplicationSerie: "1", ApplicationNumber: "1314225", RegistrationNumber: "1495402", NizaClasses: "7", Applicants: "(IT) Trelleborg", FilingDate: "43502", RegistrationDate: "46147", ExpirationDate: "49800", BrandName: "vulcan", SignType: "Mixta", Status: "Registrada", IMAGE: "https://buscadormarcas.inapi.cl/etiqueta/?s=1314225", LastUpdatedDate: "46347.27" }),
+    fila({ ApplicationType: "M", ApplicationSeq: "A", ApplicationSerie: "1", ApplicationNumber: "1653980", NizaClasses: "45", BrandName: "DefiéndeTE", Status: "Denegada", FilingDate: "46023" }),
+    fila({ ApplicationType: "M", ApplicationSeq: "A", ApplicationSerie: "1", ApplicationNumber: "1286963", RegistrationNumber: "1", NizaClasses: "1 ,12 ,16 ,2", BrandName: "RENOLIT", Status: "Registrada", ExpirationDate: "40000" }),
+    fila({ ApplicationNumber: "total" }),
+  ];
+  const r = prepararFilasMarcas(filas, new Date("2026-11-21T12:00:00Z"));
+  assert.ok(!("error" in r));
+  if ("error" in r) return;
+  assert.equal(r.filas.length, 3);
+  const [v, d, x] = r.filas;
+  assert.equal(v.clave, "M-A-1-1314225"); assert.equal(v.presentada, "2019-02-06"); assert.equal(v.vence, "2036-05-05"); assert.ok(v.vigente);
+  assert.equal(v.etiqueta, "https://buscadormarcas.inapi.cl/etiqueta/?s=1314225");
+  assert.ok(!d.vigente); assert.equal(d.nombre_norm, "defiendete");
+  assert.deepEqual(x.clases, [1, 12, 16, 2]); assert.ok(!x.vigente); // vencida en 2009
+  assert.equal(fechaExcel("46347.27"), "2026-11-21"); assert.equal(fechaExcel("45658"), "2025-01-01");
+  assert.ok(esVigente("Registrada", "2026-08-01", new Date("2026-11-21")) && !esVigente("Registrada", "2026-03-01", new Date("2026-11-21")));
+  assert.ok(esVigente("En trámite", null, new Date()) && !esVigente("Caducada", null, new Date()));
+  assert.equal(normalizarMarca("  Café & Ñandú—Plus "), "cafe nandu plus");
+  assert.ok("error" in prepararFilasMarcas([["a", "b"]], new Date()));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

@@ -1,7 +1,11 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cargarMarcasAhoraAction } from "@/app/actions/marcas";
+import { Notice } from "@/components/auth-card";
 import { Callout } from "@/components/disclosure";
+import { SubmitButton } from "@/components/submit-button";
+import { createClient } from "@/lib/supabase/server";
 import { conjuntoInapi, CONJUNTOS_MARCAS, descargarRecurso, type Conjunto } from "@/lib/inapi-datos";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { leerXlsx, type HojaXlsx } from "@/lib/xlsx-lector";
@@ -14,13 +18,16 @@ const mb = (n: number | null) => (n == null ? "" : `${(n / 1048576).toFixed(1)} 
 
 // Paso 1 de la búsqueda de marcas: ver qué publica INAPI en datos.gob.cl (API oficial, CC0) y una muestra de cada
 // archivo, descargada por el servidor de ENQORA. No guarda nada todavía.
-export default async function MarcasInapiPage({ searchParams }: { searchParams: Promise<{ conjunto?: string; recurso?: string }> }) {
+export default async function MarcasInapiPage({ searchParams }: { searchParams: Promise<{ conjunto?: string; recurso?: string; aviso?: string }> }) {
   const role = await myStaffRole();
   if (!role || !isSupervisorRole(role)) notFound();
   const sp = await searchParams;
   const conjuntos: (Conjunto | { id: string; error: string })[] = await Promise.all(
     CONJUNTOS_MARCAS.map((id) => conjuntoInapi(id).catch((e: Error) => ({ id, error: e.message }))),
   );
+  const { data: res } = await (await createClient()).rpc("inapi_resumen");
+  const resumen = res as { marcas: number; ultima_carga: string | null; por_estado: Record<string, number>; busquedas_7d: number;
+    cargas: { nombre: string; conjunto: string; estado: string; filas: number; cursor: number; detalle: string | null; actualizado: string }[] } | null;
   let muestra: { nombre: string; bytes: number; hoja: HojaXlsx } | { nombre: string; error: string } | null = null;
   const elegido = conjuntos.find((c) => c.id === sp.conjunto && "recursos" in c) as Conjunto | undefined;
   const recurso = elegido?.recursos.find((r) => r.id === sp.recurso);
@@ -42,6 +49,24 @@ export default async function MarcasInapiPage({ searchParams }: { searchParams: 
           <p className="hero-lead">Archivos que INAPI publica en datos.gob.cl (licencia CC0), leídos por la API oficial. Elige uno para ver sus columnas y las primeras filas: ENQORA lo descarga desde su servidor.</p>
         </div>
       </header>
+
+      {sp.aviso === "iniciada" ? <Notice kind="ok">Carga iniciada. Sigue sola en el servidor, archivo por archivo; recarga esta página en un par de minutos.</Notice> : null}
+      {sp.aviso === "sin_secreto" ? <Notice kind="error">Falta la variable CRON_SECRET en Vercel.</Notice> : null}
+      <section className="card">
+        <h2>Índice de marcas en ENQORA</h2>
+        {resumen ? (
+          <>
+            <p className="muted-line">{resumen.marcas.toLocaleString("es-CL")} marcas vigentes o en trámite · última carga {resumen.ultima_carga ? new Date(resumen.ultima_carga).toLocaleString("es-CL", { timeZone: "America/Santiago" }) : "—"} · {resumen.busquedas_7d} búsquedas de clientes en 7 días</p>
+            <ul className="ps-filas">
+              {resumen.cargas.slice(0, 80).map((c) => (
+                <li key={c.conjunto + c.nombre}><span><b>{c.nombre} · {c.estado}</b><small>{c.conjunto} · {c.estado === "completada" ? `${c.filas.toLocaleString("es-CL")} filas` : `fila ${c.cursor.toLocaleString("es-CL")}`}{c.detalle ? ` · ${c.detalle}` : ""}</small></span></li>
+              ))}
+            </ul>
+          </>
+        ) : <p className="muted-line">Falta pegar la migración 0077 en Supabase.</p>}
+        <form action={cargarMarcasAhoraAction}><SubmitButton className="btn-inline btn-sm" pendingText="Iniciando…">Cargar ahora</SubmitButton></form>
+        <p className="muted-line">También se carga sola todos los días a las 12:00 (hora de Chile). La primera vez tarda varias ejecuciones: son más de 60 archivos.</p>
+      </section>
 
       {muestra ? (
         <section className="card" id="muestra">
