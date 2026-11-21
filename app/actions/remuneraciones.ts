@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dbCode } from "@/lib/db-errors";
+import { CAUSALES, CCAFS, ISAPRES, JORNADAS_LRE } from "@/lib/rem-archivos";
 import {
   AFPS, CLAVES_PARAMETROS, leerNovedades, leerParametros, liquidar, MOTOR_REM, MUTUALES, normalizarRut, periodoValido, type Trabajador,
 } from "@/lib/remuneraciones";
@@ -25,8 +26,13 @@ export async function guardarMutualAction(form: FormData): Promise<void> {
   const periodo = txt(form, "periodo");
   const mutual = txt(form, "mutual");
   const tasa = decimal(form, "tasa");
-  if (!UUID.test(company) || !MUTUALES.includes(mutual as (typeof MUTUALES)[number]) || !(tasa >= 0.9 && tasa <= 8)) error(periodo, null);
-  const { error: e } = await (await createClient()).rpc("rem_guardar_empresa", { p_company: company, p_mutual: mutual, p_tasa: tasa });
+  const ccaf = Number(txt(form, "ccaf") || 0);
+  const suc = txt(form, "sucursal") === "" ? null : Number(txt(form, "sucursal"));
+  if (!UUID.test(company) || !MUTUALES.includes(mutual as (typeof MUTUALES)[number]) || !(tasa >= 0.9 && tasa <= 8) || !(ccaf in CCAFS)
+      || (suc !== null && !(Number.isInteger(suc) && suc >= 1 && suc <= 999))) error(periodo, null);
+  const { error: e } = await (await createClient()).rpc("rem_guardar_empresa", {
+    p_company: company, p_mutual: mutual, p_tasa: tasa, p_ccaf: ccaf, p_sucursal: suc,
+  });
   if (e) error(periodo, e);
   volver(periodo, "aviso=mutual");
 }
@@ -41,10 +47,18 @@ export async function guardarTrabajadorAction(form: FormData): Promise<void> {
   const salud = txt(form, "salud") === "isapre" ? "isapre" : "fonasa";
   const plan = decimal(form, "plan_isapre_uf");
   const afp = txt(form, "afp");
+  const comuna = txt(form, "comuna");
+  const jornadaLre = txt(form, "jornada_lre");
+  const isapre = txt(form, "isapre");
+  const sexo = txt(form, "sexo");
+  if ((comuna && !/^\d{4,5}$/.test(comuna)) || (jornadaLre && !(Number(jornadaLre) in JORNADAS_LRE)) || (sexo && !["M", "F"].includes(sexo))
+      || (salud === "isapre" && !(isapre in ISAPRES))) error(periodo, null);
   const datos = {
-    rut, nombre: txt(form, "nombre").slice(0, 120), cargo: txt(form, "cargo").slice(0, 80), fecha_ingreso: txt(form, "fecha_ingreso"),
+    rut, apellido_paterno: txt(form, "apellido_paterno").slice(0, 30), apellido_materno: txt(form, "apellido_materno").slice(0, 30),
+    nombres: txt(form, "nombres").slice(0, 30), sexo, extranjero: txt(form, "extranjero") === "si", comuna, jornada_lre: jornadaLre,
+    fun: salud === "isapre" ? txt(form, "fun").slice(0, 16) : "", cargo: txt(form, "cargo").slice(0, 80), fecha_ingreso: txt(form, "fecha_ingreso"),
     tipo_contrato: txt(form, "tipo_contrato"), sueldo_base: entero(form, "sueldo_base"), jornada_horas: decimal(form, "jornada_horas"),
-    afp, salud, isapre: salud === "isapre" ? txt(form, "isapre").slice(0, 40) : "", plan_isapre_uf: salud === "isapre" && Number.isFinite(plan) ? plan : "",
+    afp, salud, isapre: salud === "isapre" ? isapre : "", plan_isapre_uf: salud === "isapre" && Number.isFinite(plan) ? plan : "",
     colacion: entero(form, "colacion"), movilizacion: entero(form, "movilizacion"),
     gratificacion: txt(form, "gratificacion") === "ninguna" ? "ninguna" : "art50",
   };
@@ -59,7 +73,11 @@ export async function bajaTrabajadorAction(form: FormData): Promise<void> {
   const periodo = txt(form, "periodo");
   const id = txt(form, "id");
   if (!UUID.test(id)) error(periodo, null);
-  const { error: e } = await (await createClient()).rpc("rem_baja_trabajador", { p_id: id, p_fecha: txt(form, "fecha"), p_motivo: txt(form, "motivo") });
+  const causal = Number(txt(form, "causal"));
+  if (!(causal in CAUSALES)) error(periodo, null);
+  const { error: e } = await (await createClient()).rpc("rem_baja_trabajador", {
+    p_id: id, p_fecha: txt(form, "fecha"), p_causal: causal, p_motivo: txt(form, "motivo"),
+  });
   if (e) error(periodo, e);
   volver(periodo, "aviso=baja");
 }
@@ -129,6 +147,8 @@ export async function proponerParametrosAction(form: FormData): Promise<void> {
   const afp: Record<string, number> = {};
   for (const a of AFPS) { const v = decimal(form, `afp_${a}`); if (Number.isFinite(v)) afp[a] = v; }
   valores.afp = afp;
+  const ccafSalud = decimal(form, "ccaf_salud");
+  if (Number.isFinite(ccafSalud)) valores.ccaf_salud = ccafSalud;
   if (!leerParametros(valores)) volverMando("error=ENQ_PARAMETROS_INVALIDOS");
   const { error: e } = await (await createClient()).rpc("rem_proponer_parametros", {
     p_periodo: periodo, p_valores: valores, p_fuente: txt(form, "fuente"), p_observaciones: txt(form, "observaciones") || null,
