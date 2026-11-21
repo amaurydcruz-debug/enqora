@@ -6,7 +6,7 @@ import { PrintButton } from "@/components/print-button";
 import { TextoDocumento } from "@/components/texto-documento";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata: Metadata = { title: "Documento laboral" };
+export const metadata: Metadata = { title: "Documento" };
 
 // Vista e impresión de un documento laboral. Solo una versión aprobada por el equipo legal se imprime como definitiva.
 export default async function DocumentoLaboralPage({ params }: { params: Promise<{ id: string }> }) {
@@ -14,13 +14,13 @@ export default async function DocumentoLaboralPage({ params }: { params: Promise
   if (!/^[0-9a-f-]{36}$/i.test(id)) notFound();
   const supabase = await createClient();
   const { data } = await supabase.from("documentos_laborales").select("id, tipo, version, estado, contenido, plantilla, revisado_at").eq("id", id).maybeSingle();
-  const d = data as { id: string; version: number; estado: string; contenido: string; plantilla: string; revisado_at: string | null } | null;
+  const d = data as { id: string; tipo: string; version: number; estado: string; contenido: string; plantilla: string; revisado_at: string | null } | null;
   if (!d) notFound();
   const aprobado = d.estado === "aprobado";
   return (
     <div className="page narrow print-page">
       <div className="print-tools upload-row">
-        <Link href="/laboral" className="ps-link">← Ley Karin</Link>
+        {d.tipo === "politica_datos" ? <Link href="/datos-personales" className="ps-link">← Datos personales</Link> : <Link href="/laboral" className="ps-link">← Ley Karin</Link>}
         {aprobado ? <PrintButton /> : null}
       </div>
       {!aprobado ? (

@@ -35,7 +35,7 @@ export default async function LaboralPage({ searchParams }: { searchParams: Prom
   const supabase = await createClient();
   const [{ data: dRows }, { data: emp }, { count: nTrab }, { data: rem }] = await Promise.all([
     supabase.from("documentos_laborales").select("id, tipo, version, estado, datos, creado, revisado_at, observacion")
-      .eq("company_id", company.id).order("version", { ascending: false }).limit(40),
+      .eq("company_id", company.id).in("tipo", ["protocolo_karin", "procedimiento_karin"]).order("version", { ascending: false }).limit(40),
     supabase.from("companies").select("legal_name, rut, address, commune, activity").eq("id", company.id).maybeSingle(),
     supabase.from("rem_trabajadores").select("id", { count: "exact", head: true }).eq("company_id", company.id).eq("activo", true),
     supabase.from("rem_empresa").select("mutual").eq("company_id", company.id).maybeSingle(),
