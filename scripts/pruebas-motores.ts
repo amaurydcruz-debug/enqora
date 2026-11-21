@@ -25,6 +25,7 @@ import { estadoDocumento, renderPreview, resumenLegal, type CaseLegalStatus } fr
 import { anonimizar, armarFuentes, informePorReglas, sanear, type Entrada } from "@/lib/cora/informe-ingreso";
 import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
+import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
 
 let ok = 0;
 const fallos: string[] = [];
@@ -457,6 +458,20 @@ prueba("Tu mes: cada etapa cae en su paso", () => {
   assert.equal(pasoDe("por_aprobar"), 2);
   assert.equal(pasoDe("aprobado_cliente"), 3);
   assert.equal(pasoDe("presentado"), 3);
+});
+
+prueba("Registrar gasto: lectura de voz y validación de la IA", () => {
+  const hoy = "2026-11-20";
+  const a = gastoDesdeTexto("gasté 15.990 en bencina con boleta", hoy)!;
+  assert.equal(a.monto, 15990); assert.equal(a.categoria, "combustible"); assert.equal(a.documento, "boleta"); assert.equal(a.fecha, hoy);
+  const b = gastoDesdeTexto("ayer pagué 45 mil de arriendo de bodega, sin boleta", hoy)!;
+  assert.equal(b.monto, 45000); assert.equal(b.documento, "sin_documento"); assert.equal(b.fecha, "2026-11-19"); assert.equal(b.categoria, "arriendo");
+  assert.equal(gastoDesdeTexto("el 12 de noviembre compré bolsas por 3.500 con factura", hoy)!.monto, 3500);
+  assert.equal(gastoDesdeTexto("compré bolsas", hoy), null);
+  assert.equal(validarGasto({ monto: 0, descripcion: "x", categoria: "otros", documento: "boleta", confianza: "alta" }, hoy), null);
+  assert.equal(validarGasto({ monto: 5000, es_comprobante: false }, hoy), null);
+  const v = validarGasto({ monto: 11900, iva: 1900, fecha: "2027-01-01", descripcion: "Resmas", categoria: "inventada", documento: "factura", confianza: "alta" }, hoy)!;
+  assert.equal(v.fecha, hoy); assert.equal(v.categoria, "otros"); assert.equal(v.iva, 1900);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
