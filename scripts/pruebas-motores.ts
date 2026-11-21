@@ -27,6 +27,7 @@ import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
 import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
+import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
 import { impuestoUnico, leerNovedades, leerParametros, liquidar, normalizarRut, type Parametros, type Trabajador } from "@/lib/remuneraciones";
 import { tocaAvisar, vencimientos } from "@/lib/calendario-cumplimiento";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
@@ -630,6 +631,26 @@ prueba("Remuneraciones: archivos de Previred (105 campos) y LRE", () => {
   assert.equal(v(1143), "102"); assert.equal(v(5501), String(liq.liquido)); assert.equal(v(5210), String(liq.total_imponible));
   assert.equal(v(4155), String(15000 + 1000 + 10000 + 9000));
   assert.ok(esParcial(28, "2026-11") && !esParcial(30, "2026-11") && esParcial(29, "2026-03"));
+});
+
+prueba("Ley Karin: validación de datos y borradores del protocolo y del procedimiento", () => {
+  const base = { razon_social: "Andes SpA", rut: "76086428-5", domicilio: "Av. Siempre Viva 123, Santiago", representante: "Ana Pérez",
+    cargo_representante: "Gerente general", rubro: "Comercio minorista", trabajadores: "6", atiende_publico: "si", teletrabajo: "no",
+    canal_correo: "denuncias@andes.cl", canal_responsable: "Encargada de personas", investigacion: "interna", organismo: "ACHS" };
+  assert.equal(typeof validarDatos({ ...base, rut: "76.086.428-5" }), "string");
+  assert.equal(typeof validarDatos({ ...base, canal_correo: "no-es-correo" }), "string");
+  const d = validarDatos(base);
+  assert.ok(typeof d !== "string");
+  if (typeof d === "string") return;
+  const p = generarDocumento("protocolo_karin", d, "21-11-2026");
+  assert.ok(p.includes("Anexo N°54") && p.includes("clientes o usuarios agresivos") && p.includes("al firmar su contrato"));
+  assert.ok(!p.includes("<"));
+  const p10 = generarDocumento("protocolo_karin", { ...d, trabajadores: 25, atiende_publico: false }, "21-11-2026");
+  assert.ok(p10.includes("CEAL-SM/SUSESO") && p10.includes("art. 154 N°12") && !p10.includes("agresivos"));
+  const pr = generarDocumento("procedimiento_karin", d, "21-11-2026");
+  assert.ok(pr.includes("3 días") && pr.includes("30 días") && pr.includes("15 días") && pr.includes("25%"));
+  assert.ok(recordatorios({ ...d, trabajadores: 25 }).some((x) => x.includes("SEREMI")));
+  assert.ok(recordatorios(d).some((x) => x.includes("al firmar cada contrato")));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
