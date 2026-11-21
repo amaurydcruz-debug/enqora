@@ -692,7 +692,7 @@ prueba("Marcas INAPI: encabezados, fechas de Excel, vigencia y normalización", 
   assert.equal(fechaExcel("46347.27"), "2026-11-21"); assert.equal(fechaExcel("45658"), "2025-01-01");
   assert.ok(esVigente("Registrada", "2026-08-01", new Date("2026-11-21")) && !esVigente("Registrada", "2026-03-01", new Date("2026-11-21")));
   assert.ok(esVigente("En trámite", null, new Date()) && !esVigente("Caducada", null, new Date()));
-  assert.equal(normalizarMarca("  Café & Ñandú—Plus "), "cafe nandu plus");
+  assert.equal(normalizarMarca("  Café & Ñandú—Plus "), "cafe nandu plus"); assert.equal(normalizarMarca("ŠKODA"), "skoda");
   assert.ok("error" in prepararFilasMarcas([["a", "b"]], new Date()));
 });
 

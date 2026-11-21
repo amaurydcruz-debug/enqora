@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Notice } from "@/components/auth-card";
 import { Callout } from "@/components/disclosure";
 import { messageForCode } from "@/lib/db-errors";
+import { normalizarMarca } from "@/lib/marcas";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "Buscar marca" };
@@ -17,8 +18,8 @@ export default async function MarcasPage({ searchParams }: { searchParams: Promi
   const clases = [...new Set((sp.clases ?? "").split(/[^\d]+/).filter(Boolean).map(Number).filter((n) => n >= 1 && n <= 45))];
   let res: Res[] | null = null;
   let error: string | null = null;
-  if (q.length >= 2) {
-    const { data, error: e } = await (await createClient()).rpc("buscar_marcas", { p_texto: q, p_clases: clases.length ? clases : null });
+  if (normalizarMarca(q).length >= 2) {
+    const { data, error: e } = await (await createClient()).rpc("buscar_marcas", { p_texto: normalizarMarca(q), p_clases: clases.length ? clases : null });
     if (e) error = /ENQ_[A-Z_]+/.exec(e.message)?.[0] ?? "ENQ_DATOS_INVALIDOS";
     else res = (data ?? []) as Res[];
   }
