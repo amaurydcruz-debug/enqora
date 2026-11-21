@@ -49,6 +49,8 @@ const MESSAGES: Record<string, string> = {
   ENQ_LIQUIDACION_INMUTABLE: "Una liquidación guardada no se modifica: calcula una versión nueva o anúlala con su motivo.",
   ENQ_LIQUIDACION_YA_APROBADA: "Este trabajador ya tiene una liquidación aprobada para ese mes. Anúlala con su motivo antes de aprobar otra.",
   ENQ_ARCHIVO_INCOMPLETO: "Faltan datos para generar el archivo. Revisa la lista de pendientes de cada trabajador en la sección Archivos del mes.",
+  ENQ_DOCUMENTO_INMUTABLE: "Un documento enviado o aprobado no se modifica: genera una versión nueva.",
+  ENQ_CONFIRMA_REVISION: "Marca la casilla para confirmar que revisaste el documento completo.",
   ENQ_CONFIRMA_LIQUIDACION: "Marca la casilla para confirmar que revisaste la liquidación.",
   ENQ_FECHA_INVALIDA: "La fecha no es válida: debe ser futura y dentro de un año.",
   ENQ_GESTOR_YA_REGISTRADO: "Ya hay un gestor registrado con ese correo.",

@@ -3875,3 +3875,17 @@ fieldset.mini-form legend { padding: 0 6px; }
 .rem-sub th { text-align: left; padding: 10px 6px 4px; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 600; }
 .rem-total td { font-weight: 700; color: var(--text); border-bottom: 1px solid var(--hairline-strong); }
 .rem-adv { margin: 6px 0; padding-left: 18px; font-size: 0.82rem; color: var(--gold); }
+
+/* Documentos laborales (0075) */
+.doc-texto { line-height: 1.6; color: var(--text-2); }
+.doc-texto h1 { font-size: 1.35rem; color: var(--text); margin: 0 0 10px; }
+.doc-texto h2 { font-size: 1.02rem; color: var(--text); margin: 22px 0 8px; }
+.doc-texto p { margin: 0 0 10px; }
+.doc-texto ul { margin: 0 0 12px; padding-left: 20px; }
+.doc-texto li { margin-bottom: 6px; }
+.doc-pie { margin-top: 24px; }
+.doc-editor { width: 100%; min-height: 420px; font-family: ui-monospace, monospace; font-size: 0.82rem; line-height: 1.5; }
+@media print {
+  .doc-texto, .doc-texto h1, .doc-texto h2 { color: #111 !important; }
+  .doc-texto h2 { break-after: avoid; }
+}
