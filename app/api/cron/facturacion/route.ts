@@ -1,6 +1,9 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { flushDeliveries } from "@/lib/notify-delivery";
 import { createClient } from "@/lib/supabase/server";
+import { diasHasta, tocaAvisar, vencimientos } from "@/lib/calendario-cumplimiento";
+import { perfilValido } from "@/lib/empresa-al-dia";
+import { todayCL } from "@/lib/pricing";
 
 // Tarea diaria de Vercel (vercel.json → crons): facturación (vencimientos, renovaciones, fin de
 // suscripciones), vencimiento de mandatos, vigilancia de casos (sin responsable o vencidos) y envío de avisos pendientes.
@@ -27,6 +30,23 @@ export async function GET(request: NextRequest) {
   // Contabilidad mensual (0066): días 1–5 faltan datos del mes; días 13–17 el mes espera la aprobación del cliente.
   const { data: mes, error: mesErr } = await supabase.rpc("svc_recordatorios_mes", { p_token: service });
   if (mesErr) console.error("[ENQORA contabilidad mensual]", mesErr.message);
+  // Calendario de cumplimiento (0072): avisos 7 días y 1 día antes de cada vencimiento, sin repetir.
+  let calendario = 0;
+  const { data: empresas, error: calErr } = await supabase.rpc("svc_calendario_empresas", { p_token: service });
+  if (calErr) console.error("[ENQORA calendario]", calErr.message);
+  const hoy = todayCL();
+  for (const e of (Array.isArray(empresas) ? empresas : []) as { company_id: string; perfil: unknown }[]) {
+    const perfil = perfilValido(e.perfil);
+    if (!perfil) continue;
+    for (const v of vencimientos(perfil, hoy, 8).filter((x) => tocaAvisar(hoy, x))) {
+      const d = diasHasta(hoy, v.fecha);
+      const { data: ok } = await supabase.rpc("svc_aviso_calendario", {
+        p_token: service, p_company: e.company_id, p_clave: v.clave, p_dias: d, p_fecha: v.fecha,
+        p_titulo: `${v.titulo}: ${d === 1 ? "vence mañana" : `vence en ${d} días`}`, p_texto: `${v.institucion} · ${v.detalle}`, p_link: "/empresa-al-dia#calendario",
+      });
+      if (ok === true) calendario++;
+    }
+  }
   await flushDeliveries(request.nextUrl.origin, true);
-  return NextResponse.json({ ok: true, resultado: data, casos: casos ?? null, mes: mes ?? null });
+  return NextResponse.json({ ok: true, resultado: data, casos: casos ?? null, mes: mes ?? null, calendario });
 }
