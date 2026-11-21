@@ -3863,3 +3863,15 @@ fieldset.mini-form legend { padding: 0 6px; }
 .cal-que small { color: var(--text-3); font-size: 0.8rem; }
 .cal-compacto li { padding: 8px 10px; }
 .ead-sub { margin: 12px 0 6px; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gold); }
+
+/* Remuneraciones (0073) */
+.rem-periodo { align-items: center; margin: 0 0 12px; }
+.rem-periodo label { font-size: 0.84rem; color: var(--text-2); }
+.rem-lista > li { flex-wrap: wrap; }
+.rem-acciones { flex-basis: 100%; display: flex; flex-direction: column; gap: 8px; }
+.rem-tabla { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 0.86rem; }
+.rem-tabla td { padding: 4px 6px; border-bottom: 1px solid var(--hairline); }
+.rem-tabla td.mono { text-align: right; white-space: nowrap; }
+.rem-sub th { text-align: left; padding: 10px 6px 4px; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 600; }
+.rem-total td { font-weight: 700; color: var(--text); border-bottom: 1px solid var(--hairline-strong); }
+.rem-adv { margin: 6px 0; padding-left: 18px; font-size: 0.82rem; color: var(--gold); }
