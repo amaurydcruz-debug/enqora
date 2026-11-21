@@ -4,11 +4,12 @@ import { redirect } from "next/navigation";
 import { activeCompany } from "@/lib/companies";
 import { isModule } from "@/lib/cases";
 import { NewCaseForm } from "./form";
+import { esLinea } from "@/lib/lineas";
 
 export const metadata: Metadata = { title: "Nueva solicitud" };
 
-export default async function NewCasePage({ searchParams }: { searchParams: Promise<{ modulo?: string; asunto?: string }> }) {
-  const { modulo, asunto } = await searchParams;
+export default async function NewCasePage({ searchParams }: { searchParams: Promise<{ modulo?: string; asunto?: string; linea?: string }> }) {
+  const { modulo, asunto, linea } = await searchParams;
   const { active } = await activeCompany();
   if (!active) redirect("/casos");
   if (active.role === "viewer") redirect("/casos");
@@ -24,7 +25,8 @@ export default async function NewCasePage({ searchParams }: { searchParams: Prom
         </div>
       </header>
       <section className="card form-card">
-        <NewCaseForm companyId={active.id} defaultModule={isModule(modulo) ? modulo : "contabilidad"} defaultTitle={(asunto ?? "").slice(0, 160)} />
+        <NewCaseForm companyId={active.id} defaultModule={isModule(modulo) ? modulo : "contabilidad"} defaultTitle={(asunto ?? "").slice(0, 160)}
+          linea={esLinea(linea) ? linea.toUpperCase() : null} />
       </section>
     </div>
   );

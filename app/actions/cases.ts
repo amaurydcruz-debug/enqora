@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { dbCode, dbMessage } from "@/lib/db-errors";
 import { isModule, isStaffRole, UPLOAD_MAX_BYTES, UPLOAD_TYPES } from "@/lib/cases";
 import { intakeFromForm } from "@/lib/module-routes";
+import { esLinea } from "@/lib/lineas";
 
 export type CaseFormState = { error?: string; ok?: string } | undefined;
 
@@ -44,6 +45,8 @@ export async function createCaseAction(_: CaseFormState, fd: FormData): Promise<
     p_module: module,
     p_title: title,
     p_description: text(fd, "description"),
+    // Línea de servicio del folio (0064): la que eligió el cliente o, si no viene, la del área.
+    p_linea: esLinea(text(fd, "linea", 3)) ? text(fd, "linea", 3).toUpperCase() : null,
   });
   if (error || !data) return { error: dbMessage(error) };
   // Respuestas iniciales del módulo: si fallaran, el caso igual queda creado.
@@ -147,6 +150,17 @@ export async function taskStatusAction(fd: FormData) {
 
 // ---------- Documentos ----------
 // Paso 1: el servidor valida y genera un enlace firmado de subida (aplica las reglas de la base).
+function nombreSeguro(fileName: string): string {
+  return (
+    fileName
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^A-Za-z0-9._-]+/g, "_")
+      .replace(/^_+|_+$/g, "")
+      .slice(-80) || "documento"
+  );
+}
+
 export async function prepareUploadAction(
   caseIdRaw: string,
   fileName: string,
@@ -163,14 +177,7 @@ export async function prepareUploadAction(
   const companyId = (row as { company_id: string } | null)?.company_id;
   if (!companyId) return { error: "No tienes acceso a este caso." };
 
-  const safe =
-    fileName
-      .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
-      .replace(/[^A-Za-z0-9._-]+/g, "_")
-      .replace(/^_+|_+$/g, "")
-      .slice(-80) || "documento";
-  const path = `${companyId}/${caseId}/${randomUUID()}-${safe}`;
+  const path = `${companyId}/${caseId}/${randomUUID()}-${nombreSeguro(fileName)}`;
 
   const { data, error } = await supabase.storage.from("expedientes").createSignedUploadUrl(path);
   if (error || !data) return { error: "No tienes permiso para subir documentos a este caso." };
@@ -199,6 +206,44 @@ export async function registerDocumentAction(
   });
   if (error) return { error: dbMessage(error) };
   revalidatePath(`/casos/${caseId}`);
+  return {};
+}
+
+// ---------- Documentos del cliente en una solicitud que aún no es caso (0064) ----------
+// Mismo flujo en 3 pasos. La ruta sol/<solicitud>/<archivo> solo la acepta el almacenamiento si la solicitud
+// es de quien sube; cuando el equipo la une a un caso, los archivos pasan solos al expediente y a la Bóveda.
+export async function prepareSolicitudUploadAction(
+  solRaw: string,
+  fileName: string,
+  size: number,
+  mime: string,
+): Promise<{ error?: string; path?: string; token?: string }> {
+  const sol = uuidOf(solRaw);
+  if (!sol) return { error: "Solicitud no válida." };
+  if (!size || size > UPLOAD_MAX_BYTES) return { error: "El archivo supera el máximo de 20 MB." };
+  if (!UPLOAD_TYPES.includes(mime)) return { error: "Tipo de archivo no permitido. Usa PDF, imagen, XML, CSV, Excel o Word." };
+  const supabase = await createClient();
+  const path = `sol/${sol}/${randomUUID()}-${nombreSeguro(fileName)}`;
+  const { data, error } = await supabase.storage.from("expedientes").createSignedUploadUrl(path);
+  if (error || !data) return { error: "No pudimos preparar la subida. Confirma tu identidad con el segundo factor e intenta nuevamente." };
+  return { path, token: data.token };
+}
+
+export async function registerSolicitudDocumentAction(
+  solRaw: string,
+  path: string,
+  fileName: string,
+  mime: string,
+  size: number,
+): Promise<{ error?: string }> {
+  const sol = uuidOf(solRaw);
+  if (!sol || !path.startsWith(`sol/${sol}/`)) return { error: "Solicitud no válida." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("solicitud_registrar_documento", {
+    p_sol: sol, p_path: path, p_name: fileName.slice(0, 200), p_mime: mime, p_size: size,
+  });
+  if (error) return { error: dbMessage(error) };
+  revalidatePath("/panel");
   return {};
 }
 

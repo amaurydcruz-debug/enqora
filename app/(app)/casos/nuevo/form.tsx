@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { MODULES, isModule, type ModuleKey } from "@/lib/cases";
 import { MODULE_ROUTES } from "@/lib/module-routes";
 
-export function NewCaseForm({ companyId, defaultModule = "contabilidad", defaultTitle = "" }: { companyId: string; defaultModule?: string; defaultTitle?: string }) {
+export function NewCaseForm({ companyId, defaultModule = "contabilidad", defaultTitle = "", linea = null }: { companyId: string; defaultModule?: string; defaultTitle?: string; linea?: string | null }) {
   const [state, action] = useActionState(createCaseAction, undefined);
   const [picked, setPicked] = useState(defaultModule);
   const intake = isModule(picked) ? MODULE_ROUTES[picked].intake : [];
@@ -17,6 +17,8 @@ export function NewCaseForm({ companyId, defaultModule = "contabilidad", default
     <form action={action}>
       {state?.error ? <Notice kind="error">{state.error}</Notice> : null}
       <input type="hidden" name="company_id" value={companyId} />
+      {/* Línea de servicio del folio (0064): si no viene, la base usa la del área elegida. */}
+      {linea ? <input type="hidden" name="linea" value={linea} /> : null}
       <fieldset className="module-picker">
         <legend>¿Con qué necesitas ayuda?</legend>
         <div className="module-options">

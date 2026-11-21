@@ -67,7 +67,7 @@ export default async function SystemStatusPage() {
   if (!isSupervisorRole(role)) notFound();
 
   const supabase = await createClient();
-  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }, { error: m56Error }, { error: m57Error }, { error: m58Error }, { error: m59Error }, { error: m60Error }, { error: m61Error }, { data: m62Data }, { error: m63Error }] = await Promise.all([
+  const [{ data, error }, { data: auditData }, { data: entregasData }, { data: migData, error: migError }, { error: m53Error }, { error: m54Error }, { error: m55Error }, { error: m56Error }, { error: m57Error }, { error: m58Error }, { error: m59Error }, { error: m60Error }, { error: m61Error }, { data: m62Data }, { error: m63Error }, { error: m64Error }] = await Promise.all([
     supabase.rpc("system_status"), supabase.rpc("audit_stats"), supabase.rpc("avisos_entregas", { p_dias: 7 }),
     supabase.rpc("migraciones_estado"),
     supabase.from("field_task_types").select("code", { count: "exact", head: true }),
@@ -89,6 +89,8 @@ export default async function SystemStatusPage() {
     supabase.from("services").select("code").eq("code", "FOR-04"),
     // 0063: panel simple del cliente («Mis trámites»).
     supabase.rpc("mis_solicitudes"),
+    // 0064: líneas de servicio y documentos del cliente en sus solicitudes.
+    supabase.rpc("solicitud_documentos", { p_sol: "00000000-0000-0000-0000-000000000000" }),
   ]);
   // Entregas de avisos por canal, últimos 7 días (0051).
   const entregas = (Array.isArray(entregasData) ? entregasData : []) as { canal: string; enviados: number; pendientes: number; fallidos: number; omitidos: number; ultimo_envio: string | null; ultimo_error: string | null }[];
@@ -112,6 +114,7 @@ export default async function SystemStatusPage() {
     ["0061", !m61Error] as [string, boolean], // ENQORA SIGN: firma con huella o Face ID
     ["0062", (m62Data ?? []).length > 0] as [string, boolean], // Recepción final y patente municipal
     ["0063", !m63Error] as [string, boolean], // Panel simple del cliente
+    ["0064", !m64Error] as [string, boolean], // Líneas de servicio y documentos del cliente
   ].sort(([x], [y]) => x.localeCompare(y));
   const missingMigrations = migrations.filter(([, ok]) => !ok).map(([k]) => k);
   const lastMigration = migrations.at(-1)?.[0] ?? "0016";
