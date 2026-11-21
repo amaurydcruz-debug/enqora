@@ -5,6 +5,9 @@ import { activeCompany } from "@/lib/companies";
 import { perfilValido, type Respuesta } from "@/lib/empresa-al-dia";
 import { createClient } from "@/lib/supabase/server";
 import { Cuestionario } from "./cuestionario";
+import { Calendario } from "./calendario";
+import { vencimientos } from "@/lib/calendario-cumplimiento";
+import { todayCL } from "@/lib/pricing";
 
 export const metadata: Metadata = { title: "Empresa al día" };
 
@@ -44,6 +47,13 @@ export default async function EmpresaAlDiaPage() {
           Último diagnóstico: versión {ultimo!.version} del {fecha(ultimo!.creado)}, {ultimo!.puntaje}% al día.
           {historial.length > 1 ? ` Anteriores: ${historial.slice(1).map((h) => `v${h.version} ${h.puntaje}%`).join(" · ")}.` : ""}
         </p>
+      ) : null}
+      {perfilValido(ultimo?.perfil) ? (
+        <section className="ps-card" id="calendario" aria-labelledby="cal-t">
+          <div className="ps-card-cab"><h2 id="cal-t">Tu calendario · próximos 60 días</h2></div>
+          <p className="muted-line">Según tu último diagnóstico. ENQORA te avisa 7 días y 1 día antes de cada vencimiento.</p>
+          <Calendario items={vencimientos(perfilValido(ultimo?.perfil)!, todayCL(), 60)} hoy={todayCL()} />
+        </section>
       ) : null}
       <Cuestionario companyId={active.id} inicialPerfil={perfilValido(ultimo?.perfil)} inicialRespuestas={ultimo?.respuestas ?? {}}
         puedeGuardar={["owner", "admin", "accountant"].includes(active.role)} />

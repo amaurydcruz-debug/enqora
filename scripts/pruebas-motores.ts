@@ -26,6 +26,7 @@ import { anonimizar, armarFuentes, informePorReglas, sanear, type Entrada } from
 import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
 import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
+import { tocaAvisar, vencimientos } from "@/lib/calendario-cumplimiento";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
 import { alertaCruce, medioDePago, resumirPorDia } from "@/lib/pos";
 import { CATEGORIA_DE_RESPUESTA, preguntasPara, proponer } from "@/lib/conciliador";
@@ -541,6 +542,26 @@ prueba("Empresa al día: preguntas por tamaño y semáforo por riesgo", () => {
   assert.equal(r2.frentes.find((f) => f.frente === "sii")?.semaforo, "rojo");
   assert.equal(r2.frentes.find((f) => f.frente === "municipal")?.semaforo, "amarillo");
   assert.equal(r2.pendientes[0].id, "f29");
+});
+
+prueba("Calendario de cumplimiento: vencimientos según el perfil y avisos 7 y 1 día antes", () => {
+  const base = { tipo: "empresa" as const, trabajadores: 0, local: true, rubro_regulado: false, vende_a_personas: true };
+  const sin = vencimientos(base, "2026-12-20", 60).map((v) => v.clave);
+  assert.ok(sin.includes("f29:2027-01-12"));
+  assert.ok(sin.includes("patente:2027-01-31"));
+  assert.ok(!sin.some((c) => c.startsWith("previred")));
+  const con = vencimientos({ ...base, trabajadores: 6 }, "2026-12-20", 60).map((v) => v.clave);
+  assert.ok(con.includes("previred:2027-01-13"));
+  assert.ok(con.includes("lre:2027-01-15"));
+  assert.ok(!con.some((c) => c.startsWith("inclusion")));
+  const abril = vencimientos(base, "2027-04-01", 40).map((v) => v.clave);
+  assert.ok(abril.includes("f22:2027-04-30"));
+  const f29 = vencimientos(base, "2026-12-05", 10).find((v) => v.clave === "f29:2026-12-12")!;
+  assert.ok(tocaAvisar("2026-12-05", f29));
+  assert.ok(tocaAvisar("2026-12-11", f29));
+  assert.ok(!tocaAvisar("2026-12-08", f29));
+  const fechas = vencimientos({ ...base, trabajadores: 6 }, "2026-12-20", 60).map((v) => v.fecha);
+  assert.deepEqual(fechas, [...fechas].sort());
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

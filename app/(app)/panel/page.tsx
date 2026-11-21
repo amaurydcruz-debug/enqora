@@ -15,6 +15,9 @@ import { SubirDocumentos } from "@/components/subir-documentos";
 import { Tramites, type Tramite } from "./tramites";
 import { TuMesCard } from "./tu-mes";
 import { PreguntasCard, type PreguntaCliente } from "./preguntas";
+import { Calendario } from "../empresa-al-dia/calendario";
+import { vencimientos } from "@/lib/calendario-cumplimiento";
+import { perfilValido } from "@/lib/empresa-al-dia";
 import type { TuMes } from "@/lib/accounting";
 import { messageForCode } from "@/lib/db-errors";
 
@@ -90,10 +93,10 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
       ? supabase.from("charges").select("id, case_id, etapa, amount, status").eq("company_id", active.id).in("etapa", ["abono", "saldo"]).in("status", ["pendiente", "vencido"]).limit(5)
       : Promise.resolve({ data: [] }),
     // Diagnóstico «Empresa al día» (0071): último semáforo.
-    active ? supabase.from("diagnosticos_empresa").select("version, puntaje, resultado, creado").eq("company_id", active.id).order("version", { ascending: false }).limit(1).maybeSingle()
+    active ? supabase.from("diagnosticos_empresa").select("version, puntaje, resultado, creado, perfil").eq("company_id", active.id).order("version", { ascending: false }).limit(1).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
-  const diag = (diagRes.data ?? null) as { version: number; puntaje: number; creado: string; resultado: { frentes?: { frente: string; nombre: string; semaforo: string; pendientes: number }[] } } | null;
+  const diag = (diagRes.data ?? null) as { version: number; puntaje: number; creado: string; perfil?: unknown; resultado: { frentes?: { frente: string; nombre: string; semaforo: string; pendientes: number }[] } } | null;
   const preguntas = ((pregRes.data ?? []) as PreguntaCliente[]);
   const mes = (mesRes.data && typeof mesRes.data === "object" && (mesRes.data as TuMes).lleva ? mesRes.data : null) as TuMes | null;
   const puedeAprobar = !!active && ["owner", "admin"].includes(active.role);
@@ -165,7 +168,14 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
                 <li key={f.frente} className={`is-${f.semaforo}`}><span className="ead-luz" aria-hidden="true" /><b>{f.nombre}</b>{f.pendientes ? <small>{f.pendientes} pendiente(s)</small> : <small>Al día</small>}</li>
               ))}
             </ul>
-          ) : <p className="muted-line">En 5 minutos ves cómo está tu empresa ante el SII, la municipalidad, la Dirección del Trabajo, la previsión, la mutual y tus clientes, y qué resolver primero.</p>}
+          ) : null}
+          {diag && perfilValido(diag.perfil) ? (
+            <>
+              <h3 className="ead-sub">Próximos vencimientos</h3>
+              <Calendario items={vencimientos(perfilValido(diag.perfil)!, todayCL(), 30).slice(0, 3)} hoy={todayCL()} compacto />
+            </>
+          ) : null}
+          {diag ? null : <p className="muted-line">En 5 minutos ves cómo está tu empresa ante el SII, la municipalidad, la Dirección del Trabajo, la previsión, la mutual y tus clientes, y qué resolver primero.</p>}
         </section>
       ) : null}
       {mes ? <TuMesCard mes={mes} puedeAprobar={puedeAprobar} /> : null}
