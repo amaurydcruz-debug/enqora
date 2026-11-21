@@ -26,6 +26,7 @@ import { anonimizar, armarFuentes, informePorReglas, sanear, type Entrada } from
 import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
+import { alertaCruce, medioDePago, resumirPorDia } from "@/lib/pos";
 
 let ok = 0;
 const fallos: string[] = [];
@@ -472,6 +473,26 @@ prueba("Registrar gasto: lectura de voz y validación de la IA", () => {
   assert.equal(validarGasto({ monto: 5000, es_comprobante: false }, hoy), null);
   const v = validarGasto({ monto: 11900, iva: 1900, fecha: "2027-01-01", descripcion: "Resmas", categoria: "inventada", documento: "factura", confianza: "alta" }, hoy)!;
   assert.equal(v.fecha, hoy); assert.equal(v.categoria, "otros"); assert.equal(v.iva, 1900);
+});
+
+prueba("Punto de venta: resumen por día, medios de pago y cruce con el RCV", () => {
+  assert.equal(medioDePago("Redcompra"), "debito");
+  assert.equal(medioDePago("Tarjeta de Crédito VISA"), "credito");
+  assert.equal(medioDePago("EFECTIVO"), "efectivo");
+  assert.equal(medioDePago("MercadoPago"), "transferencia");
+  assert.equal(medioDePago("fiado"), "otros");
+  const r = resumirPorDia([
+    { fecha: "2026-11-20", total: 1000, medio: "efectivo" }, { fecha: "2026-11-20", total: 2500, medio: "débito" },
+    { fecha: "2026-11-19", total: 500, medio: "transferencia", iva: 80 }, { fecha: null, total: 9 }, { fecha: "2026-11-19", total: null },
+  ]);
+  assert.equal(r.descartadas, 2);
+  assert.equal(r.dias.length, 2);
+  assert.equal(r.dias[0].fecha, "2026-11-19"); assert.equal(r.dias[0].iva, 80); assert.equal(r.dias[1].iva, null);
+  assert.equal(r.dias[1].total, 3500); assert.equal(r.dias[1].n_ventas, 2); assert.equal(r.dias[1].debito, 2500);
+  assert.equal(alertaCruce(0, 100), "sin_datos");
+  assert.equal(alertaCruce(100000, 99000), "cuadra");
+  assert.equal(alertaCruce(100000, 80000), "pos_mayor");
+  assert.equal(alertaCruce(100000, 130000), "revisar");
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

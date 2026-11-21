@@ -1,6 +1,8 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { gastoRevisarAction } from "@/app/actions/gastos";
+import { alertaCruce } from "@/lib/pos";
+import { PosImporter } from "./pos-importer";
 import { CATEGORIAS_GASTO, DOCUMENTOS_GASTO } from "@/lib/gastos";
 import { notFound } from "next/navigation";
 import {
@@ -115,6 +117,10 @@ export default async function PeriodPage({
     supabase.from("vat_returns").select("*").eq("company_id", company.id).eq("period", period).neq("status", "anulado").limit(1),
     supabase.from("subscriptions").select("plan_id, status").eq("company_id", company.id).in("status", ["activa", "vencida"]),
   ]);
+  // Ventas del punto de venta y cruce con el Registro de Compras y Ventas (0068).
+  const { data: posData } = await supabase.rpc("pos_resumen_mes", { p_company: company.id, p_period: period });
+  const pos = (posData ?? null) as { dias: number; total: number; ventas: number; efectivo: number; debito: number; credito: number; transferencia: number; otros: number; sistemas: string | null; rcv: number; diferencia: number; diferencia_pct: number | null } | null;
+  const cruce = alertaCruce(Number(pos?.total ?? 0), Number(pos?.rcv ?? 0));
   // Gastos registrados por el cliente con foto, voz o texto (0067).
   const { data: gRows } = await supabase.from("gastos").select("id, fecha, monto, descripcion, categoria, documento, proveedor, uso, estado, nota")
     .eq("company_id", company.id).eq("period", period).order("fecha").limit(1000);
@@ -318,6 +324,32 @@ export default async function PeriodPage({
             </details>
           ) : null}
           <p className="muted-line">Un movimiento se concilia con un solo documento del mismo monto. Pagos parciales o agrupados se clasifican y se revisan con tu contador.</p>
+        </div>
+      ),
+    },
+    {
+      id: "pos",
+      title: "Punto de venta",
+      description: pos?.dias ? `${pos.dias} día(s) · ${clp(Number(pos.total))}${pos.sistemas ? ` · ${pos.sistemas}` : ""}` : "Sin ventas del POS en este mes",
+      emblem: <Emblem name="contabilidad" size="sm" />,
+      tone: cruce === "pos_mayor" || cruce === "revisar" ? "gold" : "default",
+      content: (
+        <div className="catalog-body">
+          {pos?.dias ? (
+            <>
+              <dl className="gx-totales">
+                <div><dt>Ventas del POS</dt><dd>{clp(Number(pos.total))}</dd></div>
+                <div><dt>Ventas en el RCV (boletas y facturas)</dt><dd>{clp(Number(pos.rcv))}</dd></div>
+                <div><dt>Diferencia</dt><dd>{clp(Number(pos.diferencia))}{pos.diferencia_pct != null ? ` (${pos.diferencia_pct}%)` : ""}</dd></div>
+              </dl>
+              <p className="muted-line">Efectivo {clp(Number(pos.efectivo))} · Débito {clp(Number(pos.debito))} · Crédito {clp(Number(pos.credito))} · Transferencia {clp(Number(pos.transferencia))} · Otros {clp(Number(pos.otros))} · {pos.ventas} ventas</p>
+              {cruce === "cuadra" ? <Callout kind="info" title="Cuadra">Las ventas del punto de venta y las del Registro de Compras y Ventas difieren en menos de 2%.</Callout> : null}
+              {cruce === "pos_mayor" ? <Callout kind="warn" title="El POS registra más ventas que el SII">Revisa si faltan boletas por emitir o si el resumen de boletas del mes aún no se carga. Las ventas sin documento tributario deben regularizarse antes de declarar.</Callout> : null}
+              {cruce === "revisar" ? <Callout kind="warn" title="El SII registra más ventas que el POS">Puede haber ventas emitidas fuera del punto de venta (facturas manuales, otra caja) o días sin cargar en el POS. Revísalo antes de declarar.</Callout> : null}
+            </>
+          ) : <p className="muted-line">Carga la exportación de tu punto de venta o conéctalo para que las ventas lleguen solas cada día.</p>}
+          {canBook && !locked ? <PosImporter companyId={company.id} /> : null}
+          <p className="muted-line"><Link href={`/contabilidad/punto-de-venta${sp.empresa ? `?empresa=${company.id}` : ""}`}>Conectar mi punto de venta (Vania POS u otro)</Link></p>
         </div>
       ),
     },
