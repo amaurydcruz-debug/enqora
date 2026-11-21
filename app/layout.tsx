@@ -1,12 +1,26 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Montserrat } from "next/font/google";
+import localFont from "next/font/local";
 import { EmblemDefs } from "@/components/emblems";
 import { PwaClient } from "@/components/pwa";
 import { publicSiteUrl } from "@/lib/site";
 import "./globals.css";
 
-const body = Inter({ subsets: ["latin"], variable: "--font-body", display: "swap" });
-const brand = Montserrat({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--font-brand", display: "swap" });
+// Fuentes alojadas en el propio proyecto (app/fonts, licencia OFL): la compilación ya no depende de Google Fonts,
+// que a veces falla en Vercel («An error occurred in next/font»). Subconjunto latino con tildes, ñ y signos.
+const body = localFont({
+  src: [
+    { path: "./fonts/inter-regular.woff", weight: "400", style: "normal" },
+    { path: "./fonts/inter-medium.woff", weight: "500", style: "normal" },
+    { path: "./fonts/inter-semibold.woff", weight: "600", style: "normal" },
+    { path: "./fonts/inter-bold.woff", weight: "700", style: "normal" },
+    { path: "./fonts/inter-extrabold.woff", weight: "800", style: "normal" },
+  ],
+  variable: "--font-body", display: "swap", fallback: ["system-ui", "Segoe UI", "Arial", "sans-serif"],
+});
+const brand = localFont({
+  src: [{ path: "./fonts/montserrat-var.woff", weight: "500 700", style: "normal" }],
+  variable: "--font-brand", display: "swap", fallback: ["system-ui", "Arial", "sans-serif"],
+});
 
 // Por defecto nada se indexa: solo las páginas públicas lo habilitan (ver lib/site.ts → indexable).
 export const metadata: Metadata = {

@@ -1,0 +1,2 @@
+Inter (Rasmus Andersson) y Montserrat (Julieta Ulanovsky y colaboradores): SIL Open Font License 1.1.
+Subconjunto latino generado con fonttools (pyftsubset) para alojarlas en el proyecto.
