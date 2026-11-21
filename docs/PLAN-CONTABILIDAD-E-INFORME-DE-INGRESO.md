@@ -27,7 +27,7 @@ Etapas:
 1. **Construida (21-11-2026, migración 0066):** tarjeta «Tu mes» en el inicio, aprobación del cliente con constancia del monto, «Tengo una observación», el equipo solo presenta lo aprobado por el cliente, recordatorios días 1–5 y 13–17. Base: plan mensual, Mandato Digital, importador RCV/cartola (ya existe), cierre mensual con aprobación y tarjeta «Tu mes».
 2. **Construida (21-11-2026, migración 0067):** «Registrar gasto» con foto (la IA lee la boleta), voz o texto; el cliente confirma antes de guardar, clasifica negocio/personal con un toque y el contador revisa en la contabilidad del mes. Nada se borra: se descarta con motivo.
 3. **Construida en parte (21-11-2026, migración 0068):** ventas del punto de venta por archivo (CSV de cualquier POS) o por conector con clave (API `/api/pos/ventas`, ver docs/API-PUNTO-DE-VENTA.md) y cruce POS vs. RCV. Falta: el envío desde Vania POS (su rebuild aún no está operativo) y bancos (finanzas abiertas, por confirmar).
-4. Automatización: conciliación y preguntas automáticas por agentes.
+4. **Construida (21-11-2026, migración 0069):** agente conciliador que propone (factura por monto y RUT, glosas de comisiones, sueldos, impuestos, créditos y traspasos, liquidaciones de tarjeta contra el POS) y una persona aplica; lo que no se explica se pregunta al cliente con opciones de un toque y el contador aplica la respuesta.
 
 Decisiones pendientes de Amaury: segmento inicial (sugerido: pyme Pro Pyme con boletas/facturas electrónicas y pocos o ningún trabajador), planes por tamaño y precios, momento de Vania POS, quién paga el IVA (sugerido: el cliente).
 

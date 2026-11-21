@@ -27,6 +27,7 @@ import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
 import { alertaCruce, medioDePago, resumirPorDia } from "@/lib/pos";
+import { CATEGORIA_DE_RESPUESTA, preguntasPara, proponer } from "@/lib/conciliador";
 
 let ok = 0;
 const fallos: string[] = [];
@@ -493,6 +494,31 @@ prueba("Punto de venta: resumen por día, medios de pago y cruce con el RCV", ()
   assert.equal(alertaCruce(100000, 99000), "cuadra");
   assert.equal(alertaCruce(100000, 80000), "pos_mayor");
   assert.equal(alertaCruce(100000, 130000), "revisar");
+});
+
+prueba("Conciliador: propone (no aplica) y pregunta lo que no puede explicar", () => {
+  const m = (id: string, fecha: string, glosa: string, monto: number) => ({ id, movement_date: fecha, description: glosa, amount: monto });
+  const movs = [
+    m("a", "2026-10-05", "PAGO FACT 1234 PROVEEDOR 76086428", -119000),
+    m("b", "2026-10-31", "COMISION MANTENCION CUENTA", -4990),
+    m("c", "2026-10-15", "PAGO PREVIRED", -210000),
+    m("d", "2026-10-21", "ABONO TRANSBANK", 196000),
+    m("e", "2026-10-12", "TRANSF A JUAN PEREZ", -150000),
+    m("f", "2026-10-13", "COMPRA MENOR", -3500),
+  ];
+  const p = proponer(movs, [{ movement_id: "a", document_id: "doc1", score: 4, days: 2 }], [{ fecha: "2026-10-20", tarjetas: 200000 }]);
+  const de = (id: string) => p.find((x) => x.movement_id === id);
+  assert.equal(de("a")?.tipo, "documento"); assert.equal(de("a")?.certeza, "alta");
+  const cat = (id: string) => { const x = de(id); return x?.tipo === "categoria" ? x.categoria : null; };
+  assert.equal(cat("b"), "comision_bancaria");
+  assert.equal(cat("c"), "remuneraciones");
+  assert.equal(de("d")?.certeza, "alta");
+  assert.equal(de("e"), undefined);
+  const q = preguntasPara(movs, p);
+  assert.equal(q.length, 1);
+  assert.equal(q[0].movement_id, "e");
+  assert.ok(q[0].opciones.includes("Retiro personal"));
+  assert.equal(CATEGORIA_DE_RESPUESTA["No lo reconozco"], null);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
