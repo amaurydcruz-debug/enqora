@@ -138,7 +138,7 @@ export default async function SystemStatusPage() {
     { label: "Clave de servicio", ok: has("ENQORA_SERVICE_TOKEN") && !!s?.clave_servicio, required: true, help: "Genérala en Cobros y pagos y guárdala en Vercel como ENQORA_SERVICE_TOKEN." },
     { label: "Tarea diaria (facturación, mandatos y limpieza)", ok: has("CRON_SECRET"), required: true, help: "Falta CRON_SECRET en Vercel: sin ella la tarea diaria no se ejecuta." },
     { label: "Correos de avisos", ok: has("RESEND_API_KEY", "ALERT_EMAIL_FROM"), help: "Faltan RESEND_API_KEY y ALERT_EMAIL_FROM: los avisos quedan solo en la bandeja." },
-    { label: "Remitente de correos válido", ok: !has("ALERT_EMAIL_FROM") || REMITENTE_OK.test(process.env.ALERT_EMAIL_FROM!.trim()), required: has("ALERT_EMAIL_FROM"),
+    { label: "Remitente de correos válido", ok: !has("ALERT_EMAIL_FROM") || REMITENTE_OK.test((process.env.ALERT_EMAIL_FROM ?? "").trim()), required: has("ALERT_EMAIL_FROM"),
       help: "ALERT_EMAIL_FROM debe ser un nombre con su correo, por ejemplo: ENQORA <no-responder@enqora.cl>. Solo «ENQORA» no sirve: Resend rechaza el envío." },
     { label: "Pagos en línea (Flow)", ok: has("FLOW_API_KEY", "FLOW_SECRET_KEY"), help: "Sin FLOW_API_KEY y FLOW_SECRET_KEY solo se paga por transferencia." },
     { label: "Flow en producción", ok: has("FLOW_API_KEY") && !flowIsSandbox(), help: "Flow apunta al ambiente de pruebas (sandbox). Cambia FLOW_API_URL y las claves de producción." },
