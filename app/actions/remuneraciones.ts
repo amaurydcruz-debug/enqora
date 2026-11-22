@@ -52,11 +52,17 @@ export async function guardarTrabajadorAction(form: FormData): Promise<void> {
   const isapre = txt(form, "isapre");
   const sexo = txt(form, "sexo");
   if ((comuna && !/^\d{4,5}$/.test(comuna)) || (jornadaLre && !(Number(jornadaLre) in JORNADAS_LRE)) || (sexo && !["M", "F"].includes(sexo))
-      || (salud === "isapre" && !(isapre in ISAPRES))) error(periodo, null);
+      || (salud === "isapre" && !(isapre in ISAPRES))
+      || (["A", "B"].includes(txt(form, "apv_regimen")) && (!(entero(form, "apv_monto") > 0) || !AFPS.includes(txt(form, "apv_afp") as (typeof AFPS)[number])))) error(periodo, null);
   const datos = {
     rut, apellido_paterno: txt(form, "apellido_paterno").slice(0, 30), apellido_materno: txt(form, "apellido_materno").slice(0, 30),
     nombres: txt(form, "nombres").slice(0, 30), sexo, extranjero: txt(form, "extranjero") === "si", comuna, jornada_lre: jornadaLre,
-    fun: salud === "isapre" ? txt(form, "fun").slice(0, 16) : "", cargo: txt(form, "cargo").slice(0, 80), fecha_ingreso: txt(form, "fecha_ingreso"),
+    fun: salud === "isapre" ? txt(form, "fun").slice(0, 16) : "",
+    apv_regimen: ["A", "B"].includes(txt(form, "apv_regimen")) ? txt(form, "apv_regimen") : "",
+    apv_monto: ["A", "B"].includes(txt(form, "apv_regimen")) ? entero(form, "apv_monto") : "",
+    apv_afp: ["A", "B"].includes(txt(form, "apv_regimen")) ? txt(form, "apv_afp") : "",
+    apv_contrato: ["A", "B"].includes(txt(form, "apv_regimen")) ? txt(form, "apv_contrato").slice(0, 20) : "",
+    apv_forma: ["A", "B"].includes(txt(form, "apv_regimen")) ? (txt(form, "apv_forma") === "2" ? 2 : 1) : "", cargo: txt(form, "cargo").slice(0, 80), fecha_ingreso: txt(form, "fecha_ingreso"),
     tipo_contrato: txt(form, "tipo_contrato"), sueldo_base: entero(form, "sueldo_base"), jornada_horas: decimal(form, "jornada_horas"),
     afp, salud, isapre: salud === "isapre" ? isapre : "", plan_isapre_uf: salud === "isapre" && Number.isFinite(plan) ? plan : "",
     colacion: entero(form, "colacion"), movilizacion: entero(form, "movilizacion"),
@@ -105,7 +111,8 @@ export async function calcularLiquidacionAction(form: FormData): Promise<void> {
   if (!emp) error(periodo, null, "ENQ_SIN_MUTUAL");
   if (typeof p!.afp[trab.afp] !== "number") error(periodo, null, "ENQ_SIN_TASA_AFP");
   const ficha: Trabajador = { ...trab, sueldo_base: Number(trab.sueldo_base), jornada_horas: Number(trab.jornada_horas),
-    plan_isapre_uf: trab.plan_isapre_uf == null ? null : Number(trab.plan_isapre_uf), colacion: Number(trab.colacion), movilizacion: Number(trab.movilizacion) };
+    plan_isapre_uf: trab.plan_isapre_uf == null ? null : Number(trab.plan_isapre_uf), colacion: Number(trab.colacion), movilizacion: Number(trab.movilizacion),
+    apv_regimen: trab.apv_regimen ?? null, apv_monto: trab.apv_monto == null ? null : Number(trab.apv_monto) };
   const liq = liquidar(ficha, nov!, p!, Number((emp as { tasa_mutual: number }).tasa_mutual));
   const { error: e } = await supabase.rpc("rem_guardar_liquidacion", {
     p_trabajador: id, p_periodo: periodo, p_parametros: (par as { id: string }).id, p_motor: MOTOR_REM, p_novedades: nov,

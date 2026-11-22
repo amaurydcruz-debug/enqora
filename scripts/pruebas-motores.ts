@@ -696,6 +696,39 @@ prueba("Marcas INAPI: encabezados, fechas de Excel, vigencia y normalización", 
   assert.ok("error" in prepararFilasMarcas([["a", "b"]], new Date()));
 });
 
+prueba("Remuneraciones: APV régimen A y B (art. 42 bis) en el cálculo y en los archivos", () => {
+  const p: Parametros = { uf: 40000, utm: 72000, imm: 539000, tope_afp_uf: 90, tope_afc_uf: 135.2, afp: { Uno: 10.46 }, sis: 1.5,
+    aporte_ci: 0.1, aporte_ev: 1, aporte_rp: 0.9, afc_indefinido_trab: 0.6, afc_indefinido_emp: 2.4, afc_plazo_emp: 3, salud_legal: 7 };
+  const t: Trabajador = { id: "t", nombre: "Ana", tipo_contrato: "indefinido", sueldo_base: 2000000, jornada_horas: 42, afp: "Uno", salud: "fonasa",
+    plan_isapre_uf: null, colacion: 0, movilizacion: 0, gratificacion: "ninguna" };
+  const n = leerNovedades({})!;
+  const sin = liquidar(t, n, p, 0.93);
+  const b = liquidar({ ...t, apv_regimen: "B", apv_monto: 100000 }, n, p, 0.93);
+  const a = liquidar({ ...t, apv_regimen: "A", apv_monto: 100000 }, n, p, 0.93);
+  assert.equal(b.base_tributable, sin.base_tributable - 100000);
+  assert.ok(b.montos.impuesto < sin.montos.impuesto);
+  assert.equal(a.base_tributable, sin.base_tributable); // el régimen A no rebaja la base
+  assert.equal(a.liquido, sin.liquido - 100000);
+  assert.equal(b.liquido, sin.liquido - 100000 + (sin.montos.impuesto - b.montos.impuesto));
+  const tope = liquidar({ ...t, apv_regimen: "B", apv_monto: 3000000 }, n, p, 0.93);
+  assert.equal(tope.base_tributable, Math.max(0, sin.base_tributable - 2000000)); // 50 UF = $2.000.000
+  assert.ok(tope.advertencias.some((x) => x.includes("50 UF")));
+  const ficha = { rut: "12345678-5", apellido_paterno: "Pérez", apellido_materno: "", nombres: "Ana", sexo: "F" as const, extranjero: false,
+    fecha_ingreso: "2025-01-01", fecha_baja: null, causal_termino: null, tipo_contrato: "indefinido" as const, jornada_horas: 42, jornada_lre: 101,
+    afp: "Uno", salud: "fonasa" as const, isapre: null, fun: null, plan_isapre_uf: null, comuna: 13101, nombre: "Ana Pérez",
+    apv_regimen: "B" as const, apv_afp: "Habitat", apv_contrato: "C-9", apv_forma: 2 };
+  const emp = { mutual: "ACHS", tasa_mutual: 0.93, mutual_sucursal: 1, ccaf: 0 };
+  const fila: FilaArchivo = { ficha, dias: 30, montos: b.montos };
+  assert.deepEqual(faltantesArchivo(fila, emp), []);
+  assert.ok(faltantesArchivo({ ...fila, ficha: { ...ficha, apv_afp: null } }, emp).some((x) => x.includes("APV")));
+  const c = ["", ...archivoPrevired([fila], emp, "2026-11").trim().split(";")];
+  assert.equal(c[40], "005"); assert.equal(c[41], "C-9"); assert.equal(c[42], "2"); assert.equal(c[43], "100000");
+  const cab = encabezadoLre().split(";");
+  const val = archivoLre([fila], emp, "2026-11").trim().split("\r\n")[1].split(";");
+  const v = (cod: number) => val[cab.findIndex((h) => h.endsWith(`(${cod})`))];
+  assert.equal(v(3155), "0"); assert.equal(v(3156), "100000"); assert.equal(v(5501), String(b.liquido));
+});
+
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
 if (fallos.length) {
   console.log(fallos.join("\n"));
