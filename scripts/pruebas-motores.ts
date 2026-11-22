@@ -26,6 +26,7 @@ import { anonimizar, armarFuentes, informePorReglas, sanear, type Entrada } from
 import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
 import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
+import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriadoProporcional, plazoPago, textoFiniquito, validarDatosFiniquito, type DatosFiniquito } from "@/lib/finiquito";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
 import { generarPolitica, validarPolitica } from "@/lib/plantilla-datos";
@@ -783,6 +784,66 @@ prueba("Remuneraciones: asignación familiar y licencias médicas (RIMA) en el c
   const v = (cod: number) => val[cab.findIndex((h) => h.endsWith(`(${cod})`))];
   assert.equal(v(1111), "2"); assert.equal(v(1113), "1"); assert.equal(v(1114), "A"); assert.equal(v(1116), "20"); assert.equal(v(2311), "29333");
   assert.equal(v(5501), String(lic.liquido));
+});
+
+prueba("Finiquito: antigüedad, años, feriado proporcional proyectado, topes, aviso, seguro de cesantía y LRE", () => {
+  assert.deepEqual(antiguedad("2020-03-01", "2026-11-20"), { anos: 6, meses: 8, dias: 20 });
+  assert.equal(anosIndemnizacion({ anos: 6, meses: 8, dias: 20 }), 7); // fracción superior a 6 meses
+  assert.equal(anosIndemnizacion({ anos: 6, meses: 6, dias: 0 }), 6); // 6 meses justos no suman
+  assert.equal(anosIndemnizacion({ anos: 0, meses: 11, dias: 29 }), 0); // menos de un año
+  assert.equal(anosIndemnizacion({ anos: 15, meses: 0, dias: 0 }), 11); // tope de 11 años
+  // Ejemplo de la Dirección del Trabajo: 8 meses y 2 días = 10,08 días hábiles.
+  assert.equal(Math.round(feriadoProporcional("2026-01-01", "2026-09-02", 15) * 100) / 100, 10.08);
+  const festivos = new Set(["2026-12-08", "2026-12-25", "2027-01-01"]);
+  // Término viernes 20-11-2026; 10,8333 hábiles + 2 pendientes cruzan el 8 de diciembre (festivo).
+  assert.equal(Math.round(diasCorridos("2026-11-20", 10 + 25 / 30, festivos) * 10000) / 10000, 16.8333);
+  assert.equal(Math.round(diasCorridos("2026-11-20", 12 + 25 / 30, festivos) * 10000) / 10000, 19.8333);
+  assert.equal(diasCorridos("2026-11-20", 0, festivos), 0);
+  assert.equal(diasCorridos("2026-11-20", 5, festivos), 7); // sábado y domingo se suman antes del primer hábil
+  assert.equal(plazoPago("2026-11-20", festivos), "2026-12-02");
+
+  const base = { fecha_ingreso: "2020-03-01", fecha_termino: "2026-11-20", causal: 18, base_indemnizacion: 1000000, base_feriado: 900000,
+    aviso_dado: false, feriado_anual: 15, dias_pendientes: 2, uf: 40000, aporte_afc: 800000, otros_haberes: 0, otros_descuentos: 0, detalle_otros: "" };
+  const d = validarDatosFiniquito(base) as DatosFiniquito;
+  assert.equal(typeof d, "object");
+  const x = calcularFiniquito(d, festivos);
+  assert.equal(x.anos_indemnizados, 7); assert.equal(x.ias, 7000000); assert.equal(x.aviso, 1000000);
+  assert.equal(x.imputacion_afc, 800000); assert.equal(x.feriado, 595000); assert.equal(x.total, 7795000);
+  assert.equal(calcularFiniquito({ ...d, aviso_dado: true }, festivos).aviso, 0);
+  const alto = calcularFiniquito({ ...d, base_indemnizacion: 5000000, fecha_ingreso: "2014-01-01" }, festivos);
+  assert.equal(alto.base_tope, 3600000); assert.equal(alto.anos_indemnizados, 11); assert.ok(alto.tope_aplicado);
+  const renuncia = calcularFiniquito({ ...d, causal: 4 }, festivos);
+  assert.equal(renuncia.ias, 0); assert.equal(renuncia.aviso, 0); assert.equal(renuncia.imputacion_afc, 0); assert.equal(renuncia.total, 595000);
+  assert.ok(renuncia.advertencias.some((a) => a.includes("art. 161")));
+  const concursal = calcularFiniquito({ ...d, causal: 20, aviso_dado: true }, festivos);
+  assert.equal(concursal.aviso, 1000000); assert.equal(concursal.imputacion_afc, 0);
+  assert.equal(typeof validarDatosFiniquito({ ...base, otros_descuentos: 5000 }), "string"); // sin detalle
+  assert.equal(typeof validarDatosFiniquito({ ...base, fecha_termino: "2019-01-01" }), "string");
+  assert.ok(!x.advertencias.some((a) => a.includes("festivos"))); // los festivos cargados cubren la proyección
+  assert.ok(calcularFiniquito(d, new Set(["2026-12-01"])).advertencias.some((a) => a.includes("festivos"))); // no la cubren
+  const texto = textoFiniquito({ empresa: "Andes SpA", rut_empresa: "76086428-5", domicilio: "Av. Uno 1, Santiago", trabajador: "Ana Pérez",
+    rut_trabajador: "12345678-5", cargo: "Vendedora", causal_texto: "Art. 161 inc. 1: necesidades de la empresa" }, d, x);
+  assert.ok(texto.includes("$7.795.000") && texto.includes("ministro de fe") && texto.includes("artículo 162"));
+
+  // LRE: la fila del último mes lleva las indemnizaciones (no imponibles ni tributables) y la imputación del seguro.
+  const p: Parametros = { uf: 40000, utm: 72000, imm: 539000, tope_afp_uf: 90, tope_afc_uf: 135.2, afp: { Uno: 10.46 }, sis: 1.5,
+    aporte_ci: 0.1, aporte_ev: 1, aporte_rp: 0.9, afc_indefinido_trab: 0.6, afc_indefinido_emp: 2.4, afc_plazo_emp: 3, salud_legal: 7 };
+  const t: Trabajador = { id: "t", nombre: "Ana", tipo_contrato: "indefinido", sueldo_base: 1000000, jornada_horas: 42, afp: "Uno", salud: "fonasa",
+    plan_isapre_uf: null, colacion: 0, movilizacion: 0, gratificacion: "ninguna" };
+  const liq = liquidar(t, leerNovedades({ dias_trabajados: 20 })!, p, 0.93);
+  const ficha = { rut: "12345678-5", apellido_paterno: "Pérez", apellido_materno: "", nombres: "Ana", sexo: "F" as const, extranjero: false,
+    fecha_ingreso: "2020-03-01", fecha_baja: "2026-11-20", causal_termino: 18, tipo_contrato: "indefinido" as const, jornada_horas: 42, jornada_lre: 101,
+    afp: "Uno", salud: "fonasa" as const, isapre: null, fun: null, plan_isapre_uf: null, comuna: 13101, nombre: "Ana Pérez" };
+  const emp = { mutual: "ACHS", tasa_mutual: 0.93, mutual_sucursal: 1, ccaf: 0 };
+  const fila: FilaArchivo = { ficha, dias: 20, montos: liq.montos, finiquito: { ias: x.ias, aviso: x.aviso, feriado: x.feriado, imputacion_afc: x.imputacion_afc } };
+  const cab = encabezadoLre().split(";");
+  const val = archivoLre([fila], emp, "2026-11").trim().split("\r\n")[1].split(";");
+  const v = (cod: number) => val[cab.findIndex((h) => h.endsWith(`(${cod})`))];
+  assert.equal(v(2313), "595000"); assert.equal(v(2314), "7000000"); assert.equal(v(2315), "1000000"); assert.equal(v(5502), "8595000");
+  assert.equal(v(3185), "800000"); assert.equal(v(5210), String(liq.total_imponible));
+  assert.equal(v(5501), String(liq.liquido + 8595000 - 800000));
+  const otroMes = archivoLre([fila], emp, "2026-10").trim().split("\r\n")[1].split(";");
+  assert.equal(otroMes[cab.findIndex((h) => h.endsWith("(2314)"))], "0"); // solo en el mes del término
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

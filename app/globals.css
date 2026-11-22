@@ -3875,6 +3875,10 @@ fieldset.mini-form legend { padding: 0 6px; }
 .rem-sub th { text-align: left; padding: 10px 6px 4px; font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); font-weight: 600; }
 .rem-total td { font-weight: 700; color: var(--text); border-bottom: 1px solid var(--hairline-strong); }
 .rem-adv { margin: 6px 0; padding-left: 18px; font-size: 0.82rem; color: var(--gold); }
+.rem-fin { border: 1px solid var(--hairline); border-radius: 10px; padding: 10px 12px; }
+.rem-fin > p { margin: 0 0 6px; font-size: 0.9rem; }
+.rem-fin-lineas { margin: 0 0 8px; padding-left: 18px; font-size: 0.86rem; color: var(--text-2); }
+.rem-fin-lineas li { margin-bottom: 3px; }
 
 /* Documentos laborales (0075) */
 .doc-texto { line-height: 1.6; color: var(--text-2); }
