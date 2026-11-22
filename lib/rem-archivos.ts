@@ -38,6 +38,7 @@ export type FichaArchivo = {
   extranjero: boolean; fecha_ingreso: string; fecha_baja: string | null; causal_termino: number | null; tipo_contrato: "indefinido" | "plazo_fijo" | "obra";
   jornada_horas: number; jornada_lre: number | null; afp: string; salud: "fonasa" | "isapre"; isapre: string | null; fun: string | null;
   plan_isapre_uf: number | null; comuna: number | null; nombre: string;
+  apv_regimen?: "A" | "B" | null; apv_afp?: string | null; apv_contrato?: string | null; apv_forma?: number | null;
 };
 export type EmpresaArchivo = { mutual: string; tasa_mutual: number; mutual_sucursal: number | null; ccaf: number };
 export type FilaArchivo = { ficha: FichaArchivo; dias: number; montos: Montos | null; ccaf_salud?: number | null };
@@ -70,6 +71,7 @@ export function faltantesArchivo(f: FilaArchivo, e: EmpresaArchivo | null): stri
   if (t.salud === "isapre" && (!t.isapre || !ISAPRES[t.isapre])) x.push("isapre (elige de la lista)");
   if (t.salud === "isapre" && !t.fun) x.push("número de FUN de la isapre");
   if (t.fecha_baja && !t.causal_termino) x.push("causal de término");
+  if (f.montos && ((f.montos.apv_a ?? 0) + (f.montos.apv_b ?? 0)) > 0 && (!t.apv_afp || !AFP_CODIGOS[t.apv_afp] || !t.apv_forma)) x.push("AFP y forma de pago del APV");
   if (!e) x.push("mutual de la empresa");
   else if (e.mutual !== "ISL" && !e.mutual_sucursal) x.push("código de sucursal de la mutual (empresa)");
   if (e && e.ccaf > 0 && t.salud === "fonasa" && typeof f.ccaf_salud !== "number") x.push("porcentaje del 7% que va a la CCAF (parámetros del mes)");
@@ -98,6 +100,11 @@ export function lineaPrevired(f: FilaArchivo, e: EmpresaArchivo, periodo: string
   // AFP: el 0,1% de capitalización individual del empleador se entera junto a la cotización obligatoria (campo 28).
   set(26, AFP_CODIGOS[t.afp].previred); set(27, m.base_afp); set(28, m.afp + m.aporte_ci); set(29, m.sis);
   set(37, ""); set(38, "00,00"); set(41, ""); set(46, ""); set(51, ""); set(52, ""); set(53, ""); set(54, ""); set(56, ""); set(57, "");
+  // APVI (campos 40 a 43): institución (Tabla N°11, AFP con 3 dígitos), contrato, forma de pago (1 directa, 2 indirecta) y monto.
+  const apv = (m.apv_a ?? 0) + (m.apv_b ?? 0);
+  if (apv > 0 && t.apv_afp && AFP_CODIGOS[t.apv_afp]) {
+    set(40, AFP_CODIGOS[t.apv_afp].previred.padStart(3, "0")); set(41, limpio(t.apv_contrato, 20)); set(42, t.apv_forma ?? 1); set(43, apv);
+  }
   set(32, "00,00"); set(35, ""); set(36, "");
   set(62, "0000"); set(63, "00,00"); set(64, base64); set(67, "0000"); set(68, "00,00");
   set(70, fonasa ? m.salud_legal - ccafSalud : 0); set(71, isl ? m.mutual : 0);
@@ -178,12 +185,13 @@ export function filaLre(f: FilaArchivo, e: EmpresaArchivo, periodo: string): str
   v.set(2101, m.sueldo); v.set(2102, m.horas_extra); v.set(2106, m.gratificacion); v.set(2113, m.bonos);
   v.set(2301, m.colacion); v.set(2302, m.movilizacion);
   v.set(3141, m.afp); v.set(3143, m.salud_legal); v.set(3144, m.salud_adicional); v.set(3151, m.afc_trab); v.set(3161, m.impuesto);
+  v.set(3155, m.apv_a ?? 0); v.set(3156, m.apv_b ?? 0);
   v.set(3185, m.otros); v.set(3188, m.anticipos);
   // El Suplemento LRE aún no tiene códigos propios para los aportes de la Ley 21.735: se informan en 4155, como lo hace el mercado.
   v.set(4151, m.afc_emp); v.set(4152, m.mutual); v.set(4155, m.sis + m.aporte_ci + m.aporte_ev + m.aporte_rp);
   const imp = m.sueldo + m.horas_extra + m.gratificacion + m.bonos;
   const noImp = m.colacion + m.movilizacion;
-  const cotiz = m.afp + m.salud_legal + m.salud_adicional + m.afc_trab;
+  const cotiz = m.afp + m.salud_legal + m.salud_adicional + m.afc_trab + (m.apv_a ?? 0) + (m.apv_b ?? 0);
   const desc = cotiz + m.impuesto + m.otros + m.anticipos;
   v.set(5201, imp + noImp); v.set(5210, imp); v.set(5230, noImp); v.set(5301, desc); v.set(5341, cotiz); v.set(5361, m.impuesto);
   v.set(5302, desc - cotiz - m.impuesto);

@@ -22,6 +22,7 @@ type Trab = {
   colacion: number; movilizacion: number; gratificacion: "art50" | "ninguna"; activo: boolean; fecha_baja: string | null; motivo_baja: string | null;
   apellido_paterno: string | null; apellido_materno: string | null; nombres: string | null; sexo: "M" | "F" | null; extranjero: boolean;
   comuna: number | null; jornada_lre: number | null; fun: string | null; causal_termino: number | null;
+  apv_regimen: "A" | "B" | null; apv_monto: number | null; apv_afp: string | null; apv_contrato: string | null; apv_forma: number | null;
 };
 type Liq = {
   id: string; trabajador_id: string; version: number; estado: "borrador" | "aprobada" | "anulada"; detalle: Liquidacion; novedades: Novedades;
@@ -61,7 +62,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   const periodo = sp.periodo && periodoValido(sp.periodo) ? sp.periodo : hoy.slice(0, 7);
   const supabase = await createClient();
   const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep] = await Promise.all([
-    supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja, apellido_paterno, apellido_materno, nombres, sexo, extranjero, comuna, jornada_lre, fun, causal_termino")
+    supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja, apellido_paterno, apellido_materno, nombres, sexo, extranjero, comuna, jornada_lre, fun, causal_termino, apv_regimen, apv_monto, apv_afp, apv_contrato, apv_forma")
       .eq("company_id", company.id).order("activo", { ascending: false }).order("nombre"),
     supabase.from("rem_liquidaciones").select("id, trabajador_id, version, estado, detalle, novedades, total_imponible, liquido, costo_empresa, creado, aprobado_at, motivo_anulacion")
       .eq("company_id", company.id).eq("periodo", periodo).order("version", { ascending: false }),
@@ -250,7 +251,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
       </section>
 
       <Callout kind="info" title="Cálculo referencial, con revisión humana">
-        La liquidación usa las reglas generales (gratificación del art. 50 con tope de 4,75 ingresos mínimos al año, horas extra con recargo del 50%, impuesto único por tramos en UTM). Casos especiales —licencias médicas, semana corrida, pactos de isapre en pesos, APV, cargas familiares, pensionados o un ingreso y retiro en el mismo mes— se ajustan con tu contador antes de aprobar.
+        La liquidación usa las reglas generales (gratificación del art. 50 con tope de 4,75 ingresos mínimos al año, horas extra con recargo del 50%, impuesto único por tramos en UTM). Casos especiales —licencias médicas, semana corrida, pactos de isapre en pesos, APV en bancos o compañías de seguros, cargas familiares, pensionados o un ingreso y retiro en el mismo mes— se ajustan con tu contador antes de aprobar.
       </Callout>
     </div>
   );
@@ -426,6 +427,37 @@ function FichaForm({ empresa, periodo, t }: { empresa: string; periodo: string; 
           <option value="art50">Art. 50 (25%, con tope)</option>
           <option value="ninguna">No corresponde</option>
         </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-apv`}>APV por planilla</label>
+        <select id={`${p}-apv`} name="apv_regimen" className="input" defaultValue={t?.apv_regimen ?? ""}>
+          <option value="">No tiene</option>
+          <option value="A">Régimen A (bonificación 15%)</option>
+          <option value="B">Régimen B (rebaja de impuesto)</option>
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-apvm`}>APV mensual ($)</label>
+        <input id={`${p}-apvm`} name="apv_monto" className="input" inputMode="numeric" defaultValue={t?.apv_monto != null ? String(t.apv_monto) : ""} />
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-apva`}>AFP del APV</label>
+        <select id={`${p}-apva`} name="apv_afp" className="input" defaultValue={t?.apv_afp ?? ""}>
+          <option value="">—</option>
+          {AFPS.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-apvc`}>N° de contrato APV</label>
+        <input id={`${p}-apvc`} name="apv_contrato" className="input" maxLength={20} defaultValue={t?.apv_contrato ?? ""} />
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-apvf`}>Forma de pago del APV</label>
+        <select id={`${p}-apvf`} name="apv_forma" className="input" defaultValue={String(t?.apv_forma ?? 1)}>
+          <option value="1">Directa</option>
+          <option value="2">Indirecta</option>
+        </select>
+        <span className="hint">Según el mandato que firmó el trabajador con la AFP.</span>
       </div>
       <div className="field"><label>&nbsp;</label><SubmitButton variant={t ? "ghost" : undefined} className="btn-inline btn-sm" pendingText="Guardando…">{t ? "Guardar cambios" : "Agregar"}</SubmitButton></div>
     </form>

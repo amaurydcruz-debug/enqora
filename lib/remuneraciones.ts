@@ -23,6 +23,8 @@ export type Trabajador = {
   id: string; nombre: string; tipo_contrato: "indefinido" | "plazo_fijo" | "obra";
   sueldo_base: number; jornada_horas: number; afp: string; salud: "fonasa" | "isapre"; plan_isapre_uf: number | null;
   colacion: number; movilizacion: number; gratificacion: "art50" | "ninguna";
+  // APV individual descontado por planilla (art. 42 bis LIR): el régimen B rebaja la base del impuesto hasta 50 UF al mes.
+  apv_regimen?: "A" | "B" | null; apv_monto?: number | null;
 };
 export type Novedades = { dias_trabajados: number; horas_extra: number; bonos_imponibles: number; anticipos: number; otros_descuentos: number };
 export type Linea = { concepto: string; monto: number; nota?: string };
@@ -30,6 +32,7 @@ export type Linea = { concepto: string; monto: number; nota?: string };
 export type Montos = {
   sueldo: number; horas_extra: number; bonos: number; gratificacion: number; colacion: number; movilizacion: number;
   base_afp: number; base_afc: number; afp: number; salud_legal: number; salud_adicional: number; afc_trab: number; impuesto: number;
+  apv_a: number; apv_b: number;
   anticipos: number; otros: number; afc_emp: number; sis: number; aporte_ci: number; aporte_ev: number; aporte_rp: number; mutual: number;
 };
 export type Liquidacion = {
@@ -100,13 +103,20 @@ export function liquidar(t: Trabajador, n: Novedades, p: Parametros, tasaMutual:
   const salud = t.salud === "isapre" && t.plan_isapre_uf ? Math.max(saludLegal, r(t.plan_isapre_uf * p.uf)) : saludLegal;
   const afcTrab = t.tipo_contrato === "indefinido" ? pct(baseAfc, p.afc_indefinido_trab) : 0;
   // Base del impuesto: imponible menos cotizaciones obligatorias (la salud rebaja hasta el 7% legal).
-  const baseTrib = Math.max(0, totalImp - afp - saludLegal - afcTrab);
+  // APV por planilla: el régimen B rebaja la base del impuesto con tope de 50 UF al mes (art. 42 bis); el A no.
+  const apv = t.apv_regimen && (t.apv_monto ?? 0) > 0 ? r(t.apv_monto!) : 0;
+  const apvB = t.apv_regimen === "B" ? apv : 0;
+  const apvA = t.apv_regimen === "A" ? apv : 0;
+  const rebajaApv = Math.min(apvB, r(50 * p.uf));
+  if (apvB > rebajaApv) adv.push("El APV régimen B supera 50 UF: solo 50 UF rebajan la base del impuesto este mes.");
+  const baseTrib = Math.max(0, totalImp - afp - saludLegal - afcTrab - rebajaApv);
   const impuesto = impuestoUnico(baseTrib, p.utm);
   const descuentos: Linea[] = [
     { concepto: `AFP ${t.afp} (${p.afp[t.afp]}%)`, monto: afp },
     { concepto: t.salud === "isapre" ? "Isapre (plan pactado, mínimo 7%)" : `Fonasa (${p.salud_legal}%)`, monto: salud },
   ];
   if (afcTrab) descuentos.push({ concepto: `Seguro de cesantía (${p.afc_indefinido_trab}%)`, monto: afcTrab });
+  if (apv) descuentos.push({ concepto: `APV régimen ${t.apv_regimen} (ahorro previsional voluntario)`, monto: apv });
   if (impuesto) descuentos.push({ concepto: "Impuesto único de segunda categoría", monto: impuesto });
   if (n.anticipos > 0) descuentos.push({ concepto: "Anticipos", monto: r(n.anticipos) });
   if (n.otros_descuentos > 0) descuentos.push({ concepto: "Otros descuentos", monto: r(n.otros_descuentos) });
@@ -134,7 +144,7 @@ export function liquidar(t: Trabajador, n: Novedades, p: Parametros, tasaMutual:
     sueldo, horas_extra: extra, bonos: r(Math.max(0, n.bonos_imponibles)), gratificacion: grat,
     colacion: noImp.find((l) => l.concepto === "Colación")?.monto ?? 0, movilizacion: noImp.find((l) => l.concepto === "Movilización")?.monto ?? 0,
     base_afp: baseAfp, base_afc: baseAfc, afp, salud_legal: saludLegal, salud_adicional: salud - saludLegal, afc_trab: afcTrab, impuesto,
-    anticipos: r(Math.max(0, n.anticipos)), otros: r(Math.max(0, n.otros_descuentos)), afc_emp: afcEmp, sis, aporte_ci: ci, aporte_ev: ev, aporte_rp: rp, mutual,
+    apv_a: apvA, apv_b: apvB, anticipos: r(Math.max(0, n.anticipos)), otros: r(Math.max(0, n.otros_descuentos)), afc_emp: afcEmp, sis, aporte_ci: ci, aporte_ev: ev, aporte_rp: rp, mutual,
   };
   return {
     montos,

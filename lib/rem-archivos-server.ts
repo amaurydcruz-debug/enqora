@@ -12,7 +12,7 @@ export async function prepararArchivos(companyId: string, periodo: string): Prom
   const supabase = await createClient();
   const [{ data: liqs }, { data: trabs }, { data: emp }, { data: par }] = await Promise.all([
     supabase.from("rem_liquidaciones").select("trabajador_id, novedades, detalle").eq("company_id", companyId).eq("periodo", periodo).eq("estado", "aprobada"),
-    supabase.from("rem_trabajadores").select("id, rut, nombre, apellido_paterno, apellido_materno, nombres, sexo, extranjero, fecha_ingreso, fecha_baja, causal_termino, tipo_contrato, jornada_horas, jornada_lre, afp, salud, isapre, fun, plan_isapre_uf, comuna").eq("company_id", companyId),
+    supabase.from("rem_trabajadores").select("id, rut, nombre, apellido_paterno, apellido_materno, nombres, sexo, extranjero, fecha_ingreso, fecha_baja, causal_termino, tipo_contrato, jornada_horas, jornada_lre, afp, salud, isapre, fun, plan_isapre_uf, comuna, apv_regimen, apv_afp, apv_contrato, apv_forma").eq("company_id", companyId),
     supabase.from("rem_empresa").select("mutual, tasa_mutual, mutual_sucursal, ccaf").eq("company_id", companyId).maybeSingle(),
     supabase.from("rem_parametros").select("valores").eq("periodo", periodo).eq("estado", "aprobado").maybeSingle(),
   ]);
