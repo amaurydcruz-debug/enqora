@@ -8,7 +8,8 @@ import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 import { conjuntoInapi, CONJUNTOS_MARCAS, descargarRecurso, type Conjunto } from "@/lib/inapi-datos";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
-import { prepararFilasMarcas } from "@/lib/marcas";
+import { normalizarMarca, prepararFilasMarcas } from "@/lib/marcas";
+import { messageForCode } from "@/lib/db-errors";
 import { leerXlsx, type HojaXlsx } from "@/lib/xlsx-lector";
 
 export const metadata: Metadata = { title: "Marcas INAPI · datos abiertos" };
@@ -19,13 +20,23 @@ const mb = (n: number | null) => (n == null ? "" : `${(n / 1048576).toFixed(1)} 
 
 // Paso 1 de la búsqueda de marcas: ver qué publica INAPI en datos.gob.cl (API oficial, CC0) y una muestra de cada
 // archivo, descargada por el servidor de ENQORA. No guarda nada todavía.
-export default async function MarcasInapiPage({ searchParams }: { searchParams: Promise<{ conjunto?: string; recurso?: string; aviso?: string }> }) {
+export default async function MarcasInapiPage({ searchParams }: { searchParams: Promise<{ conjunto?: string; recurso?: string; aviso?: string; q?: string; clases?: string }> }) {
   const role = await myStaffRole();
-  if (!role || !isSupervisorRole(role)) notFound();
+  if (!role || !["enqora_admin", "ops_director", "lawyer_pro", "accountant_pro"].includes(role)) notFound();
+  const supervisor = isSupervisorRole(role);
   const sp = await searchParams;
-  const conjuntos: (Conjunto | { id: string; error: string })[] = await Promise.all(
+  const q = (sp.q ?? "").trim().slice(0, 120);
+  const clasesQ = [...new Set((sp.clases ?? "").split(/[^\d]+/).filter(Boolean).map(Number).filter((n) => n >= 1 && n <= 45))];
+  let encontradas: Encontrada[] | null = null;
+  let errorBusqueda: string | null = null;
+  if (normalizarMarca(q).length >= 2) {
+    const { data, error } = await (await createClient()).rpc("buscar_marcas", { p_texto: normalizarMarca(q), p_clases: clasesQ.length ? clasesQ : null });
+    if (error) errorBusqueda = /ENQ_[A-Z_]+/.exec(error.message)?.[0] ?? "ENQ_DATOS_INVALIDOS";
+    else encontradas = (data ?? []) as Encontrada[];
+  }
+  const conjuntos: (Conjunto | { id: string; error: string })[] = supervisor ? await Promise.all(
     CONJUNTOS_MARCAS.map((id) => conjuntoInapi(id).catch((e: Error) => ({ id, error: e.message }))),
-  );
+  ) : [];
   const { data: res } = await (await createClient()).rpc("inapi_resumen");
   const resumen = res as { marcas: number; ultima_carga: string | null; por_estado: Record<string, number>; busquedas_7d: number;
     cargas: { nombre: string; conjunto: string; estado: string; filas: number; cursor: number; detalle: string | null; actualizado: string }[] } | null;
@@ -47,12 +58,48 @@ export default async function MarcasInapiPage({ searchParams }: { searchParams: 
         <div className="hero-main">
           <span className="eyebrow">Operación · datos abiertos</span>
           <h1>Marcas INAPI</h1>
-          <p className="hero-lead">Archivos que INAPI publica en datos.gob.cl (licencia CC0), leídos por la API oficial. Elige uno para ver sus columnas y las primeras filas: ENQORA lo descarga desde su servidor.</p>
+          <p className="hero-lead">Herramienta interna del equipo ENQORA: índice de marcas registradas vigentes y solicitudes en trámite, con los datos abiertos de INAPI (licencia CC0). No está disponible para clientes.</p>
         </div>
       </header>
 
+      {errorBusqueda ? <Notice kind="error">{messageForCode(errorBusqueda) ?? "No se pudo buscar."}</Notice> : null}
+      <section className="card">
+        <h2>Buscar marcas parecidas</h2>
+        <form method="get" className="form-grid">
+          <div className="field field-wide">
+            <label htmlFor="mq">Nombre de la marca</label>
+            <input id="mq" name="q" className="input" required minLength={2} maxLength={120} defaultValue={q} placeholder="Ej.: Café Andes" />
+          </div>
+          <div className="field">
+            <label htmlFor="mc">Clases de Niza (opcional)</label>
+            <input id="mc" name="clases" className="input" defaultValue={clasesQ.join(", ")} placeholder="Ej.: 30, 43" />
+          </div>
+          <div className="field"><label>&nbsp;</label><button type="submit" className="btn btn-gold btn-inline">Buscar</button></div>
+        </form>
+        {encontradas ? (
+          encontradas.length ? (
+            <ul className="ps-filas">
+              {encontradas.map((m) => (
+                <li key={m.solicitud}>
+                  <span>
+                    <b>{m.nombre}</b>
+                    <small>
+                      {m.similitud >= 0.7 ? "Muy parecida" : m.similitud >= 0.5 ? "Parecida" : "Algo parecida"} · {m.estado}{m.registro ? ` · registro ${m.registro}` : ` · solicitud ${m.solicitud}`} · clases {[...m.clases].sort((x, y) => x - y).join(", ") || "—"}
+                      {m.vence ? ` · vence ${dmy(m.vence)}` : ""}{m.titulares ? ` · ${m.titulares}` : ""}
+                      {m.etiqueta ? <> · <a href={m.etiqueta} target="_blank" rel="noopener noreferrer">ver etiqueta</a></> : null}
+                    </small>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : <p className="muted-line">Sin marcas parecidas registradas o en trámite{clasesQ.length ? " en esas clases" : ""}.</p>
+        ) : null}
+        <p className="muted-line">Compara nombres escritos; no revisa logotipos, parecido fonético ni marcas notorias. Cada búsqueda queda registrada.</p>
+      </section>
+
       {sp.aviso === "iniciada" ? <Notice kind="ok">Carga iniciada. Sigue sola en el servidor, archivo por archivo; recarga esta página en un par de minutos.</Notice> : null}
       {sp.aviso === "sin_secreto" ? <Notice kind="error">Falta la variable CRON_SECRET en Vercel.</Notice> : null}
+      {supervisor ? (<>
       <section className="card">
         <h2>Índice de marcas en ENQORA</h2>
         {resumen ? (
@@ -114,10 +161,13 @@ export default async function MarcasInapiPage({ searchParams }: { searchParams: 
           )}
         </section>
       ))}
+      </>) : null}
     </div>
   );
 }
 
+type Encontrada = { nombre: string; similitud: number; clases: number[]; estado: string; registro: number | null; solicitud: number;
+  titulares: string | null; vence: string | null; etiqueta: string | null };
 const dmy = (iso: string | null) => (iso ? iso.split("-").reverse().join("-") : "—");
 
 // Vista legible: las mismas filas, ya interpretadas como las guarda ENQORA.
