@@ -30,6 +30,7 @@ import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriado
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
+import { pendientesLaborales, type DatosPendientes } from "@/lib/pendientes-laborales";
 import { avisosCarta, mesAnteriorDespido, montosCarta, textoCarta, validarCarta, type DatosCarta } from "@/lib/plantilla-carta-termino";
 import { avisosContrato, hastaMaximoPacto, pactoCubreMes, textoAnexo, textoContrato, textoPactoHE, validarAnexo, validarContrato, validarPactoHE, type DatosContrato, type DatosPactoHE, type FichaContrato } from "@/lib/plantilla-contrato";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
@@ -987,6 +988,41 @@ prueba("Carta de aviso de término: causales, hechos, plazos del art. 162, indem
   assert.ok(textoCarta(disc, { nombre: "A", rut: "1-9", cargo: null }, { nombre: "E", rut: "2-7", domicilio: "" }, montosCarta(disc, "2020-03-01")).includes("no corresponden indemnizaciones"));
   const malas = avisosCarta({ ...d, cotizaciones: "pendientes", detalle_pendientes: "octubre", fuero: true, licencia: true, fecha_carta: "2026-12-20" }, new Set(), ["2026-09"]);
   assert.equal(malas.length, 5); // sustitutiva, cotizaciones, fuero, licencia y mes sin liquidación
+});
+
+prueba("Pendientes laborales: finiquito, liquidaciones, horas extra sin pacto, Ley Karin, reglamento, contratos, vacaciones y certificados", () => {
+  const base: DatosPendientes = {
+    hoy: "2026-12-05", trabajadores: [], contratos: [], documentos: [], liquidaciones: [], finiquitos: [], vacaciones: [], certificados: [], festivos: new Set(["2026-12-08"]),
+  };
+  assert.deepEqual(pendientesLaborales(base), []);
+  const tr = (id: string, extra = {}) => ({ id, nombre: `T${id}`, activo: true, fecha_ingreso: "2025-01-01", fecha_baja: null, ...extra });
+  const d: DatosPendientes = {
+    ...base,
+    trabajadores: [tr("1"), tr("2", { activo: false, fecha_baja: "2026-11-28" }), tr("3", { fecha_ingreso: "2026-11-25" }), ...Array.from({ length: 8 }, (_, k) => tr(`x${k}`))],
+    contratos: [{ trabajador_id: "1", tipo: "contrato", estado: "aprobado", datos: {} }, { trabajador_id: "1", tipo: "anexo", estado: "observado", datos: {} }],
+    liquidaciones: [{ trabajador_id: "1", periodo: "2026-11", estado: "aprobada", horas_extra: 10 }],
+  };
+  const p = pendientesLaborales(d);
+  const clave = (k: string) => p.find((x) => x.clave === k);
+  assert.equal(p[0].nivel, "urgente");
+  assert.ok(clave("fin-2")?.detalle.includes("11-12-2026")); // 28-11 + 10 hábiles (lunes a sábado, sin el 8-12)
+  assert.equal(clave("fin-2")?.nivel, "urgente");
+  assert.ok(clave("liq-anterior")?.detalle.includes("9 trabajadores")); // los 10 activos menos el 1, que ya tiene la de noviembre aprobada
+  assert.ok(clave("he-sin-pacto")?.detalle.includes("T1"));
+  assert.ok(clave("karin") && clave("riohs")); // 10 activos
+  assert.equal(clave("ct-3")?.nivel, "importante"); // ingresó el 25-11: plazo al 10-12
+  assert.ok(clave("ct-antiguos")?.titulo.startsWith("8 trabajadores"));
+  assert.ok(clave("observados"));
+  // Con pacto aprobado que cubre noviembre, desaparece el aviso de horas extra; si vence pronto, aparece el aviso del pacto.
+  const conPacto = pendientesLaborales({ ...d, contratos: [...d.contratos, { trabajador_id: "1", tipo: "pacto_he", estado: "aprobado", datos: { desde: "2026-10-01", hasta: "2026-12-15" } }] });
+  assert.ok(!conPacto.some((x) => x.clave === "he-sin-pacto"));
+  assert.ok(conPacto.some((x) => x.clave === "pacto-1"));
+  // Pasado el día 13 no se avisa de Previred; finiquito aprobado no aparece.
+  const tarde = pendientesLaborales({ ...d, hoy: "2026-12-20", finiquitos: [{ trabajador_id: "2", estado: "aprobado" }] });
+  assert.ok(!tarde.some((x) => x.clave === "liq-anterior" || x.clave === "fin-2"));
+  // Certificados N° 6 entre enero y marzo.
+  const enero = pendientesLaborales({ ...d, hoy: "2027-01-20", liquidaciones: [{ trabajador_id: "1", periodo: "2026-06", estado: "aprobada", horas_extra: 0 }] });
+  assert.ok(enero.some((x) => x.clave === "cert6" && x.detalle.includes("1 certificado")));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
