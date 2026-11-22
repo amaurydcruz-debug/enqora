@@ -9,6 +9,7 @@ import { todayCL } from "@/lib/pricing";
 import { AFPS, CLAVES_PARAMETROS, leerParametros, periodoValido, type Parametros } from "@/lib/remuneraciones";
 import { myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
+import { FactoresMando } from "./factores-mando";
 import { FiniquitosMando } from "./finiquitos-mando";
 
 export const metadata: Metadata = { title: "Parámetros de remuneraciones" };
@@ -19,7 +20,7 @@ const AVISOS: Record<string, string> = {
   aprobado: "Parámetros aprobados: los clientes ya pueden calcular las liquidaciones de ese mes.",
   descartado: "Borrador descartado (queda en el historial).",
   finiquito_aprobado: "Finiquito aprobado: la empresa ya puede imprimirlo.", finiquito_observado: "Finiquito observado: la empresa recibió tu comentario.",
-  finiquito_anulado: "Finiquito anulado con su motivo.", feriado: "Festivo guardado.", feriado_quitado: "Festivo quitado (queda en la bitácora).",
+  finiquito_anulado: "Finiquito anulado con su motivo.", feriado: "Festivo guardado.", feriado_quitado: "Festivo quitado (queda en la bitácora).", factores: "Factores de actualización guardados (el cambio quedó en la bitácora).",
 };
 const ESTADO: Record<string, string> = { borrador: "Borrador", aprobado: "Aprobado", reemplazado: "Reemplazado", descartado: "Descartado" };
 const num = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 3 });
@@ -135,6 +136,7 @@ export default async function ParametrosRemPage({ searchParams }: { searchParams
         ) : <p className="muted-line">Aún no hay parámetros cargados.</p>}
       </section>
       <FiniquitosMando role={role} />
+      <FactoresMando role={role} />
     </div>
   );
 }
