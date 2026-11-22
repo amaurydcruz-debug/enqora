@@ -132,6 +132,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
           <div><dt>Costo empresa aprobado</dt><dd>{clp(suma("costo_empresa"))}</dd></div>
         </dl>
         <p className="muted-line">{aprobadas.length} de {activos.length} liquidaciones aprobadas. La planilla de Previred y el Libro de Remuneraciones Electrónico se generan desde las liquidaciones aprobadas (próxima etapa).</p>
+        <p className="muted-line"><Link href="/remuneraciones/anual" className="ps-link">Resumen anual y certificados de sueldos (N° 6) →</Link></p>
       </section>
 
       <section className="ps-card" aria-labelledby="rem-mutual">

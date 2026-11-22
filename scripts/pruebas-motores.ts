@@ -27,6 +27,7 @@ import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
 import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
 import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriadoProporcional, plazoPago, textoFiniquito, validarDatosFiniquito, type DatosFiniquito } from "@/lib/finiquito";
+import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
 import { generarPolitica, validarPolitica } from "@/lib/plantilla-datos";
@@ -844,6 +845,15 @@ prueba("Finiquito: antigüedad, años, feriado proporcional proyectado, topes, a
   assert.equal(v(5501), String(liq.liquido + 8595000 - 800000));
   const otroMes = archivoLre([fila], emp, "2026-10").trim().split("\r\n")[1].split(";");
   assert.equal(otroMes[cab.findIndex((h) => h.endsWith("(2314)"))], "0"); // solo en el mes del término
+});
+
+prueba("Certificado N° 6: año por defecto y lectura de factores del SII", () => {
+  assert.equal(anioPorDefecto("2027-03-10"), 2026); // operación renta: se certifica el año anterior
+  assert.equal(anioPorDefecto("2026-11-22"), 2026);
+  assert.deepEqual(leerFactores({ 1: "1,045", 2: " 1.0412 ", 3: "" }), { "1": 1.045, "2": 1.041 });
+  assert.equal(leerFactores({ 1: "3" }), null); // fuera de rango
+  assert.equal(leerFactores({ 1: "abc" }), null);
+  assert.equal(leerFactores({ 1: "" }), null); // nada que guardar
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
