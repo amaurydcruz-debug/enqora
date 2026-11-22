@@ -13,6 +13,7 @@ import { CAUSALES, CCAFS, ISAPRES, JORNADAS_LRE } from "@/lib/rem-archivos";
 import { prepararArchivos } from "@/lib/rem-archivos-server";
 import { AFPS, CONTRATOS, MUTUALES, periodoValido, type Liquidacion, type Linea, type Novedades } from "@/lib/remuneraciones";
 import { createClient } from "@/lib/supabase/server";
+import { type Fin, FiniquitoBloque } from "./finiquito-bloque";
 
 export const metadata: Metadata = { title: "Remuneraciones" };
 
@@ -33,6 +34,8 @@ const AVISOS: Record<string, string> = {
   mutual: "Datos de la empresa guardados.", trabajador: "Trabajador agregado.", trabajador_editado: "Ficha actualizada (el cambio quedó en la bitácora).",
   baja: "Trabajador dado de baja. Su historial se conserva.", calculada: "Liquidación calculada como borrador. Revísala y apruébala.",
   aprobada: "Liquidación aprobada.", anulada: "Liquidación anulada con su motivo.",
+  finiquito: "Finiquito calculado y enviado a revisión del equipo ENQORA. Te avisaremos cuando esté aprobado.",
+  finiquito_anulado: "Versión del finiquito anulada con su motivo.",
 };
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const nombreMes = (p: string) => `${MESES[Number(p.slice(5, 7)) - 1]} ${p.slice(0, 4)}`;
@@ -62,7 +65,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   const hoy = todayCL();
   const periodo = sp.periodo && periodoValido(sp.periodo) ? sp.periodo : hoy.slice(0, 7);
   const supabase = await createClient();
-  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep] = await Promise.all([
+  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep, { data: fRows }, { data: ultPar }] = await Promise.all([
     supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja, apellido_paterno, apellido_materno, nombres, sexo, extranjero, comuna, jornada_lre, fun, causal_termino, apv_regimen, apv_monto, apv_afp, apv_contrato, apv_forma, tramo_af, cargas_simples, cargas_maternales, cargas_invalidez")
       .eq("company_id", company.id).order("activo", { ascending: false }).order("nombre"),
     supabase.from("rem_liquidaciones").select("id, trabajador_id, version, estado, detalle, novedades, total_imponible, liquido, costo_empresa, creado, aprobado_at, motivo_anulacion")
@@ -71,7 +74,19 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
     supabase.from("rem_empresa").select("mutual, tasa_mutual, ccaf, mutual_sucursal").eq("company_id", company.id).maybeSingle(),
     supabase.from("rem_exportaciones").select("tipo, trabajadores, sha256, creado").eq("company_id", company.id).eq("periodo", periodo).order("creado", { ascending: false }).limit(6),
     prepararArchivos(company.id, periodo),
+    supabase.from("rem_finiquitos").select("id, trabajador_id, version, estado, datos, detalle, total, creado, revisado_at, observacion")
+      .eq("company_id", company.id).order("version", { ascending: false }),
+    supabase.from("rem_parametros").select("valores").eq("estado", "aprobado").order("periodo", { ascending: false }).limit(1).maybeSingle(),
   ]);
+  const finiquitos = (fRows ?? []) as Fin[];
+  const finDe = (tid: string) => finiquitos.find((f) => f.trabajador_id === tid && f.estado !== "anulado") ?? finiquitos.find((f) => f.trabajador_id === tid) ?? null;
+  const pv = (ultPar as { valores?: { uf?: number; imm?: number } } | null)?.valores;
+  // Propuesta inicial de la base del art. 172 desde la ficha (la empresa la corrige si hay otros pagos mensuales).
+  const prefill = (t: Trab) => {
+    const s = Number(t.sueldo_base);
+    const grat = t.gratificacion === "art50" && pv?.imm ? Math.min(Math.round(s * 0.25), Math.round((4.75 * pv.imm) / 12)) : 0;
+    return { base: s + grat + Number(t.colacion) + Number(t.movilizacion), base_feriado: s, uf: pv?.uf ?? null };
+  };
   const exportes = (xRows ?? []) as { tipo: string; trabajadores: number; sha256: string; creado: string }[];
   const trabajadores = (tRows ?? []) as Trab[];
   const liqs = (lRows ?? []) as Liq[];
@@ -227,6 +242,8 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
                         </form>
                       </details>
                     </div>
+                  ) : t.fecha_baja ? (
+                    <FiniquitoBloque t={t} fin={finDe(t.id)} prefill={prefill(t)} />
                   ) : null}
                 </li>
               );

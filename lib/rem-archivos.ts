@@ -41,7 +41,9 @@ export type FichaArchivo = {
   apv_regimen?: "A" | "B" | null; apv_afp?: string | null; apv_contrato?: string | null; apv_forma?: number | null;
 };
 export type EmpresaArchivo = { mutual: string; tasa_mutual: number; mutual_sucursal: number | null; ccaf: number };
-export type FilaArchivo = { ficha: FichaArchivo; dias: number; montos: Montos | null; ccaf_salud?: number | null; licencia?: Licencia | null };
+export type FilaArchivo = { ficha: FichaArchivo; dias: number; montos: Montos | null; ccaf_salud?: number | null; licencia?: Licencia | null;
+  // Finiquito aprobado de quien termina en el mes: sus indemnizaciones van en la misma fila del LRE.
+  finiquito?: { ias: number; aviso: number; feriado: number; imputacion_afc: number } | null };
 
 // Jornada parcial (art. 40 bis): hasta dos tercios de la jornada ordinaria máxima legal del período
 // (44 h hasta el 25-04-2026; 42 h desde el 26-04-2026; 40 h desde el 26-04-2028, Ley 21.561).
@@ -199,15 +201,21 @@ export function filaLre(f: FilaArchivo, e: EmpresaArchivo, periodo: string): str
   v.set(2301, m.colacion); v.set(2302, m.movilizacion); v.set(2311, m.asig_familiar ?? 0);
   v.set(3141, m.afp); v.set(3143, m.salud_legal); v.set(3144, m.salud_adicional); v.set(3151, m.afc_trab); v.set(3161, m.impuesto);
   v.set(3155, m.apv_a ?? 0); v.set(3156, m.apv_b ?? 0);
-  v.set(3185, m.otros); v.set(3188, m.anticipos);
+  const fin = termina ? f.finiquito ?? null : null;
+  const indem = fin ? fin.ias + fin.aviso + fin.feriado : 0;
+  const imput = fin?.imputacion_afc ?? 0;
+  if (fin) { v.set(2313, fin.feriado); v.set(2314, fin.ias); v.set(2315, fin.aviso); }
+  // La imputación del aporte al seguro de cesantía (art. 13 Ley 19.728) se informa como otro descuento.
+  v.set(3185, m.otros + imput); v.set(3188, m.anticipos);
   // El Suplemento LRE aún no tiene códigos propios para los aportes de la Ley 21.735: se informan en 4155, como lo hace el mercado.
   v.set(4151, m.afc_emp); v.set(4152, m.mutual); v.set(4155, m.sis + m.aporte_ci + m.aporte_ev + m.aporte_rp);
   const imp = m.sueldo + m.horas_extra + m.gratificacion + m.bonos;
-  const noImp = m.colacion + m.movilizacion + (m.asig_familiar ?? 0);
+  const noImp = m.colacion + m.movilizacion + (m.asig_familiar ?? 0) + indem;
   const cotiz = m.afp + m.salud_legal + m.salud_adicional + m.afc_trab + (m.apv_a ?? 0) + (m.apv_b ?? 0);
-  const desc = cotiz + m.impuesto + m.otros + m.anticipos;
+  const desc = cotiz + m.impuesto + m.otros + m.anticipos + imput;
   v.set(5201, imp + noImp); v.set(5210, imp); v.set(5230, noImp); v.set(5301, desc); v.set(5341, cotiz); v.set(5361, m.impuesto);
   v.set(5302, desc - cotiz - m.impuesto);
+  if (fin) { v.set(5502, indem); v.set(5565, indem); }
   v.set(5410, m.afc_emp + m.mutual + m.sis + m.aporte_ci + m.aporte_ev + m.aporte_rp); v.set(5501, imp + noImp - desc);
   return COLUMNAS.map(([cod]) => (v.has(cod) ? v.get(cod) : VACIOS.has(cod) ? "" : 0)).join(";");
 }
