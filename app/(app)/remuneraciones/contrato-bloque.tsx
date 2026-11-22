@@ -4,7 +4,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { hastaMaximoPacto, TIPOS_ANEXO, type DatosContrato } from "@/lib/plantilla-contrato";
 
 export type DocContrato = {
-  id: string; trabajador_id: string; tipo: "contrato" | "anexo" | "pacto_he"; version: number; numero_anexo: number | null;
+  id: string; trabajador_id: string; tipo: "contrato" | "anexo" | "pacto_he" | "carta_termino"; version: number; numero_anexo: number | null;
   estado: "en_revision" | "observado" | "aprobado" | "anulado"; datos: Partial<DatosContrato> & Record<string, unknown>; avisos: string[];
   observacion: string | null; creado: string;
 };

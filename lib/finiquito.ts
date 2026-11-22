@@ -91,11 +91,15 @@ export function diasCorridos(termino: string, habiles: number, festivos: Readonl
 
 // Plazo del art. 177: 10 días hábiles desde la separación. Referencial: cuenta de lunes a sábado sin festivos.
 export function plazoPago(termino: string, festivos: ReadonlySet<string>): string {
-  let dia = termino;
-  let n = 0;
-  while (n < 10) {
+  return habilesDespues(termino, 10, festivos);
+}
+// Fecha en que se cumplen n días hábiles después de una fecha (lunes a sábado, sin festivos; referencial).
+export function habilesDespues(fecha: string, n: number, festivos: ReadonlySet<string>): string {
+  let dia = fecha;
+  let k = 0;
+  while (k < n) {
     dia = masDias(dia, 1);
-    if (aFecha(dia).getUTCDay() !== 0 && !festivos.has(dia)) n++;
+    if (aFecha(dia).getUTCDay() !== 0 && !festivos.has(dia)) k++;
   }
   return dia;
 }

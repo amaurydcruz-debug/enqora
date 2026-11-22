@@ -3,7 +3,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { createClient } from "@/lib/supabase/server";
 
 type Fila = {
-  id: string; tipo: "contrato" | "anexo" | "pacto_he"; version: number; numero_anexo: number | null; estado: string; contenido: string; avisos: string[]; creado: string;
+  id: string; tipo: "contrato" | "anexo" | "pacto_he" | "carta_termino"; version: number; numero_anexo: number | null; estado: string; contenido: string; avisos: string[]; creado: string;
   companies: { legal_name: string; rut: string } | null; rem_trabajadores: { nombre: string; rut: string } | null;
 };
 
@@ -15,11 +15,11 @@ export async function ContratosMando({ puedeDecidir }: { puedeDecidir: boolean }
   const filas = (data ?? []) as unknown as Fila[];
   const pendientes = filas.filter((f) => f.estado === "en_revision");
   const aprobados = filas.filter((f) => f.estado === "aprobado").slice(-10).reverse();
-  const nombre = (f: Fila) => `${f.companies?.legal_name ?? "Empresa"} · ${f.rem_trabajadores?.nombre ?? ""} (${f.rem_trabajadores?.rut ?? ""}) · ${f.tipo === "contrato" ? "Contrato" : f.tipo === "anexo" ? `Anexo N° ${f.numero_anexo}` : "Pacto de horas extraordinarias"} · v${f.version}`;
+  const nombre = (f: Fila) => `${f.companies?.legal_name ?? "Empresa"} · ${f.rem_trabajadores?.nombre ?? ""} (${f.rem_trabajadores?.rut ?? ""}) · ${f.tipo === "contrato" ? "Contrato" : f.tipo === "anexo" ? `Anexo N° ${f.numero_anexo}` : f.tipo === "pacto_he" ? "Pacto de horas extraordinarias" : "Carta de aviso de término"} · v${f.version}`;
   return (
     <section className="card" id="contratos">
-      <h2>Contratos, anexos y pactos de horas extra por revisar ({pendientes.length})</h2>
-      <p className="muted-line">Revisa las estipulaciones del art. 10 del Código del Trabajo, la jornada (máximo 42 horas desde el 26-04-2026), el ingreso mínimo, el plazo (art. 159 N° 4) y que los otros pactos no renuncien derechos. En los pactos de horas extra: necesidad temporal, vigencia de hasta tres meses, máximo 2 horas diarias y recargo de 50% (art. 32). Si hay que corregir, observa: la empresa prepara una versión nueva.</p>
+      <h2>Contratos, anexos, pactos y cartas de término por revisar ({pendientes.length})</h2>
+      <p className="muted-line">Revisa las estipulaciones del art. 10 del Código del Trabajo, la jornada (máximo 42 horas desde el 26-04-2026), el ingreso mínimo, el plazo (art. 159 N° 4) y que los otros pactos no renuncien derechos. En los pactos de horas extra: necesidad temporal, vigencia de hasta tres meses, máximo 2 horas diarias y recargo de 50% (art. 32). En las cartas de término: causal correcta, hechos concretos y probables, plazos y forma de entrega, indemnizaciones y cotizaciones al día (art. 162); fuero y licencia médica. Si hay que corregir, observa: la empresa prepara una versión nueva.</p>
       {pendientes.length ? pendientes.map((f) => (
         <details key={f.id} className="ps-docs">
           <summary>{nombre(f)} · {new Date(f.creado).toLocaleDateString("es-CL", { timeZone: "America/Santiago" })}</summary>

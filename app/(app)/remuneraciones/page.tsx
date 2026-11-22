@@ -17,6 +17,7 @@ import { saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { type Fin, FiniquitoBloque } from "./finiquito-bloque";
 import { VacacionesBloque } from "./vacaciones-bloque";
 import { ContratoBloque, type DocContrato } from "./contrato-bloque";
+import { CartaBloque } from "./carta-bloque";
 
 export const metadata: Metadata = { title: "Remuneraciones" };
 
@@ -39,7 +40,7 @@ const AVISOS: Record<string, string> = {
   aprobada: "Liquidación aprobada.", anulada: "Liquidación anulada con su motivo.",
   finiquito: "Finiquito calculado y enviado a revisión del equipo ENQORA. Te avisaremos cuando esté aprobado.",
   finiquito_anulado: "Versión del finiquito anulada con su motivo.",
-  contrato: "Contrato enviado a revisión del abogado de ENQORA. Te avisaremos cuando esté aprobado.", anexo: "Anexo enviado a revisión del abogado de ENQORA.", pacto: "Pacto de horas extraordinarias enviado a revisión del abogado de ENQORA.",
+  contrato: "Contrato enviado a revisión del abogado de ENQORA. Te avisaremos cuando esté aprobado.", anexo: "Anexo enviado a revisión del abogado de ENQORA.", pacto: "Pacto de horas extraordinarias enviado a revisión del abogado de ENQORA.", carta: "Carta de término enviada a revisión del abogado de ENQORA. No la entregues hasta que esté aprobada.",
   contrato_anulado: "Documento anulado con su motivo.",
   vacacion: "Registro de vacaciones guardado.", vacacion_anulada: "Registro de vacaciones anulado con su motivo.",
 };
@@ -47,7 +48,7 @@ const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "
 const nombreMes = (p: string) => `${MESES[Number(p.slice(5, 7)) - 1]} ${p.slice(0, 4)}`;
 
 // Remuneraciones: ficha de trabajadores, liquidación mensual con los parámetros aprobados por el equipo y aprobación humana.
-export default async function RemuneracionesPage({ searchParams }: { searchParams: Promise<{ periodo?: string; aviso?: string; error?: string }> }) {
+export default async function RemuneracionesPage({ searchParams }: { searchParams: Promise<{ periodo?: string; aviso?: string; error?: string; detalle?: string }> }) {
   const sp = await searchParams;
   const company = await booksCompany();
   if (!company) {
@@ -91,6 +92,15 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   ]);
   const contratos = (kRows ?? []) as DocContrato[];
   const ciudadEmpresa = (emp2 as { commune?: string | null } | null)?.commune ?? "";
+  // Datos que la carta de término toma del contrato aprobado (domicilio y representante), si existe.
+  const delContrato = (tid: string) => {
+    const c = contratos.find((k) => k.trabajador_id === tid && k.tipo === "contrato" && k.estado === "aprobado");
+    return { domicilio: String(c?.datos.domicilio_trabajador ?? ""), representante: String(c?.datos.representante ?? "") };
+  };
+  const carta = (t: Trab) => (
+    <CartaBloque t={t} docs={contratos.filter((k) => k.trabajador_id === t.id)} hoy={hoy} ciudad={ciudadEmpresa}
+      base={prefill(t).base} uf={pv?.uf ?? null} {...delContrato(t.id)} />
+  );
   const vacaciones = (vRows ?? []) as RegistroVacacion[];
   const vacDe = (tid: string) => vacaciones.filter((v) => v.trabajador_id === tid);
   const saldoDe = (t: Trab) => {
@@ -122,7 +132,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   return (
     <div className="page narrow ps">
       {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
-      {sp.error ? <Notice kind="error">{messageForCode(sp.error) ?? "No pudimos completar la operación."}</Notice> : null}
+      {sp.error ? <Notice kind="error">{sp.detalle ? String(sp.detalle).slice(0, 200) : messageForCode(sp.error) ?? "No pudimos completar la operación."}</Notice> : null}
       <header className="hero">
         <div className="hero-main">
           <span className="eyebrow">{company.name} · Tu equipo</span>
@@ -247,6 +257,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
                       ) : null}
                       <ContratoBloque t={t} docs={contratos.filter((k) => k.trabajador_id === t.id)} hoy={hoy} ciudad={ciudadEmpresa} />
                       <VacacionesBloque t={t} saldo={saldoDe(t)} registros={vacDe(t.id)} hoy={hoy} />
+                      {carta(t)}
                       <details className="ps-docs">
                         <summary>Editar ficha</summary>
                         <FichaForm empresa={company.id} periodo={periodo} t={t} />
@@ -267,7 +278,10 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
                       </details>
                     </div>
                   ) : t.fecha_baja ? (
-                    <FiniquitoBloque t={t} fin={finDe(t.id)} prefill={prefill(t)} />
+                    <>
+                      <FiniquitoBloque t={t} fin={finDe(t.id)} prefill={prefill(t)} />
+                      <div className="rem-acciones">{carta(t)}</div>
+                    </>
                   ) : null}
                 </li>
               );

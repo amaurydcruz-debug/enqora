@@ -6,6 +6,7 @@ import { dbCode } from "@/lib/db-errors";
 import {
   avisosContrato, PLANTILLA_CONTRATO_VERSION, textoAnexo, textoContrato, textoPactoHE, validarAnexo, validarContrato, validarPactoHE, type FichaContrato,
 } from "@/lib/plantilla-contrato";
+import { avisosCarta, mesAnteriorDespido, montosCarta, PLANTILLA_CARTA_VERSION, textoCarta, validarCarta } from "@/lib/plantilla-carta-termino";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -95,6 +96,44 @@ export async function guardarPactoAction(form: FormData): Promise<void> {
   });
   if (error) volver(id, `error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}`);
   volver(id, "aviso=pacto");
+}
+
+// Carta de aviso de término (art. 162): borrador con causal, hechos, indemnizaciones y estado de cotizaciones.
+export async function guardarCartaAction(form: FormData): Promise<void> {
+  const id = txt(form, "trabajador");
+  const reemplaza = txt(form, "reemplaza");
+  if (!UUID.test(id) || (reemplaza && !UUID.test(reemplaza))) volver(id, "error=ENQ_DATOS_INVALIDOS");
+  const ctx = await contexto(id);
+  if (!ctx) volver(id, "error=ENQ_DATOS_INVALIDOS");
+  const d = validarCarta(Object.fromEntries(["ciudad", "fecha_carta", "fecha_termino", "causal", "hechos", "entrega", "domicilio", "representante",
+    "base_indemnizacion", "uf", "cotizaciones", "detalle_pendientes", "fuero", "licencia"].map((k) => [k, k === "hechos" ? String(form.get(k) ?? "") : txt(form, k)])),
+    ctx.ficha.fecha_ingreso);
+  if (typeof d === "string") volver(id, `error=ENQ_CARTA_DATOS&detalle=${encodeURIComponent(d)}`);
+  // Meses de los últimos 12 (desde el ingreso) hasta el anterior al despido sin liquidación aprobada en ENQORA.
+  const hasta = mesAnteriorDespido(d.fecha_termino);
+  const meses: string[] = [];
+  for (let k = 0; k < 12; k++) {
+    const y = Number(hasta.slice(0, 4)), m = Number(hasta.slice(5, 7)) - k;
+    const dt = new Date(Date.UTC(y, m - 1, 1));
+    const per = dt.toISOString().slice(0, 7);
+    if (per < ctx.ficha.fecha_ingreso.slice(0, 7)) break;
+    meses.push(per);
+  }
+  const [{ data: liqs }, { data: fer }] = await Promise.all([
+    ctx.supabase.from("rem_liquidaciones").select("periodo").eq("trabajador_id", id).eq("estado", "aprobada").in("periodo", meses.length ? meses : ["-"]),
+    ctx.supabase.from("rem_feriados").select("fecha"),
+  ]);
+  const conLiq = new Set(((liqs ?? []) as { periodo: string }[]).map((x) => x.periodo));
+  const sinLiq = meses.filter((x) => !conLiq.has(x)).sort();
+  const festivos = new Set(((fer ?? []) as { fecha: string }[]).map((x) => x.fecha));
+  const montos = montosCarta(d, ctx.ficha.fecha_ingreso);
+  const { error } = await ctx.supabase.rpc("rem_contrato_guardar", {
+    p_trabajador: id, p_tipo: "carta_termino", p_plantilla: PLANTILLA_CARTA_VERSION, p_datos: { ...d, montos },
+    p_contenido: textoCarta(d, { nombre: ctx.ficha.nombre, rut: ctx.ficha.rut, cargo: ctx.ficha.cargo }, ctx.empresa, montos),
+    p_avisos: avisosCarta(d, festivos, sinLiq), p_reemplaza: reemplaza || null,
+  });
+  if (error) volver(id, `error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}`);
+  volver(id, "aviso=carta");
 }
 
 export async function anularContratoAction(form: FormData): Promise<void> {
