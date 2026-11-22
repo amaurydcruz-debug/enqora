@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Notice } from "@/components/auth-card";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { SubmitButton } from "@/components/submit-button";
-import { Accordion } from "@/components/accordion";
+import { Accordion, type AccordionItem } from "@/components/accordion";
 import { Emblem } from "@/components/emblems";
 import { IconAlert, IconDevice, IconKey, IconLogout } from "@/components/icons";
 import { signOutAction } from "@/app/actions/auth";
@@ -16,6 +16,8 @@ import {
 } from "@/app/actions/security";
 import { messageForCode } from "@/lib/db-errors";
 import { deviceLabel } from "@/lib/request-info";
+import Link from "next/link";
+import { myStaffRole } from "@/lib/staff";
 import { createClient, currentUser } from "@/lib/supabase/server";
 import { ChangePasswordForm } from "./change-password";
 import { LlavesFirma, type Llave } from "./llaves";
@@ -70,7 +72,7 @@ type SecEvent = {
 export default async function SecurityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ aviso?: string; error?: string }>;
+  searchParams: Promise<{ aviso?: string; error?: string; avanzado?: string }>;
 }) {
   const sp = await searchParams;
   const supabase = await createClient();
@@ -105,14 +107,19 @@ export default async function SecurityPage({
   const others = sessions.filter((s) => !s.is_current);
 
   const verified = !!user?.email_confirmed_at;
+  // Vista simple para clientes (correo, contraseña, firma con huella y datos personales). Las opciones técnicas
+  // (sesiones, dispositivos, actividad) siguen disponibles: para el equipo ENQORA, con alertas pendientes o a pedido.
+  const staff = !!(await myStaffRole());
+  const avanzado = staff || sp.avanzado === "1" || pending.length > 0;
+  const BASICOS = ["identidad", "clave", "llaves", "datos"];
 
   return (
     <div className="page">
       <header className="hero">
         <div className="hero-main">
-          <span className="eyebrow">ENQORA Shield</span>
-          <h1>Centro de seguridad</h1>
-          <p className="hero-lead">Controla quién y desde dónde se accede a ENQORA con tu cuenta.</p>
+          <span className="eyebrow">{avanzado ? "ENQORA Shield" : "Tu cuenta"}</span>
+          <h1>{avanzado ? "Centro de seguridad" : "Mi cuenta"}</h1>
+          <p className="hero-lead">{avanzado ? "Controla quién y desde dónde se accede a ENQORA con tu cuenta." : "Tu correo, tu contraseña y tus datos personales."}</p>
         </div>
       </header>
 
@@ -120,6 +127,7 @@ export default async function SecurityPage({
       {messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null}
 
       {/* Estado de protección */}
+      {avanzado ? (
       <div className="shield-status" role="list" aria-label="Estado de protección">
         <div className={`shield-item ${verified ? "is-ok" : "is-warn"}`} role="listitem">
           <Emblem name="identidad" size="sm" />
@@ -138,6 +146,7 @@ export default async function SecurityPage({
           <span><small>Alertas</small><b>{pending.length ? `${pending.length} por revisar` : "Ninguna"}</b></span>
         </div>
       </div>
+      ) : null}
 
       {pending.length ? (
         <div className="alert alert-warn alert-row" role="alert">
@@ -158,9 +167,9 @@ export default async function SecurityPage({
       ) : null}
 
       <Accordion
-        label="Opciones de seguridad"
+        label={avanzado ? "Opciones de seguridad" : "Opciones de tu cuenta"}
         defaultOpen={pending.length ? "actividad" : null}
-        items={[
+        items={([
           {
             id: "identidad",
             title: "Identidad",
@@ -397,8 +406,15 @@ export default async function SecurityPage({
               </div>
             ),
           },
-        ]}
+        ] as AccordionItem[]).filter((it) => avanzado || BASICOS.includes(it.id))}
       />
+      {!staff ? (
+        <p className="muted-line">
+          {sp.avanzado === "1"
+            ? <Link href="/seguridad">Volver a la vista simple</Link>
+            : <Link href="/seguridad?avanzado=1">Opciones avanzadas (sesiones abiertas, dispositivos y actividad)</Link>}
+        </p>
+      ) : null}
     </div>
   );
 }

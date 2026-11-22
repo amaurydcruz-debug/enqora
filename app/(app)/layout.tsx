@@ -74,21 +74,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     { href: "/panel", label: "Inicio", short: "Inicio", icon: "control", group: "empresa" },
     { href: "/casos", label: "Mis trámites", short: "Trámites", icon: "casos", group: "empresa" },
     { href: "/firmas", label: "Mis firmas", short: "Firmas", icon: "documento", group: "empresa" },
-    {
+    // Seguridad en la barra solo para el equipo o si hay alertas; el cliente la tiene en el menú como «Mi cuenta».
+    ...(staffRole || alerts ? [{
       href: "/seguridad",
       label: "Seguridad",
       short: "Cuenta",
       icon: "seguridad",
       group: "empresa",
       alert: alerts ? `${alerts} alertas de seguridad` : undefined,
-    },
+    } as NavItem] : []),
   ];
 
   const securityChip = alerts ? (
     <Link href="/seguridad" className="chip chip-warn"><IconAlert size={15} /> {alerts === 1 ? "1 alerta" : `${alerts} alertas`}</Link>
-  ) : (
+  ) : staffRole ? (
     <Link href="/seguridad" className="chip chip-ok"><IconShield size={15} /> Cuenta protegida</Link>
-  );
+  ) : null;
   const bell = (
     <Link href={noticesHref} className="bell" aria-label={notices ? `${notices} avisos pendientes` : "Sin avisos pendientes"}>
       <Bell />
@@ -116,7 +117,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {active ? <Link href="/empresa-al-dia" className="menu-link">Empresa al día</Link> : null}
       <Link href="/facturacion" className="menu-link">Planes y pagos</Link>
       <Link href="/notificaciones" className="menu-link">Avisos</Link>
-      <Link href="/seguridad" className="menu-link"><IconShield size={16} /> Seguridad de la cuenta</Link>
+      <Link href="/seguridad" className="menu-link"><IconShield size={16} /> {staffRole ? "Seguridad de la cuenta" : "Mi cuenta"}</Link>
       <SignOutLink label="Cerrar sesión" className="menu-link menu-signout" icon />
     </UserMenu>
   );
