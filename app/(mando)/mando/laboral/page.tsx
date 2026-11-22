@@ -7,7 +7,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { messageForCode } from "@/lib/db-errors";
 import { TIPOS_DOC as KARIN } from "@/lib/plantillas-laborales";
 
-const TIPOS_DOC: Record<string, string> = { ...KARIN, politica_datos: "Política de tratamiento de datos personales (Ley 21.719)" };
+const TIPOS_DOC: Record<string, string> = { ...KARIN, politica_datos: "Política de tratamiento de datos personales (Ley 21.719)", reglamento_interno: "Reglamento Interno de Orden, Higiene y Seguridad" };
 type TipoDoc = string;
 import { myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
@@ -15,7 +15,7 @@ import { ContratosMando } from "./contratos-mando";
 
 export const metadata: Metadata = { title: "Revisión de documentos" };
 
-type Doc = { id: string; company_id: string; tipo: TipoDoc; version: number; estado: string; contenido: string; plantilla: string; creado: string; observacion: string | null };
+type Doc = { id: string; company_id: string; tipo: TipoDoc; version: number; estado: string; contenido: string; plantilla: string; creado: string; observacion: string | null; datos: { avisos?: string[] } | null };
 const AVISOS: Record<string, string> = { aprobar: "Documento aprobado. La empresa ya puede imprimirlo.", observar: "Observaciones enviadas a la empresa.",
   contrato_aprobar: "Contrato o anexo aprobado. La empresa ya puede imprimirlo.", contrato_observar: "Observaciones enviadas a la empresa.", contrato_anulado: "Documento anulado con su motivo." };
 
@@ -26,7 +26,7 @@ export default async function RevisionLaboralPage({ searchParams }: { searchPara
   const puedeDecidir = role === "enqora_admin" || role === "lawyer_pro";
   const sp = await searchParams;
   const supabase = await createClient();
-  const { data } = await supabase.from("documentos_laborales").select("id, company_id, tipo, version, estado, contenido, plantilla, creado, observacion")
+  const { data } = await supabase.from("documentos_laborales").select("id, company_id, tipo, version, estado, contenido, plantilla, creado, observacion, datos")
     .in("estado", ["en_revision", "observado", "aprobado"]).order("creado", { ascending: true }).limit(60);
   const docs = (data ?? []) as Doc[];
   const ids = [...new Set(docs.map((d) => d.company_id))];
@@ -47,7 +47,7 @@ export default async function RevisionLaboralPage({ searchParams }: { searchPara
         </div>
       </header>
       <Callout kind="warn" title="Qué revisar">
-        Que los datos de la empresa sean coherentes. Ley Karin: plazos y sanciones de los artículos 211-A y siguientes del Código del Trabajo y contenidos mínimos de la SUSESO. Datos personales: información del artículo 14 ter de la Ley 19.628 (modificada por la Ley 21.719), plazos de conservación y fundamentos de cada tratamiento. Puedes corregir el texto antes de aprobar: se guarda como una versión nueva y la original queda en el historial.
+        Que los datos de la empresa sean coherentes. Ley Karin: plazos y sanciones de los artículos 211-A y siguientes del Código del Trabajo y contenidos mínimos de la SUSESO. Reglamento interno: art. 154 N° 1 a 13 del Código del Trabajo y arts. 58 a 61 del D.S. N° 44 de 2024 (multas hasta 25% de la remuneración diaria, procedimiento previo). Datos personales: información del artículo 14 ter de la Ley 19.628 (modificada por la Ley 21.719), plazos de conservación y fundamentos de cada tratamiento. Puedes corregir el texto antes de aprobar: se guarda como una versión nueva y la original queda en el historial.
       </Callout>
 
       <section className="card">
@@ -57,6 +57,7 @@ export default async function RevisionLaboralPage({ searchParams }: { searchPara
           return (
             <details key={d.id} className="ps-docs">
               <summary>{c?.legal_name ?? "Empresa"} · {c?.rut} · {TIPOS_DOC[d.tipo]} · v{d.version} · {new Date(d.creado).toLocaleDateString("es-CL", { timeZone: "America/Santiago" })}</summary>
+              {d.datos?.avisos?.length ? <ul className="rem-adv">{d.datos.avisos.map((x) => <li key={x}>{x}</li>)}</ul> : null}
               {puedeDecidir ? (
                 <form action={revisarDocumentoLaboralAction} className="check-stack">
                   <input type="hidden" name="id" value={d.id} />

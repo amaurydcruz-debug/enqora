@@ -6,6 +6,7 @@ import { dbCode } from "@/lib/db-errors";
 import { generarPolitica, PLANTILLA_DATOS_VERSION, validarPolitica } from "@/lib/plantilla-datos";
 import { generarDocumento, PLANTILLAS_VERSION, TIPOS_DOC, validarDatos, type TipoDoc } from "@/lib/plantillas-laborales";
 import { todayCL } from "@/lib/pricing";
+import { avisosRIOHS, PLANTILLA_RIOHS_VERSION, textoRIOHS, validarRIOHS } from "@/lib/plantilla-riohs";
 import { createClient } from "@/lib/supabase/server";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -64,4 +65,24 @@ export async function generarPoliticaDatosAction(form: FormData): Promise<void> 
   if (error) redirect(`/datos-personales?error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}`);
   revalidatePath("/datos-personales");
   redirect("/datos-personales?aviso=enviado");
+}
+
+// Reglamento Interno de Orden, Higiene y Seguridad (0087): mismo flujo de revisión jurídica.
+export async function generarReglamentoAction(form: FormData): Promise<void> {
+  const company = txt(form, "empresa");
+  if (!UUID.test(company)) redirect("/laboral/reglamento?error=ENQ_DATOS_INVALIDOS");
+  const datos = validarRIOHS(Object.fromEntries(["razon_social", "rut", "domicilio", "giro", "representante", "trabajadores", "mutual", "horario", "descanso",
+    "dia_pago", "forma_pago", "reclamos", "responsable_sst", "riesgos", "emergencia", "instancia"].map((k) => [k, txt(form, k)])));
+  if (typeof datos === "string") redirect(`/laboral/reglamento?mensaje=${encodeURIComponent(datos)}`);
+  const supabase = await createClient();
+  const { count } = await supabase.from("documentos_laborales").select("id", { count: "exact", head: true })
+    .eq("company_id", company).in("tipo", ["protocolo_karin", "procedimiento_karin"]).eq("estado", "aprobado");
+  const avisos = avisosRIOHS(datos, (count ?? 0) >= 2);
+  const fecha = todayCL().split("-").reverse().join("-");
+  const { error } = await supabase.rpc("doc_laboral_generar", {
+    p_company: company, p_tipo: "reglamento_interno", p_plantilla: PLANTILLA_RIOHS_VERSION, p_datos: { ...datos, avisos }, p_contenido: textoRIOHS(datos, fecha),
+  });
+  if (error) redirect(`/laboral/reglamento?error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}`);
+  revalidatePath("/laboral/reglamento");
+  redirect("/laboral/reglamento?aviso=enviado");
 }

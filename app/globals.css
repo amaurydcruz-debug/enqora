@@ -3896,6 +3896,7 @@ fieldset.mini-form legend { padding: 0 6px; }
 .doc-texto { line-height: 1.6; color: var(--text-2); }
 .doc-texto h1 { font-size: 1.35rem; color: var(--text); margin: 0 0 10px; }
 .doc-texto h2 { font-size: 1.02rem; color: var(--text); margin: 22px 0 8px; }
+.doc-texto h3 { font-size: 0.94rem; color: var(--text); margin: 16px 0 6px; }
 .doc-texto p { margin: 0 0 10px; }
 .doc-texto ul { margin: 0 0 12px; padding-left: 20px; }
 .doc-texto li { margin-bottom: 6px; }
