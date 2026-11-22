@@ -13,7 +13,9 @@ import { CAUSALES, CCAFS, ISAPRES, JORNADAS_LRE } from "@/lib/rem-archivos";
 import { prepararArchivos } from "@/lib/rem-archivos-server";
 import { AFPS, CONTRATOS, MUTUALES, periodoValido, type Liquidacion, type Linea, type Novedades } from "@/lib/remuneraciones";
 import { createClient } from "@/lib/supabase/server";
+import { saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { type Fin, FiniquitoBloque } from "./finiquito-bloque";
+import { VacacionesBloque } from "./vacaciones-bloque";
 
 export const metadata: Metadata = { title: "Remuneraciones" };
 
@@ -36,6 +38,7 @@ const AVISOS: Record<string, string> = {
   aprobada: "Liquidación aprobada.", anulada: "Liquidación anulada con su motivo.",
   finiquito: "Finiquito calculado y enviado a revisión del equipo ENQORA. Te avisaremos cuando esté aprobado.",
   finiquito_anulado: "Versión del finiquito anulada con su motivo.",
+  vacacion: "Registro de vacaciones guardado.", vacacion_anulada: "Registro de vacaciones anulado con su motivo.",
 };
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 const nombreMes = (p: string) => `${MESES[Number(p.slice(5, 7)) - 1]} ${p.slice(0, 4)}`;
@@ -65,7 +68,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   const hoy = todayCL();
   const periodo = sp.periodo && periodoValido(sp.periodo) ? sp.periodo : hoy.slice(0, 7);
   const supabase = await createClient();
-  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep, { data: fRows }, { data: ultPar }] = await Promise.all([
+  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep, { data: fRows }, { data: ultPar }, { data: vRows }] = await Promise.all([
     supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja, apellido_paterno, apellido_materno, nombres, sexo, extranjero, comuna, jornada_lre, fun, causal_termino, apv_regimen, apv_monto, apv_afp, apv_contrato, apv_forma, tramo_af, cargas_simples, cargas_maternales, cargas_invalidez")
       .eq("company_id", company.id).order("activo", { ascending: false }).order("nombre"),
     supabase.from("rem_liquidaciones").select("id, trabajador_id, version, estado, detalle, novedades, total_imponible, liquido, costo_empresa, creado, aprobado_at, motivo_anulacion")
@@ -77,7 +80,15 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
     supabase.from("rem_finiquitos").select("id, trabajador_id, version, estado, datos, detalle, total, creado, revisado_at, observacion")
       .eq("company_id", company.id).order("version", { ascending: false }),
     supabase.from("rem_parametros").select("valores").eq("estado", "aprobado").order("periodo", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("rem_vacaciones").select("id, trabajador_id, tipo, desde, hasta, dias, nota, estado, creado, motivo_anulacion")
+      .eq("company_id", company.id).order("desde", { ascending: false }),
   ]);
+  const vacaciones = (vRows ?? []) as RegistroVacacion[];
+  const vacDe = (tid: string) => vacaciones.filter((v) => v.trabajador_id === tid);
+  const saldoDe = (t: Trab) => {
+    const corte = t.fecha_baja && t.fecha_baja < hoy ? t.fecha_baja : hoy;
+    return saldoVacaciones(t.fecha_ingreso, corte, corte, vacDe(t.id));
+  };
   const finiquitos = (fRows ?? []) as Fin[];
   const finDe = (tid: string) => finiquitos.find((f) => f.trabajador_id === tid && f.estado !== "anulado") ?? finiquitos.find((f) => f.trabajador_id === tid) ?? null;
   const pv = (ultPar as { valores?: { uf?: number; imm?: number } } | null)?.valores;
@@ -85,7 +96,9 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   const prefill = (t: Trab) => {
     const s = Number(t.sueldo_base);
     const grat = t.gratificacion === "art50" && pv?.imm ? Math.min(Math.round(s * 0.25), Math.round((4.75 * pv.imm) / 12)) : 0;
-    return { base: s + grat + Number(t.colacion) + Number(t.movilizacion), base_feriado: s, uf: pv?.uf ?? null };
+    // Días pendientes de períodos cumplidos, desde el control de vacaciones (solo si hay registros).
+    const dp = vacDe(t.id).length ? Math.max(0, saldoDe(t).saldo) : null;
+    return { base: s + grat + Number(t.colacion) + Number(t.movilizacion), base_feriado: s, uf: pv?.uf ?? null, dias_pendientes: dp };
   };
   const exportes = (xRows ?? []) as { tipo: string; trabajadores: number; sha256: string; creado: string }[];
   const trabajadores = (tRows ?? []) as Trab[];
@@ -224,6 +237,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
                           </form>
                         </details>
                       ) : null}
+                      <VacacionesBloque t={t} saldo={saldoDe(t)} registros={vacDe(t.id)} hoy={hoy} />
                       <details className="ps-docs">
                         <summary>Editar ficha</summary>
                         <FichaForm empresa={company.id} periodo={periodo} t={t} />
