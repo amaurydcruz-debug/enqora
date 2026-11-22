@@ -113,7 +113,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {active ? <Link href="/remuneraciones" className="menu-link">Remuneraciones</Link> : null}
       {active ? <Link href="/laboral" className="menu-link">Ley Karin</Link> : null}
       {active ? <Link href="/datos-personales" className="menu-link">Datos personales</Link> : null}
-      <Link href="/marcas" className="menu-link">Buscar marca</Link>
       {active ? <Link href="/empresa-al-dia" className="menu-link">Empresa al día</Link> : null}
       <Link href="/facturacion" className="menu-link">Planes y pagos</Link>
       <Link href="/notificaciones" className="menu-link">Avisos</Link>

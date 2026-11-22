@@ -53,7 +53,7 @@ export default async function MandoLayout({ children }: { children: React.ReactN
     { href: "/mando/solicitudes", label: "Solicitudes de clientes", short: "Casos", icon: "novedades", group: "operacion", bottom: false },
     { href: "/mando/laboral", label: "Revisión de documentos", short: "Docs", icon: "documento", group: "operacion", bottom: false },
     { href: "/mando/terreno", label: "Despacho en terreno", short: "Terreno", icon: "casos", group: "operacion", bottom: false },
-    ...(supervisor ? [{ href: "/mando/marcas-inapi", label: "Marcas INAPI (datos abiertos)", short: "Marcas", icon: "documento", group: "operacion", bottom: false } as NavItem] : []),
+    ...(supervisor || role === "lawyer_pro" || role === "accountant_pro" ? [{ href: "/mando/marcas-inapi", label: "Marcas INAPI", short: "Marcas", icon: "documento", group: "operacion", bottom: false } as NavItem] : []),
     ...(supervisor ? [{ href: "/mando/agentes", label: "Operación de agentes", short: "Agentes", icon: "control", group: "operacion", bottom: false } as NavItem] : []),
     ...(supervisor ? [{ href: "/mando/laboratorio", label: "Laboratorio de IA", short: "IA", icon: "novedades", group: "operacion", bottom: false } as NavItem] : []),
     { href: "/mando/catalogo", label: "Catálogo y precios", short: "Catálogo", icon: "contabilidad", group: "configuracion", bottom: false },
