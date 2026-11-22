@@ -16,7 +16,7 @@ const ESTADO: Record<Fin["estado"], string> = {
 export function FiniquitoBloque({ t, fin, prefill }: {
   t: { id: string; causal_termino: number | null; fecha_baja: string | null };
   fin: Fin | null;
-  prefill: { base: number; base_feriado: number; uf: number | null };
+  prefill: { base: number; base_feriado: number; uf: number | null; dias_pendientes: number | null };
 }) {
   const causal = t.causal_termino ?? 0;
   const conIas = CAUSALES_IAS.has(causal);
@@ -95,8 +95,8 @@ export function FiniquitoBloque({ t, fin, prefill }: {
             </div>
             <div className="field">
               <label htmlFor={`fp-${t.id}`}>Días hábiles de vacaciones pendientes</label>
-              <input id={`fp-${t.id}`} name="dias_pendientes" className="input" inputMode="decimal" defaultValue={String(d?.dias_pendientes ?? 0).replace(".", ",")} />
-              <span className="hint">De años ya cumplidos y no tomados. El proporcional del último año lo calcula ENQORA.</span>
+              <input id={`fp-${t.id}`} name="dias_pendientes" className="input" inputMode="decimal" defaultValue={String(d?.dias_pendientes ?? prefill.dias_pendientes ?? 0).replace(".", ",")} />
+              <span className="hint">De años ya cumplidos y no tomados{prefill.dias_pendientes != null ? " (propuesto desde el control de vacaciones)" : ""}. El proporcional del último año lo calcula ENQORA.</span>
             </div>
             <div className="field">
               <label htmlFor={`fn-${t.id}`}>Feriado anual (días hábiles)</label>

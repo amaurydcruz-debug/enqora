@@ -28,6 +28,7 @@ import { pasoDe } from "@/lib/accounting";
 import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
 import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriadoProporcional, plazoPago, textoFiniquito, validarDatosFiniquito, type DatosFiniquito } from "@/lib/finiquito";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
+import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
 import { generarPolitica, validarPolitica } from "@/lib/plantilla-datos";
@@ -854,6 +855,26 @@ prueba("Certificado N° 6: año por defecto y lectura de factores del SII", () =
   assert.equal(leerFactores({ 1: "3" }), null); // fuera de rango
   assert.equal(leerFactores({ 1: "abc" }), null);
   assert.equal(leerFactores({ 1: "" }), null); // nada que guardar
+});
+
+prueba("Vacaciones: períodos ganados, saldo inicial, progresivo, tomados y programados", () => {
+  assert.deepEqual(aniversarios("2020-03-01", "2022-03-01"), ["2021-03-01", "2022-03-01"]);
+  assert.deepEqual(aniversarios("2020-02-29", "2021-03-01"), ["2021-02-28"]);
+  const reg = (x: Partial<RegistroVacacion>): RegistroVacacion => ({ id: Math.random().toString(), trabajador_id: "t", tipo: "tomado", desde: "2026-01-05",
+    hasta: "2026-01-16", dias: 10, nota: null, estado: "vigente", creado: "", motivo_anulacion: null, ...x });
+  // Sin registros: 15 por año cumplido (6 aniversarios al 22-11-2026).
+  assert.equal(saldoVacaciones("2020-03-01", "2026-11-22", "2026-11-22", []).saldo, 90);
+  assert.ok(saldoVacaciones("2020-03-01", "2026-11-22", "2026-11-22", []).advertencias.some((a) => a.includes("dos períodos")));
+  // Saldo inicial de 12 al 01-01-2026 + período del 01-03-2026 (15) − 10 tomados − 5 programados.
+  const regs = [reg({ tipo: "saldo_inicial", desde: "2026-01-01", hasta: null, dias: 12 }), reg({ desde: "2026-01-05", dias: 10 }),
+    reg({ desde: "2026-12-14", hasta: "2026-12-18", dias: 5 }), reg({ desde: "2025-12-01", dias: 8 }), reg({ desde: "2026-02-02", dias: 3, estado: "anulado" })];
+  const s1 = saldoVacaciones("2020-03-01", "2026-11-22", "2026-11-22", regs);
+  assert.equal(s1.devengado, 27); assert.equal(s1.tomados, 10); assert.equal(s1.programados, 5); assert.equal(s1.saldo, 12);
+  assert.equal(s1.proximo_aniversario, "2027-03-01");
+  assert.equal(s1.proporcional, 10.92); // 8 meses y 22 días: 10 + 22 × 1,25 / 30
+  // Progresivo de 1 día por año desde el 01-01-2026: suma en el aniversario del 01-03-2026.
+  assert.equal(saldoVacaciones("2020-03-01", "2026-11-22", "2026-11-22", [...regs, reg({ tipo: "progresivo", desde: "2026-01-01", hasta: null, dias: 1 })]).saldo, 13);
+  assert.ok(saldoVacaciones("2026-01-01", "2026-11-22", "2026-11-22", [reg({ desde: "2026-06-01", dias: 5 })]).advertencias.some((a) => a.includes("adelantado")));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
