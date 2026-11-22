@@ -1042,6 +1042,24 @@ export default async function CasePage({
           content: <SiiMandatePanel caseId={c.id} mandates={siiMandates} canDecide={canDecide} worker={worker && staffRole !== "ai_agent"} userId={user.id} defaultName={myName} isClosed={isClosed} />,
         } satisfies AccordionItem]
       : []),
+    // Remuneraciones y Laboral: el equipo presta el servicio operando las herramientas de la empresa del caso.
+    ...(worker && staffRole !== "ai_agent" && (c.title ?? "").startsWith("Remuneraciones:")
+      ? [{
+          id: "remuneraciones",
+          aliases: ["laboral"],
+          title: "Remuneraciones y laboral de la empresa (equipo)",
+          emblem: <Emblem name="legal" size="sm" />,
+          tone: "gold" as AccordionItem["tone"],
+          status: <span className="status status-gold">Servicio ENQORA</span>,
+          content: (
+            <div className="upload-row">
+              <Link className="btn btn-gold btn-inline btn-sm" href={`/mando/operar?empresa=${c.company_id}&destino=/remuneraciones`}>Operar remuneraciones</Link>
+              <Link className="btn btn-ghost btn-inline btn-sm" href={`/mando/operar?empresa=${c.company_id}&destino=/laboral`}>Ley Karin</Link>
+              <Link className="btn btn-ghost btn-inline btn-sm" href={`/mando/operar?empresa=${c.company_id}&destino=/laboral/reglamento`}>Reglamento interno</Link>
+            </div>
+          ),
+        } satisfies AccordionItem]
+      : []),
     ...(worker && casoMarca
       ? [{
           id: "marcas",

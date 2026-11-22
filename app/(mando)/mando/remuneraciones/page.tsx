@@ -9,10 +9,11 @@ import { todayCL } from "@/lib/pricing";
 import { AFPS, CLAVES_PARAMETROS, leerParametros, periodoValido, type Parametros } from "@/lib/remuneraciones";
 import { myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
+import { EmpresasOperar } from "./empresas-operar";
 import { FactoresMando } from "./factores-mando";
 import { FiniquitosMando } from "./finiquitos-mando";
 
-export const metadata: Metadata = { title: "Parámetros de remuneraciones" };
+export const metadata: Metadata = { title: "Remuneraciones y laboral" };
 
 type Fila = { id: string; periodo: string; version: number; valores: unknown; fuente: string; observaciones: string | null; estado: string; creado: string; aprobado_at: string | null };
 const AVISOS: Record<string, string> = {
@@ -50,10 +51,12 @@ export default async function ParametrosRemPage({ searchParams }: { searchParams
       <header className="hero">
         <div className="hero-main">
           <span className="eyebrow">Configuración</span>
-          <h1>Parámetros de remuneraciones</h1>
-          <p className="hero-lead">UF, UTM, ingreso mínimo, topes y tasas de cada mes, revisión de finiquitos y festivos. Sin parámetros aprobados, ningún cliente puede calcular liquidaciones de ese mes.</p>
+          <h1>Remuneraciones y laboral</h1>
+          <p className="hero-lead">Empresas a las que ENQORA presta el servicio, parámetros del mes (UF, UTM, ingreso mínimo, topes y tasas), revisión de finiquitos, festivos y factores. Sin parámetros aprobados, ningún cliente puede calcular liquidaciones de ese mes.</p>
         </div>
       </header>
+
+      <EmpresasOperar />
 
       <Callout kind="warn" title="Antes de aprobar">
         Compara cada valor con la fuente oficial del mes (indicadores de Previred, valores del SII y comunicados de la Superintendencia de Pensiones). Desde agosto de 2026 el aporte del empleador de la Ley 21.735 se informa en partes: SIS (campo 29), capitalización individual (va con la cotización AFP), expectativa de vida (campo 94) y rentabilidad protegida (campo 95). Confirma también qué tope imponible rige en el mes y la distribución vigente del 7% entre Fonasa y la CCAF. Los montos de la asignación familiar por tramo salen de la circular de la Superintendencia de Seguridad Social que los reajusta.

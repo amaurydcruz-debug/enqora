@@ -1,5 +1,6 @@
 import "server-only";
 import { activeCompany } from "@/lib/companies";
+import { empresaOperadaId } from "@/lib/operando";
 import { createClient } from "@/lib/supabase/server";
 
 export type BooksCompany = { id: string; name: string; rut: string; role: string | null; canBook: boolean };
@@ -9,7 +10,8 @@ export type BooksCompany = { id: string; name: string; rut: string; role: string
 export async function booksCompany(requested?: string): Promise<BooksCompany | null> {
   const supabase = await createClient();
   const { active, companies } = await activeCompany();
-  const id = requested && /^[0-9a-f-]{36}$/i.test(requested) ? requested : active?.id;
+  // El equipo ENQORA que opera una empresa (Centro de Mando → Operar) trabaja sobre esa empresa.
+  const id = requested && /^[0-9a-f-]{36}$/i.test(requested) ? requested : (await empresaOperadaId()) ?? active?.id;
   if (!id) return null;
   const mine = companies.find((c) => c.id === id);
   if (mine) {

@@ -63,6 +63,7 @@ const MESSAGES: Record<string, string> = {
   ENQ_FINIQUITO_DATOS: "Revisa los datos del finiquito: la última remuneración, el valor de la UF, la remuneración para el feriado y el detalle de otros haberes o descuentos.",
   ENQ_LICENCIA_INVALIDA: "Revisa la licencia médica: días trabajados más días de licencia no pueden superar 30, y faltan las fechas de inicio y término.",
   ENQ_LIQUIDACION_INMUTABLE: "Una liquidación guardada no se modifica: calcula una versión nueva o anúlala con su motivo.",
+  ENQ_NOVEDAD_CERRADA: "La liquidación de ese mes ya está aprobada. Si hay que corregir algo, pídeselo a ENQORA.",
   ENQ_LIQUIDACION_YA_APROBADA: "Este trabajador ya tiene una liquidación aprobada para ese mes. Anúlala con su motivo antes de aprobar otra.",
   ENQ_ARCHIVO_INCOMPLETO: "Faltan datos para generar el archivo. Revisa la lista de pendientes de cada trabajador en la sección Archivos del mes.",
   ENQ_DOCUMENTO_INMUTABLE: "Un documento enviado o aprobado no se modifica: genera una versión nueva.",

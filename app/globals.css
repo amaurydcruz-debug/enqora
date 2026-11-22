@@ -3883,6 +3883,7 @@ fieldset.mini-form legend { padding: 0 6px; }
 .rem-vac-anular { display: inline-flex; margin: 4px 0 0 6px; vertical-align: middle; }
 .rem-ct-doc { border-bottom: 1px solid var(--hairline); padding: 6px 0 8px; margin-bottom: 6px; }
 .rem-ct-doc > p { margin: 0 0 4px; font-size: 0.9rem; }
+.rem-operando { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 0 0 14px; padding: 8px 12px; border: 1px solid var(--gold); border-radius: 10px; font-size: 0.86rem; color: var(--text-2); }
 .pl-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .pl-lista li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 10px; }
 .pl-nivel { flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }

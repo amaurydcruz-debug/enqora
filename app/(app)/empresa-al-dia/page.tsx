@@ -56,8 +56,8 @@ export default async function EmpresaAlDiaPage() {
       {veLaboral ? (
         <section className="ps-card" id="laboral" aria-labelledby="pl-t">
           <div className="ps-card-cab"><h2 id="pl-t">Tu equipo · pendientes laborales</h2></div>
-          <p className="muted-line">Calculado con tus trabajadores, liquidaciones y documentos en ENQORA. Las fechas de plazo son referenciales.</p>
-          <PendientesLaborales items={laborales} />
+          <p className="muted-line">Calculado con tus trabajadores, liquidaciones y documentos en ENQORA. Pídele cada punto al equipo; las fechas de plazo son referenciales.</p>
+          <PendientesLaborales items={laborales} cliente />
         </section>
       ) : null}
       {perfilValido(ultimo?.perfil) ? (

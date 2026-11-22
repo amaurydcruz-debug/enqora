@@ -201,3 +201,22 @@ export async function decidirParametrosAction(form: FormData): Promise<void> {
   if (e) volverMando(`error=${dbCode(e) ?? "ENQ_DATOS_INVALIDOS"}`);
   volverMando(`aviso=${decision === "aprobar" ? "aprobado" : "descartado"}`);
 }
+
+// La empresa informa las novedades del mes (0089). ENQORA las usa para calcular la liquidación.
+export async function enviarNovedadesAction(form: FormData): Promise<void> {
+  const periodo = txt(form, "periodo");
+  const id = txt(form, "trabajador");
+  if (!UUID.test(id) || !periodoValido(periodo)) error(periodo, null);
+  const diasLic = entero(form, "dias_licencia") || 0;
+  const datos = {
+    dias_trabajados: Number(txt(form, "dias") || 30), horas_extra: decimal(form, "horas_extra") || 0, bonos_imponibles: entero(form, "bonos"),
+    anticipos: entero(form, "anticipos"), otros_descuentos: entero(form, "otros"), dias_licencia: diasLic,
+    licencia: diasLic > 0 ? { tipo: txt(form, "licencia_tipo") === "laboral" ? "laboral" : "comun", desde: txt(form, "licencia_desde"), hasta: txt(form, "licencia_hasta") } : null,
+    nota: txt(form, "nota").replace(/[<>]/g, "").slice(0, 500),
+  };
+  // Mismas reglas que el cálculo: si no pasan, se avisa a la empresa antes de enviar.
+  if (!leerNovedades({ ...datos, rima: 1 })) error(periodo, null, diasLic > 0 ? "ENQ_LICENCIA_INVALIDA" : undefined);
+  const { error: e } = await (await createClient()).rpc("rem_novedad_enviar", { p_trabajador: id, p_periodo: periodo, p_datos: datos });
+  if (e) error(periodo, e);
+  volver(periodo, "aviso=novedades", `#t-${id}`);
+}
