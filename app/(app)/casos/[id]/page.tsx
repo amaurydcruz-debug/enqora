@@ -54,6 +54,7 @@ import { DiagnosisReport, type ServiceRef } from "./diagnosis-report";
 import { Quotes } from "./quotes";
 import { Authorizations } from "./authorizations";
 import { LegalDocs } from "./legal-docs";
+import { MarcasCaso, type RevisionMarcas } from "./marcas-caso";
 import { SiiMandatePanel } from "./sii-mandate";
 import { CasePartyPanel, type CaseParty } from "./case-party";
 import { BovedaCaso, type VaultRow } from "./boveda";
@@ -88,6 +89,7 @@ const fmt = (iso: string | null | undefined, withTime = true) =>
 const fmtDate = (d: string | null) => (d ? fmt(`${d}T12:00:00Z`, false) : "—");
 
 const AVISOS: Record<string, string> = {
+  marcas: "Revisión de marcas parecidas guardada en el caso (solo la ve el equipo).",
   creado: "Solicitud creada. El equipo ENQORA la revisará y te mantendrá informado aquí.",
   exencion: "Excepción de pago registrada en la bitácora del caso.",
   partes_ok: "Partes registradas. ENQORA asignará un abogado que no represente a la contraparte.",
@@ -294,6 +296,9 @@ export default async function CasePage({
   const openTasks = tasks.filter((t) => t.status !== "hecha").length;
   const assigned = assignments.some((a) => a.user_id === user.id);
   const worker = !!staffRole && (supervisor || assigned);
+  // Línea Marcas (BRA): revisión única de marcas parecidas en INAPI, solo para el equipo (0079).
+  const casoMarca = c.module === "brand" || (c.folio ?? "").startsWith("BRA-");
+  const { data: revMarcas } = worker && casoMarca ? await supabase.from("caso_marcas").select("consulta, clases, total, indice_marcas, hecho_at, resultados").eq("case_id", id).maybeSingle() : { data: null };
   const isClosed = CLOSED.includes(c.status);
   const canPost = !isClosed && (worker || (memberRole !== null && memberRole !== "viewer"));
   const canCancel = !worker && !!memberRole && ["owner", "admin"].includes(memberRole) && ["recibido", "esperando_cliente"].includes(c.status);
@@ -494,6 +499,7 @@ export default async function CasePage({
 
   // Sección que se abre sola tras una acción, para ver su resultado.
   const OPEN_AFTER: Record<string, string> = {
+    marcas: "marcas",
     partes_ok: "Partes registradas. ENQORA asignará un abogado que no represente a la contraparte.",
   partes_conflicto: "Partes registradas. Detectamos un posible conflicto de interés: la supervisión fue avisada y reasignará el caso.",
   sii_solicitado: "sii", sii_otorgado: "sii", sii_aceptado: "sii", sii_revocado: "sii", sii_anular: "sii",
@@ -1034,6 +1040,17 @@ export default async function CasePage({
             return a ? <span className={`status status-${a.status === "aceptado" ? "ok" : "gold"}`}>{a.status === "aceptado" ? "Mandato vigente" : a.status === "otorgado" ? "Otorgado" : "Por otorgar"}</span> : null;
           })(),
           content: <SiiMandatePanel caseId={c.id} mandates={siiMandates} canDecide={canDecide} worker={worker && staffRole !== "ai_agent"} userId={user.id} defaultName={myName} isClosed={isClosed} />,
+        } satisfies AccordionItem]
+      : []),
+    ...(worker && casoMarca
+      ? [{
+          id: "marcas",
+          aliases: ["inapi", "marcas-parecidas"],
+          title: "Marcas parecidas en INAPI (equipo)",
+          emblem: <Emblem name="legal" size="sm" />,
+          tone: (revMarcas ? "default" : "gold") as AccordionItem["tone"],
+          status: revMarcas ? <span className="status status-ok">{(revMarcas as RevisionMarcas).total} resultado(s)</span> : <span className="status status-gold">Por revisar</span>,
+          content: <MarcasCaso caseId={c.id} revision={revMarcas as RevisionMarcas | null} puedeRevisar={staffRole !== "ai_agent" && !isClosed} sugerido={c.title} />,
         } satisfies AccordionItem]
       : []),
     {
