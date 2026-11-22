@@ -29,6 +29,7 @@ import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-a
 import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriadoProporcional, plazoPago, textoFiniquito, validarDatosFiniquito, type DatosFiniquito } from "@/lib/finiquito";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
+import { avisosContrato, textoAnexo, textoContrato, validarAnexo, validarContrato, type DatosContrato, type FichaContrato } from "@/lib/plantilla-contrato";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
 import { generarPolitica, validarPolitica } from "@/lib/plantilla-datos";
@@ -875,6 +876,33 @@ prueba("Vacaciones: períodos ganados, saldo inicial, progresivo, tomados y prog
   // Progresivo de 1 día por año desde el 01-01-2026: suma en el aniversario del 01-03-2026.
   assert.equal(saldoVacaciones("2020-03-01", "2026-11-22", "2026-11-22", [...regs, reg({ tipo: "progresivo", desde: "2026-01-01", hasta: null, dias: 1 })]).saldo, 13);
   assert.ok(saldoVacaciones("2026-01-01", "2026-11-22", "2026-11-22", [reg({ desde: "2026-06-01", dias: 5 })]).advertencias.some((a) => a.includes("adelantado")));
+});
+
+prueba("Contrato de trabajo: estipulaciones del art. 10, avisos de jornada, ingreso mínimo, plazo y escrituración; anexo", () => {
+  const f: FichaContrato = { nombre: "Ana Pérez", rut: "12345678-5", cargo: "Vendedora", fecha_ingreso: "2026-11-02", tipo_contrato: "plazo_fijo",
+    sueldo_base: 600000, jornada_horas: 42, colacion: 40000, movilizacion: 30000, gratificacion: "art50" };
+  const e = { nombre: "Andes SpA", rut: "76086428-5", domicilio: "Av. Uno 1, Santiago" };
+  const base = { ciudad: "Santiago", fecha: "2026-11-05", nacionalidad: "chilena", fecha_nacimiento: "1995-04-10", domicilio_trabajador: "Calle Dos 2, Ñuñoa",
+    email_trabajador: "ana@correo.cl", representante: "Juan Soto", rut_representante: "11.111.111-1", email_empleador: "", funciones: "Atención y venta a clientes en sala",
+    lugar: "Tienda de Av. Uno 1, Santiago", distribucion: "lunes a viernes de 09:00 a 17:54 horas con 30 minutos de colación", plazo_hasta: "2027-02-01",
+    obra: "", forma_pago: "transferencia", dia_pago: "el último día hábil de cada mes", especies: "", procedencia: "", otros_pactos: "" };
+  const d = validarContrato(base, f) as DatosContrato;
+  assert.equal(typeof d, "object");
+  const t = textoContrato(d, f, e);
+  for (const x of ["Santiago", "chilena", "Calle Dos 2", "Atención y venta", "42 horas", "$600.000", "artículo 50", "plazo fijo", "1 de febrero de 2027", "Ley 21.643", "Ley 19.628"])
+    assert.ok(t.includes(x), x);
+  assert.equal(typeof validarContrato({ ...base, plazo_hasta: "" }, f), "string");
+  assert.equal(typeof validarContrato({ ...base, rut_representante: "abc" }, f), "string");
+  assert.equal(typeof validarContrato({ ...base, email_trabajador: "x@" }, f), "string");
+  assert.deepEqual(avisosContrato(d, f, 539000), []);
+  const malos = avisosContrato({ ...d, plazo_hasta: "2028-01-01", fecha: "2026-12-01" }, { ...f, jornada_horas: 44, sueldo_base: 400000 }, 539000);
+  assert.equal(malos.length, 4); // jornada, ingreso mínimo, plazo > 1 año, escrito después de 15 días
+  assert.deepEqual(avisosContrato(d, { ...f, jornada_horas: 30, sueldo_base: 385000 }, 539000), []); // 539.000 × 30/42 = 385.000
+  const an = validarAnexo({ ciudad: "Santiago", fecha: "2026-12-01", materia: "remuneracion", vigencia: "2027-01-01", texto: "El sueldo base mensual será de $650.000.", representante: "Juan Soto" });
+  assert.equal(typeof an, "object");
+  const ta = textoAnexo(an as Exclude<typeof an, string>, f, e, 2);
+  assert.ok(ta.includes("Anexo N° 2") && ta.includes("$650.000") && ta.includes("1 de enero de 2027") && ta.includes("art. 11"));
+  assert.equal(typeof validarAnexo({ ciudad: "Santiago", fecha: "2026-12-01", materia: "x", vigencia: "2027-01-01", texto: "corto", representante: "Juan Soto" }), "string");
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

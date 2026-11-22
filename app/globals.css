@@ -3881,6 +3881,8 @@ fieldset.mini-form legend { padding: 0 6px; }
 .rem-fin-lineas li { margin-bottom: 3px; }
 .rem-fin-lineas li.is-descartado { opacity: 0.6; }
 .rem-vac-anular { display: inline-flex; margin: 4px 0 0 6px; vertical-align: middle; }
+.rem-ct-doc { border-bottom: 1px solid var(--hairline); padding: 6px 0 8px; margin-bottom: 6px; }
+.rem-ct-doc > p { margin: 0 0 4px; font-size: 0.9rem; }
 .cert6-tabla { overflow-x: auto; margin: 10px 0 18px; }
 .cert6-tabla .rem-tabla { min-width: 760px; font-size: 0.8rem; }
 .cert6-tabla .rem-sub th { text-transform: none; letter-spacing: 0; font-size: 0.72rem; vertical-align: bottom; }
