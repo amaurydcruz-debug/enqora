@@ -29,6 +29,7 @@ import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-a
 import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriadoProporcional, plazoPago, textoFiniquito, validarDatosFiniquito, type DatosFiniquito } from "@/lib/finiquito";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
+import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
 import { avisosContrato, hastaMaximoPacto, pactoCubreMes, textoAnexo, textoContrato, textoPactoHE, validarAnexo, validarContrato, validarPactoHE, type DatosContrato, type DatosPactoHE, type FichaContrato } from "@/lib/plantilla-contrato";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
@@ -931,6 +932,31 @@ prueba("Pacto de horas extraordinarias: tres meses, 2 horas diarias, necesidad t
     plan_isapre_uf: null, colacion: 0, movilizacion: 0, gratificacion: "ninguna" };
   assert.ok(liquidar(tr, leerNovedades({ dias_trabajados: 10, horas_extra: 21 })!, p, 0.93).advertencias.some((a) => a.includes("2 horas")));
   assert.ok(!liquidar(tr, leerNovedades({ dias_trabajados: 30, horas_extra: 20 })!, p, 0.93).advertencias.some((a) => a.includes("2 horas")));
+});
+
+prueba("Reglamento interno: contenidos del art. 154 y del D.S. 44, avisos por dotación y Ley Karin, tamaño de los datos", () => {
+  const base = { razon_social: "Andes SpA", rut: "76.086.428-5", domicilio: "Av. Uno 1, Santiago", giro: "Comercio al por menor", representante: "Juan Soto",
+    trabajadores: "12", mutual: "ACHS", horario: "De lunes a viernes de 09:00 a 17:54 horas", descanso: "30 minutos de colación", dia_pago: "el último día hábil de cada mes",
+    forma_pago: "transferencia", reclamos: "Gerencia de Personas", responsable_sst: "Jefe de operaciones",
+    riesgos: "Caídas en bodega: pisos despejados y calzado de seguridad.", emergencia: "Punto de encuentro en el estacionamiento", instancia: "delegado" };
+  const d = validarRIOHS(base) as DatosRIOHS;
+  assert.equal(typeof d, "object");
+  const t = textoRIOHS(d, "22-11-2026");
+  for (const x of ["Preámbulo", "art. 154 N° 1 y 2", "154 N° 13", "30 días", "D.S. N° 44", "art. 59", "art. 60", "negligencia inexcusable", "art. 154 N° 12",
+    "25% de la remuneración diaria", "art. 157", "dos sitios visibles", "Delegado de Seguridad y Salud", "ACHS", "Caídas en bodega"])
+    assert.ok(t.includes(x), x);
+  assert.equal(typeof validarRIOHS({ ...base, rut: "76086428" }), "string");
+  assert.equal(typeof validarRIOHS({ ...base, riesgos: "pocos" }), "string");
+  assert.equal(typeof validarRIOHS({ ...base, trabajadores: "0" }), "string");
+  assert.deepEqual(avisosRIOHS(d, true), []);
+  assert.equal(avisosRIOHS({ ...d, trabajadores: 5 }, false).length, 2); // menos de 10 y sin Ley Karin
+  assert.equal(avisosRIOHS({ ...d, trabajadores: 250, instancia: "delegado" }, true).length, 3); // comité, departamento y registro de cargos
+  // Los datos caben en el límite de 8.000 bytes de doc_laboral_generar aun con todos los campos al máximo.
+  const largo = validarRIOHS({ ...base, horario: "á".repeat(900), riesgos: "é".repeat(2000), emergencia: "í".repeat(900), giro: "ó".repeat(300),
+    domicilio: "ú".repeat(300), razon_social: "ñ".repeat(300), representante: "a".repeat(300), reclamos: "b".repeat(300), responsable_sst: "c".repeat(300),
+    descanso: "d".repeat(300), dia_pago: "e".repeat(300), forma_pago: "f".repeat(300), mutual: "g".repeat(300) }) as DatosRIOHS;
+  const bytes = Buffer.byteLength(JSON.stringify({ ...largo, avisos: avisosRIOHS({ ...largo, trabajadores: 250 }, false) }), "utf8");
+  assert.ok(bytes <= 8000, `datos: ${bytes} bytes`);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

@@ -1,4 +1,4 @@
-// Muestra el texto de un documento generado (# título, ## secciones, párrafos y viñetas «- »). Sin HTML del usuario.
+// Muestra el texto de un documento generado (# título, ## secciones, ### subsecciones, párrafos y viñetas «- »). Sin HTML del usuario.
 export function TextoDocumento({ texto }: { texto: string }) {
   const bloques: React.ReactNode[] = [];
   let lista: string[] = [];
@@ -11,7 +11,8 @@ export function TextoDocumento({ texto }: { texto: string }) {
     if (l.startsWith("- ")) { lista.push(l.slice(2)); return; }
     cerrarLista(i);
     if (!l.trim()) return;
-    if (l.startsWith("## ")) bloques.push(<h2 key={i}>{l.slice(3)}</h2>);
+    if (l.startsWith("### ")) bloques.push(<h3 key={i}>{l.slice(4)}</h3>);
+    else if (l.startsWith("## ")) bloques.push(<h2 key={i}>{l.slice(3)}</h2>);
     else if (l.startsWith("# ")) bloques.push(<h1 key={i}>{l.slice(2)}</h1>);
     else bloques.push(<p key={i}>{l}</p>);
   });

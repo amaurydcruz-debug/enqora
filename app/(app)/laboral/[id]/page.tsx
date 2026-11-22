@@ -20,7 +20,7 @@ export default async function DocumentoLaboralPage({ params }: { params: Promise
   return (
     <div className="page narrow print-page">
       <div className="print-tools upload-row">
-        {d.tipo === "politica_datos" ? <Link href="/datos-personales" className="ps-link">← Datos personales</Link> : <Link href="/laboral" className="ps-link">← Ley Karin</Link>}
+        {d.tipo === "politica_datos" ? <Link href="/datos-personales" className="ps-link">← Datos personales</Link> : d.tipo === "reglamento_interno" ? <Link href="/laboral/reglamento" className="ps-link">← Reglamento interno</Link> : <Link href="/laboral" className="ps-link">← Ley Karin</Link>}
         {aprobado ? <PrintButton /> : null}
       </div>
       {!aprobado ? (
