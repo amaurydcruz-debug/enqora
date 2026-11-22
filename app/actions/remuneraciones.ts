@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { dbCode } from "@/lib/db-errors";
 import { CAUSALES, CCAFS, ISAPRES, JORNADAS_LRE } from "@/lib/rem-archivos";
 import {
-  AFPS, CLAVES_PARAMETROS, leerNovedades, leerParametros, liquidar, MOTOR_REM, MUTUALES, normalizarRut, periodoValido, type Trabajador,
+  AFPS, CLAVES_PARAMETROS, faltaMontoAF, leerNovedades, leerParametros, liquidar, mesAnterior, MOTOR_REM, MUTUALES, normalizarRut, periodoValido, type Trabajador,
 } from "@/lib/remuneraciones";
 import { createClient } from "@/lib/supabase/server";
 
@@ -51,6 +51,10 @@ export async function guardarTrabajadorAction(form: FormData): Promise<void> {
   const jornadaLre = txt(form, "jornada_lre");
   const isapre = txt(form, "isapre");
   const sexo = txt(form, "sexo");
+  const tramoAf = txt(form, "tramo_af");
+  const cargas = (k: string, max: number) => { const n = entero(form, k); return Number.isFinite(n) && n >= 0 && n <= max ? n : NaN; };
+  const cs = cargas("cargas_simples", 30), cm = cargas("cargas_maternales", 5), ci = cargas("cargas_invalidez", 30);
+  if ([cs, cm, ci].some(Number.isNaN) || (tramoAf && !["A", "B", "C", "D"].includes(tramoAf)) || (cs + cm + ci > 0 && !tramoAf)) error(periodo, null, "ENQ_CARGAS_INVALIDAS");
   if ((comuna && !/^\d{4,5}$/.test(comuna)) || (jornadaLre && !(Number(jornadaLre) in JORNADAS_LRE)) || (sexo && !["M", "F"].includes(sexo))
       || (salud === "isapre" && !(isapre in ISAPRES))
       || (["A", "B"].includes(txt(form, "apv_regimen")) && (!(entero(form, "apv_monto") > 0) || !AFPS.includes(txt(form, "apv_afp") as (typeof AFPS)[number])))) error(periodo, null);
@@ -67,6 +71,7 @@ export async function guardarTrabajadorAction(form: FormData): Promise<void> {
     afp, salud, isapre: salud === "isapre" ? isapre : "", plan_isapre_uf: salud === "isapre" && Number.isFinite(plan) ? plan : "",
     colacion: entero(form, "colacion"), movilizacion: entero(form, "movilizacion"),
     gratificacion: txt(form, "gratificacion") === "ninguna" ? "ninguna" : "art50",
+    tramo_af: tramoAf, cargas_simples: cs, cargas_maternales: cm, cargas_invalidez: ci,
   };
   if (!AFPS.includes(afp as (typeof AFPS)[number]) || !/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha_ingreso) || !Number.isFinite(datos.sueldo_base)
       || !Number.isFinite(datos.jornada_horas) || (salud === "isapre" && datos.plan_isapre_uf === "")) error(periodo, null);
@@ -93,12 +98,23 @@ export async function calcularLiquidacionAction(form: FormData): Promise<void> {
   const periodo = txt(form, "periodo");
   const id = txt(form, "trabajador");
   if (!UUID.test(id) || !periodoValido(periodo)) error(periodo, null);
+  const diasLic = entero(form, "dias_licencia") || 0;
+  const licDesde = txt(form, "licencia_desde");
+  const supabase = await createClient();
+  // RIMA: si no se escribe, se toma la renta imponible de la liquidación aprobada del mes anterior al inicio de la licencia.
+  let rima = entero(form, "rima");
+  if (diasLic > 0 && !(rima > 0) && /^\d{4}-\d{2}-\d{2}$/.test(licDesde)) {
+    const { data: ant } = await supabase.from("rem_liquidaciones").select("total_imponible")
+      .eq("trabajador_id", id).eq("periodo", mesAnterior(licDesde)).eq("estado", "aprobada").maybeSingle();
+    rima = Number((ant as { total_imponible?: number } | null)?.total_imponible ?? 0);
+  }
   const nov = leerNovedades({
     dias_trabajados: txt(form, "dias") || 30, horas_extra: decimal(form, "horas_extra") || 0, bonos_imponibles: entero(form, "bonos"),
     anticipos: entero(form, "anticipos"), otros_descuentos: entero(form, "otros"),
+    dias_licencia: diasLic, rima: Number.isFinite(rima) ? rima : 0,
+    licencia: diasLic > 0 ? { tipo: txt(form, "licencia_tipo") === "laboral" ? "laboral" : "comun", desde: licDesde, hasta: txt(form, "licencia_hasta") } : null,
   });
-  if (!nov) error(periodo, null);
-  const supabase = await createClient();
+  if (!nov) error(periodo, null, diasLic > 0 ? "ENQ_LICENCIA_INVALIDA" : undefined);
   const { data: t } = await supabase.from("rem_trabajadores").select("*").eq("id", id).eq("activo", true).maybeSingle();
   if (!t) error(periodo, null);
   const trab = t as Trabajador & { company_id: string; plan_isapre_uf: number | null };
@@ -112,7 +128,10 @@ export async function calcularLiquidacionAction(form: FormData): Promise<void> {
   if (typeof p!.afp[trab.afp] !== "number") error(periodo, null, "ENQ_SIN_TASA_AFP");
   const ficha: Trabajador = { ...trab, sueldo_base: Number(trab.sueldo_base), jornada_horas: Number(trab.jornada_horas),
     plan_isapre_uf: trab.plan_isapre_uf == null ? null : Number(trab.plan_isapre_uf), colacion: Number(trab.colacion), movilizacion: Number(trab.movilizacion),
-    apv_regimen: trab.apv_regimen ?? null, apv_monto: trab.apv_monto == null ? null : Number(trab.apv_monto) };
+    apv_regimen: trab.apv_regimen ?? null, apv_monto: trab.apv_monto == null ? null : Number(trab.apv_monto),
+    tramo_af: trab.tramo_af ?? null, cargas_simples: Number(trab.cargas_simples ?? 0), cargas_maternales: Number(trab.cargas_maternales ?? 0),
+    cargas_invalidez: Number(trab.cargas_invalidez ?? 0) };
+  if (faltaMontoAF(ficha, p!)) error(periodo, null, "ENQ_SIN_MONTO_AF");
   const liq = liquidar(ficha, nov!, p!, Number((emp as { tasa_mutual: number }).tasa_mutual));
   const { error: e } = await supabase.rpc("rem_guardar_liquidacion", {
     p_trabajador: id, p_periodo: periodo, p_parametros: (par as { id: string }).id, p_motor: MOTOR_REM, p_novedades: nov,
@@ -156,6 +175,7 @@ export async function proponerParametrosAction(form: FormData): Promise<void> {
   valores.afp = afp;
   const ccafSalud = decimal(form, "ccaf_salud");
   if (Number.isFinite(ccafSalud)) valores.ccaf_salud = ccafSalud;
+  for (const k of ["af_a", "af_b", "af_c"]) { const v = decimal(form, k); if (Number.isFinite(v)) valores[k] = v; }
   if (!leerParametros(valores)) volverMando("error=ENQ_PARAMETROS_INVALIDOS");
   const { error: e } = await (await createClient()).rpc("rem_proponer_parametros", {
     p_periodo: periodo, p_valores: valores, p_fuente: txt(form, "fuente"), p_observaciones: txt(form, "observaciones") || null,

@@ -2,7 +2,7 @@
 // 105 campos, versión 101 de noviembre de 2026) y Libro de Remuneraciones Electrónico de la Dirección del Trabajo
 // (carga masiva CSV separada por «;», códigos del Suplemento LRE). Funciones puras: reciben las liquidaciones
 // APROBADAS y devuelven el texto, o la lista de datos que faltan. Nunca se genera un archivo incompleto.
-import type { Montos } from "@/lib/remuneraciones";
+import type { Licencia, Montos } from "@/lib/remuneraciones";
 
 // ---------- Tablas de códigos (Previred tablas 10, 16, 18 y 19; Suplemento LRE 1107, 1104, 1141, 1143, 1152) ----------
 export const AFP_CODIGOS: Record<string, { previred: string; lre: number }> = {
@@ -41,7 +41,7 @@ export type FichaArchivo = {
   apv_regimen?: "A" | "B" | null; apv_afp?: string | null; apv_contrato?: string | null; apv_forma?: number | null;
 };
 export type EmpresaArchivo = { mutual: string; tasa_mutual: number; mutual_sucursal: number | null; ccaf: number };
-export type FilaArchivo = { ficha: FichaArchivo; dias: number; montos: Montos | null; ccaf_salud?: number | null };
+export type FilaArchivo = { ficha: FichaArchivo; dias: number; montos: Montos | null; ccaf_salud?: number | null; licencia?: Licencia | null };
 
 // Jornada parcial (art. 40 bis): hasta dos tercios de la jornada ordinaria máxima legal del período
 // (44 h hasta el 25-04-2026; 42 h desde el 26-04-2026; 40 h desde el 26-04-2028, Ley 21.561).
@@ -58,7 +58,7 @@ const limpio = (s: string | null | undefined, max: number) => String(s ?? "").re
 const coma = (n: number) => String(Math.round(n * 10000) / 10000).replace(".", ",");
 
 // Datos que faltan para poder generar los archivos (por trabajador o por empresa).
-export function faltantesArchivo(f: FilaArchivo, e: EmpresaArchivo | null): string[] {
+export function faltantesArchivo(f: FilaArchivo, e: EmpresaArchivo | null, periodo = ""): string[] {
   const x: string[] = [];
   const t = f.ficha;
   if (!f.montos) x.push("recalcular la liquidación (es de una versión anterior del motor)");
@@ -75,6 +75,12 @@ export function faltantesArchivo(f: FilaArchivo, e: EmpresaArchivo | null): stri
   if (!e) x.push("mutual de la empresa");
   else if (e.mutual !== "ISL" && !e.mutual_sucursal) x.push("código de sucursal de la mutual (empresa)");
   if (e && e.ccaf > 0 && t.salud === "fonasa" && typeof f.ccaf_salud !== "number") x.push("porcentaje del 7% que va a la CCAF (parámetros del mes)");
+  if ((f.montos?.dias_licencia ?? 0) > 0) {
+    if (!f.licencia) x.push("fechas y tipo de la licencia médica (recalcula la liquidación)");
+    else if (!f.montos!.rima) x.push("renta imponible del mes anterior a la licencia (RIMA)");
+    if (enPeriodo(t.fecha_baja, periodo) || enPeriodo(t.fecha_ingreso, periodo))
+      x.push("ingreso o término y licencia en el mismo mes: Previred pide una línea adicional; declara a este trabajador directo en Previred");
+  }
   return x;
 }
 
@@ -88,6 +94,10 @@ export function lineaPrevired(f: FilaArchivo, e: EmpresaArchivo, periodo: string
   let mov = "0", desde = "", hasta = "";
   if (enPeriodo(t.fecha_baja, periodo)) { mov = "2"; hasta = ddmmaaaa(t.fecha_baja!, "-"); }
   else if (enPeriodo(t.fecha_ingreso, periodo)) { mov = t.tipo_contrato === "indefinido" ? "1" : "7"; desde = ddmmaaaa(t.fecha_ingreso, "-"); }
+  // Licencia médica (Tabla N°7): 3 = subsidio por enfermedad común, 6 = accidente del trabajo o enfermedad profesional.
+  else if ((m.dias_licencia ?? 0) > 0 && f.licencia) {
+    mov = f.licencia.tipo === "laboral" ? "6" : "3"; desde = ddmmaaaa(f.licencia.desde, "-"); hasta = ddmmaaaa(f.licencia.hasta, "-");
+  }
   const fonasa = t.salud === "fonasa";
   const ccafSalud = e.ccaf > 0 && fonasa ? Math.round((m.base_afp * (f.ccaf_salud ?? 0)) / 100) : 0;
   const isl = e.mutual === "ISL";
@@ -96,7 +106,9 @@ export function lineaPrevired(f: FilaArchivo, e: EmpresaArchivo, periodo: string
   const set = (n: number, v: string | number) => { c[n] = v; };
   set(1, Number(rut)); set(2, dv); set(3, limpio(t.apellido_paterno, 30)); set(4, limpio(t.apellido_materno, 30)); set(5, limpio(t.nombres, 30));
   set(6, t.sexo ?? ""); set(7, t.extranjero ? 1 : 0); set(8, "01"); set(9, mmaaaa); set(10, 0); set(11, "AFP"); set(12, 0); set(13, f.dias);
-  set(14, "00"); set(15, mov); set(16, desde); set(17, hasta); set(18, "D"); set(25, "");
+  set(14, "00"); set(15, mov); set(16, desde); set(17, hasta); set(25, "");
+  // Asignación familiar (campos 18 a 22): tramo de la resolución, cargas simples, maternales e inválidas, y monto pagado.
+  set(18, m.af_tramo ?? "D"); set(19, m.af_simples ?? 0); set(20, m.af_maternales ?? 0); set(21, m.af_invalidez ?? 0); set(22, m.asig_familiar ?? 0);
   // AFP: el 0,1% de capitalización individual del empleador se entera junto a la cotización obligatoria (campo 28).
   set(26, AFP_CODIGOS[t.afp].previred); set(27, m.base_afp); set(28, m.afp + m.aporte_ci); set(29, m.sis);
   set(37, ""); set(38, "00,00"); set(41, ""); set(46, ""); set(51, ""); set(52, ""); set(53, ""); set(54, ""); set(56, ""); set(57, "");
@@ -114,7 +126,7 @@ export function lineaPrevired(f: FilaArchivo, e: EmpresaArchivo, periodo: string
     set(80, m.salud_legal); set(81, m.salud_adicional);
   }
   set(83, e.ccaf > 0 ? String(e.ccaf).padStart(2, "0") : "00"); set(84, e.ccaf > 0 ? m.base_afp : 0); set(90, ccafSalud);
-  set(93, esParcial(t.jornada_horas, periodo) ? 2 : 1); set(94, m.aporte_ev); set(95, m.aporte_rp);
+  set(92, m.rima ?? 0); set(93, esParcial(t.jornada_horas, periodo) ? 2 : 1); set(94, m.aporte_ev); set(95, m.aporte_rp);
   set(96, MUTUAL_CODIGOS[e.mutual].previred); set(97, isl ? 0 : m.base_afp); set(98, isl ? 0 : m.mutual); set(99, isl ? 0 : e.mutual_sucursal ?? 0);
   set(100, m.base_afc); set(101, m.afc_trab); set(102, m.afc_emp); set(104, ""); set(105, "");
   return c.slice(1).join(";");
@@ -179,18 +191,19 @@ export function filaLre(f: FilaArchivo, e: EmpresaArchivo, periodo: string): str
   v.set(1101, t.rut); v.set(1102, ddmmaaaa(t.fecha_ingreso, "/"));
   if (termina) { v.set(1103, ddmmaaaa(t.fecha_baja!, "/")); v.set(1104, t.causal_termino ?? ""); }
   v.set(1105, Math.floor((t.comuna ?? 0) / 1000)); v.set(1106, t.comuna ?? 0); v.set(1107, t.jornada_lre ?? 101);
-  v.set(1110, e.ccaf); v.set(1114, "D"); v.set(1115, f.dias);
+  v.set(1110, e.ccaf); v.set(1111, m.af_simples ?? 0); v.set(1112, m.af_maternales ?? 0); v.set(1113, m.af_invalidez ?? 0);
+  v.set(1114, m.af_tramo ?? "D"); v.set(1115, f.dias); v.set(1116, m.dias_licencia ?? 0);
   v.set(1141, AFP_CODIGOS[t.afp].lre); v.set(1143, t.salud === "fonasa" ? FONASA.lre : ISAPRES[t.isapre!].lre);
   v.set(1151, 1); v.set(1152, MUTUAL_CODIGOS[e.mutual].lre); v.set(1170, 1);
   v.set(2101, m.sueldo); v.set(2102, m.horas_extra); v.set(2106, m.gratificacion); v.set(2113, m.bonos);
-  v.set(2301, m.colacion); v.set(2302, m.movilizacion);
+  v.set(2301, m.colacion); v.set(2302, m.movilizacion); v.set(2311, m.asig_familiar ?? 0);
   v.set(3141, m.afp); v.set(3143, m.salud_legal); v.set(3144, m.salud_adicional); v.set(3151, m.afc_trab); v.set(3161, m.impuesto);
   v.set(3155, m.apv_a ?? 0); v.set(3156, m.apv_b ?? 0);
   v.set(3185, m.otros); v.set(3188, m.anticipos);
   // El Suplemento LRE aún no tiene códigos propios para los aportes de la Ley 21.735: se informan en 4155, como lo hace el mercado.
   v.set(4151, m.afc_emp); v.set(4152, m.mutual); v.set(4155, m.sis + m.aporte_ci + m.aporte_ev + m.aporte_rp);
   const imp = m.sueldo + m.horas_extra + m.gratificacion + m.bonos;
-  const noImp = m.colacion + m.movilizacion;
+  const noImp = m.colacion + m.movilizacion + (m.asig_familiar ?? 0);
   const cotiz = m.afp + m.salud_legal + m.salud_adicional + m.afc_trab + (m.apv_a ?? 0) + (m.apv_b ?? 0);
   const desc = cotiz + m.impuesto + m.otros + m.anticipos;
   v.set(5201, imp + noImp); v.set(5210, imp); v.set(5230, noImp); v.set(5301, desc); v.set(5341, cotiz); v.set(5361, m.impuesto);
