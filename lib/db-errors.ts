@@ -52,6 +52,8 @@ const MESSAGES: Record<string, string> = {
   ENQ_DOCUMENTO_INMUTABLE: "Un documento enviado o aprobado no se modifica: genera una versión nueva.",
   ENQ_CONFIRMA_REVISION: "Marca la casilla para confirmar que revisaste el documento completo.",
   ENQ_DEMASIADAS_BUSQUEDAS: "Hiciste muchas búsquedas en la última hora. Intenta nuevamente en un rato.",
+  ENQ_MARCAS_YA_REVISADAS: "Las marcas parecidas de este caso ya se revisaron: la revisión se hace una sola vez y queda guardada.",
+  ENQ_INDICE_MARCAS_VACIO: "El índice de marcas INAPI aún está vacío. Cárgalo en Mando → Marcas INAPI.",
   ENQ_CONFIRMA_LIQUIDACION: "Marca la casilla para confirmar que revisaste la liquidación.",
   ENQ_FECHA_INVALIDA: "La fecha no es válida: debe ser futura y dentro de un año.",
   ENQ_GESTOR_YA_REGISTRADO: "Ya hay un gestor registrado con ese correo.",
