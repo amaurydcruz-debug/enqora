@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 import { saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { type Fin, FiniquitoBloque } from "./finiquito-bloque";
 import { VacacionesBloque } from "./vacaciones-bloque";
+import { ContratoBloque, type DocContrato } from "./contrato-bloque";
 
 export const metadata: Metadata = { title: "Remuneraciones" };
 
@@ -38,6 +39,8 @@ const AVISOS: Record<string, string> = {
   aprobada: "Liquidación aprobada.", anulada: "Liquidación anulada con su motivo.",
   finiquito: "Finiquito calculado y enviado a revisión del equipo ENQORA. Te avisaremos cuando esté aprobado.",
   finiquito_anulado: "Versión del finiquito anulada con su motivo.",
+  contrato: "Contrato enviado a revisión del abogado de ENQORA. Te avisaremos cuando esté aprobado.", anexo: "Anexo enviado a revisión del abogado de ENQORA.",
+  contrato_anulado: "Documento anulado con su motivo.",
   vacacion: "Registro de vacaciones guardado.", vacacion_anulada: "Registro de vacaciones anulado con su motivo.",
 };
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -68,7 +71,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   const hoy = todayCL();
   const periodo = sp.periodo && periodoValido(sp.periodo) ? sp.periodo : hoy.slice(0, 7);
   const supabase = await createClient();
-  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep, { data: fRows }, { data: ultPar }, { data: vRows }] = await Promise.all([
+  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep, { data: fRows }, { data: ultPar }, { data: vRows }, { data: kRows }, { data: emp2 }] = await Promise.all([
     supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja, apellido_paterno, apellido_materno, nombres, sexo, extranjero, comuna, jornada_lre, fun, causal_termino, apv_regimen, apv_monto, apv_afp, apv_contrato, apv_forma, tramo_af, cargas_simples, cargas_maternales, cargas_invalidez")
       .eq("company_id", company.id).order("activo", { ascending: false }).order("nombre"),
     supabase.from("rem_liquidaciones").select("id, trabajador_id, version, estado, detalle, novedades, total_imponible, liquido, costo_empresa, creado, aprobado_at, motivo_anulacion")
@@ -82,7 +85,12 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
     supabase.from("rem_parametros").select("valores").eq("estado", "aprobado").order("periodo", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("rem_vacaciones").select("id, trabajador_id, tipo, desde, hasta, dias, nota, estado, creado, motivo_anulacion")
       .eq("company_id", company.id).order("desde", { ascending: false }),
+    supabase.from("rem_contratos").select("id, trabajador_id, tipo, version, numero_anexo, estado, datos, avisos, observacion, creado")
+      .eq("company_id", company.id).order("version", { ascending: false }),
+    supabase.from("companies").select("commune").eq("id", company.id).maybeSingle(),
   ]);
+  const contratos = (kRows ?? []) as DocContrato[];
+  const ciudadEmpresa = (emp2 as { commune?: string | null } | null)?.commune ?? "";
   const vacaciones = (vRows ?? []) as RegistroVacacion[];
   const vacDe = (tid: string) => vacaciones.filter((v) => v.trabajador_id === tid);
   const saldoDe = (t: Trab) => {
@@ -237,6 +245,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
                           </form>
                         </details>
                       ) : null}
+                      <ContratoBloque t={t} docs={contratos.filter((k) => k.trabajador_id === t.id)} hoy={hoy} ciudad={ciudadEmpresa} />
                       <VacacionesBloque t={t} saldo={saldoDe(t)} registros={vacDe(t.id)} hoy={hoy} />
                       <details className="ps-docs">
                         <summary>Editar ficha</summary>

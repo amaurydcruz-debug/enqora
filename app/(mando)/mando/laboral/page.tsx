@@ -11,11 +11,13 @@ const TIPOS_DOC: Record<string, string> = { ...KARIN, politica_datos: "Política
 type TipoDoc = string;
 import { myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
+import { ContratosMando } from "./contratos-mando";
 
 export const metadata: Metadata = { title: "Revisión de documentos" };
 
 type Doc = { id: string; company_id: string; tipo: TipoDoc; version: number; estado: string; contenido: string; plantilla: string; creado: string; observacion: string | null };
-const AVISOS: Record<string, string> = { aprobar: "Documento aprobado. La empresa ya puede imprimirlo.", observar: "Observaciones enviadas a la empresa." };
+const AVISOS: Record<string, string> = { aprobar: "Documento aprobado. La empresa ya puede imprimirlo.", observar: "Observaciones enviadas a la empresa.",
+  contrato_aprobar: "Contrato o anexo aprobado. La empresa ya puede imprimirlo.", contrato_observar: "Observaciones enviadas a la empresa.", contrato_anulado: "Documento anulado con su motivo." };
 
 // Bandeja del equipo legal: los borradores de la Ley Karin que generan las empresas. Aprueba un abogado (persona).
 export default async function RevisionLaboralPage({ searchParams }: { searchParams: Promise<{ aviso?: string; error?: string }> }) {
@@ -41,7 +43,7 @@ export default async function RevisionLaboralPage({ searchParams }: { searchPara
         <div className="hero-main">
           <span className="eyebrow">Operación</span>
           <h1>Revisión de documentos para clientes</h1>
-          <p className="hero-lead">Protocolos de la Ley Karin y políticas de datos personales que prepararon las empresas con las plantillas de ENQORA. Nada llega al cliente como definitivo sin tu aprobación.</p>
+          <p className="hero-lead">Contratos de trabajo, anexos, protocolos de la Ley Karin y políticas de datos personales que prepararon las empresas con las plantillas de ENQORA. Nada llega al cliente como definitivo sin tu aprobación.</p>
         </div>
       </header>
       <Callout kind="warn" title="Qué revisar">
@@ -83,6 +85,7 @@ export default async function RevisionLaboralPage({ searchParams }: { searchPara
           </ul>
         ) : <p className="muted-line">Sin decisiones aún.</p>}
       </section>
+      <ContratosMando puedeDecidir={puedeDecidir} />
     </div>
   );
 }
