@@ -3883,6 +3883,15 @@ fieldset.mini-form legend { padding: 0 6px; }
 .rem-vac-anular { display: inline-flex; margin: 4px 0 0 6px; vertical-align: middle; }
 .rem-ct-doc { border-bottom: 1px solid var(--hairline); padding: 6px 0 8px; margin-bottom: 6px; }
 .rem-ct-doc > p { margin: 0 0 4px; font-size: 0.9rem; }
+.pl-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.pl-lista li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 10px; }
+.pl-nivel { flex: 0 0 auto; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; border: 1px solid currentColor; }
+.pl-urgente .pl-nivel { color: #e07a6a; }
+.pl-importante .pl-nivel { color: var(--gold); }
+.pl-aviso .pl-nivel { color: var(--text-3); }
+.pl-que { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pl-que small { color: var(--text-2); font-size: 0.82rem; }
+@media (max-width: 640px) { .pl-lista li { flex-wrap: wrap; } .pl-que { flex-basis: 100%; order: 2; } }
 .cert6-tabla { overflow-x: auto; margin: 10px 0 18px; }
 .cert6-tabla .rem-tabla { min-width: 760px; font-size: 0.8rem; }
 .cert6-tabla .rem-sub th { text-transform: none; letter-spacing: 0; font-size: 0.72rem; vertical-align: bottom; }

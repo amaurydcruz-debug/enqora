@@ -8,6 +8,8 @@ import { Cuestionario } from "./cuestionario";
 import { Calendario } from "./calendario";
 import { vencimientos } from "@/lib/calendario-cumplimiento";
 import { todayCL } from "@/lib/pricing";
+import { cargarPendientesLaborales } from "@/lib/pendientes-laborales-server";
+import { PendientesLaborales } from "./pendientes-laborales";
 
 export const metadata: Metadata = { title: "Empresa al día" };
 
@@ -30,6 +32,9 @@ export default async function EmpresaAlDiaPage() {
   const { data } = await supabase.from("diagnosticos_empresa").select("version, perfil, respuestas, puntaje, creado")
     .eq("company_id", active.id).order("version", { ascending: false }).limit(5);
   const historial = (data ?? []) as Diag[];
+  // Pendientes laborales con datos reales: solo para quienes ven las remuneraciones (datos personales de trabajadores).
+  const veLaboral = ["owner", "admin", "accountant"].includes(active.role);
+  const laborales = veLaboral ? await cargarPendientesLaborales(active.id) : [];
   const ultimo = historial[0] ?? null;
   const fecha = (d: string) => new Intl.DateTimeFormat("es-CL", { dateStyle: "medium", timeZone: "America/Santiago" }).format(new Date(d));
 
@@ -47,6 +52,13 @@ export default async function EmpresaAlDiaPage() {
           Último diagnóstico: versión {ultimo!.version} del {fecha(ultimo!.creado)}, {ultimo!.puntaje}% al día.
           {historial.length > 1 ? ` Anteriores: ${historial.slice(1).map((h) => `v${h.version} ${h.puntaje}%`).join(" · ")}.` : ""}
         </p>
+      ) : null}
+      {veLaboral ? (
+        <section className="ps-card" id="laboral" aria-labelledby="pl-t">
+          <div className="ps-card-cab"><h2 id="pl-t">Tu equipo · pendientes laborales</h2></div>
+          <p className="muted-line">Calculado con tus trabajadores, liquidaciones y documentos en ENQORA. Las fechas de plazo son referenciales.</p>
+          <PendientesLaborales items={laborales} />
+        </section>
       ) : null}
       {perfilValido(ultimo?.perfil) ? (
         <section className="ps-card" id="calendario" aria-labelledby="cal-t">
