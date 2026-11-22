@@ -30,7 +30,7 @@ import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
 import { generarPolitica, validarPolitica } from "@/lib/plantilla-datos";
 import { esVigente, fechaExcel, normalizarMarca, prepararFilasMarcas } from "@/lib/marcas";
-import { impuestoUnico, leerNovedades, leerParametros, liquidar, normalizarRut, type Parametros, type Trabajador } from "@/lib/remuneraciones";
+import { faltaMontoAF, impuestoUnico, leerNovedades, leerParametros, liquidar, mesAnterior, normalizarRut, type Parametros, type Trabajador } from "@/lib/remuneraciones";
 import { tocaAvisar, vencimientos } from "@/lib/calendario-cumplimiento";
 import { gastoDesdeTexto, validarGasto } from "@/lib/gastos";
 import { alertaCruce, medioDePago, resumirPorDia } from "@/lib/pos";
@@ -727,6 +727,62 @@ prueba("Remuneraciones: APV régimen A y B (art. 42 bis) en el cálculo y en los
   const val = archivoLre([fila], emp, "2026-11").trim().split("\r\n")[1].split(";");
   const v = (cod: number) => val[cab.findIndex((h) => h.endsWith(`(${cod})`))];
   assert.equal(v(3155), "0"); assert.equal(v(3156), "100000"); assert.equal(v(5501), String(b.liquido));
+});
+
+prueba("Remuneraciones: asignación familiar y licencias médicas (RIMA) en el cálculo y en los archivos", () => {
+  // Montos de tramo de PRUEBA, del mismo orden que los vigentes: solo verifican la aritmética.
+  const p: Parametros = { uf: 40000, utm: 72000, imm: 539000, tope_afp_uf: 90, tope_afc_uf: 135.2, afp: { Uno: 10.46 }, sis: 1.5,
+    aporte_ci: 0.1, aporte_ev: 1, aporte_rp: 0.9, afc_indefinido_trab: 0.6, afc_indefinido_emp: 2.4, afc_plazo_emp: 3, salud_legal: 7,
+    af_a: 22000, af_b: 13000, af_c: 4000 };
+  const t: Trabajador = { id: "t", nombre: "Ana", tipo_contrato: "indefinido", sueldo_base: 600000, jornada_horas: 42, afp: "Uno", salud: "fonasa",
+    plan_isapre_uf: null, colacion: 0, movilizacion: 0, gratificacion: "ninguna", tramo_af: "A", cargas_simples: 2, cargas_maternales: 0, cargas_invalidez: 1 };
+  const sin = liquidar({ ...t, tramo_af: null, cargas_simples: 0, cargas_invalidez: 0 }, leerNovedades({})!, p, 0.93);
+  const con = liquidar(t, leerNovedades({})!, p, 0.93);
+  assert.equal(con.montos.asig_familiar, 88000); // 2 simples + 1 invalidez (doble) = 4 × 22.000
+  assert.equal(con.total_imponible, sin.total_imponible); // no es imponible
+  assert.equal(con.montos.impuesto, sin.montos.impuesto); // ni tributable
+  assert.equal(con.liquido, sin.liquido + 88000);
+  assert.equal(con.costo_empresa, sin.costo_empresa); // la recupera al pagar cotizaciones
+  assert.equal(liquidar({ ...t, tramo_af: "D" }, leerNovedades({})!, p, 0.93).montos.asig_familiar, 0);
+  assert.equal(faltaMontoAF(t, { ...p, af_a: undefined }), "monto de la asignación familiar del tramo A");
+  assert.equal(faltaMontoAF({ ...t, tramo_af: "D" }, { ...p, af_a: undefined }), null);
+  assert.equal(leerParametros({ ...p, af_b: "x" }), null);
+  assert.equal(leerParametros(p)!.af_c, 4000);
+
+  // Licencia de 20 días: SIS y expectativa de vida sobre RI de 10 días + RIMA de 20; CI y rentabilidad protegida solo días trabajados.
+  assert.equal(leerNovedades({ dias_trabajados: 20, dias_licencia: 15 }), null); // 35 días
+  assert.equal(leerNovedades({ dias_trabajados: 10, dias_licencia: 20 }), null); // sin fechas
+  const n = leerNovedades({ dias_trabajados: 10, dias_licencia: 20, rima: 600000, licencia: { tipo: "comun", desde: "2026-11-11", hasta: "2026-11-30" } })!;
+  assert.equal(mesAnterior("2026-11-11"), "2026-10"); assert.equal(mesAnterior("2027-01-03"), "2026-12");
+  const lic = liquidar(t, n, p, 0.93);
+  assert.equal(lic.montos.base_afp, 200000);
+  assert.equal(lic.montos.rima, 400000);
+  assert.equal(lic.montos.sis, 9000); // 1,5% × 600.000
+  assert.equal(lic.montos.aporte_ev, 6000);
+  assert.equal(lic.montos.aporte_ci, 200);
+  assert.equal(lic.montos.aporte_rp, 1800);
+  assert.equal(lic.montos.asig_familiar, 29333); // 88.000 × 10/30
+  assert.equal(lic.montos.dias_licencia, 20);
+
+  const ficha = { rut: "12345678-5", apellido_paterno: "Pérez", apellido_materno: "", nombres: "Ana", sexo: "F" as const, extranjero: false,
+    fecha_ingreso: "2025-01-01", fecha_baja: null, causal_termino: null, tipo_contrato: "indefinido" as const, jornada_horas: 42, jornada_lre: 101,
+    afp: "Uno", salud: "fonasa" as const, isapre: null, fun: null, plan_isapre_uf: null, comuna: 13101, nombre: "Ana Pérez" };
+  const emp = { mutual: "ACHS", tasa_mutual: 0.93, mutual_sucursal: 1, ccaf: 0 };
+  const fila: FilaArchivo = { ficha, dias: 10, montos: lic.montos, licencia: n.licencia };
+  assert.deepEqual(faltantesArchivo(fila, emp, "2026-11"), []);
+  assert.ok(faltantesArchivo({ ...fila, licencia: null }, emp, "2026-11").some((x) => x.includes("licencia")));
+  assert.ok(faltantesArchivo({ ...fila, ficha: { ...ficha, fecha_ingreso: "2026-11-01" } }, emp, "2026-11").some((x) => x.includes("línea adicional")));
+  const c = ["", ...archivoPrevired([fila], emp, "2026-11").trim().split(";")];
+  assert.equal(c[13], "10"); assert.equal(c[15], "3"); assert.equal(c[16], "11-11-2026"); assert.equal(c[17], "30-11-2026");
+  assert.equal(c[18], "A"); assert.equal(c[19], "2"); assert.equal(c[20], "0"); assert.equal(c[21], "1"); assert.equal(c[22], "29333");
+  assert.equal(c[27], "200000"); assert.equal(c[29], "9000"); assert.equal(c[92], "400000"); assert.equal(c[94], "6000");
+  const laboral = ["", ...archivoPrevired([{ ...fila, licencia: { ...n.licencia!, tipo: "laboral" } }], emp, "2026-11").trim().split(";")];
+  assert.equal(laboral[15], "6");
+  const cab = encabezadoLre().split(";");
+  const val = archivoLre([fila], emp, "2026-11").trim().split("\r\n")[1].split(";");
+  const v = (cod: number) => val[cab.findIndex((h) => h.endsWith(`(${cod})`))];
+  assert.equal(v(1111), "2"); assert.equal(v(1113), "1"); assert.equal(v(1114), "A"); assert.equal(v(1116), "20"); assert.equal(v(2311), "29333");
+  assert.equal(v(5501), String(lic.liquido));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

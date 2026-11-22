@@ -26,8 +26,9 @@ export async function prepararArchivos(companyId: string, periodo: string): Prom
       const fila: FilaArchivo = {
         ficha: { ...t, jornada_horas: Number(t.jornada_horas), plan_isapre_uf: t.plan_isapre_uf == null ? null : Number(t.plan_isapre_uf) },
         dias: Number(l.novedades?.dias_trabajados ?? 30), montos: l.detalle?.montos ?? null, ccaf_salud: ccafSalud,
+        licencia: l.novedades?.licencia ?? null,
       };
-      return { ...fila, faltan: faltantesArchivo(fila, empresa) };
+      return { ...fila, faltan: faltantesArchivo(fila, empresa, periodo) };
     })
     .sort((a, b) => a.ficha.rut.localeCompare(b.ficha.rut));
   const faltanEmpresa = empresa ? [] : ["mutual de la empresa"];

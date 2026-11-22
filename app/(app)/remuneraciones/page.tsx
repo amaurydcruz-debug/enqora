@@ -23,6 +23,7 @@ type Trab = {
   apellido_paterno: string | null; apellido_materno: string | null; nombres: string | null; sexo: "M" | "F" | null; extranjero: boolean;
   comuna: number | null; jornada_lre: number | null; fun: string | null; causal_termino: number | null;
   apv_regimen: "A" | "B" | null; apv_monto: number | null; apv_afp: string | null; apv_contrato: string | null; apv_forma: number | null;
+  tramo_af: "A" | "B" | "C" | "D" | null; cargas_simples: number; cargas_maternales: number; cargas_invalidez: number;
 };
 type Liq = {
   id: string; trabajador_id: string; version: number; estado: "borrador" | "aprobada" | "anulada"; detalle: Liquidacion; novedades: Novedades;
@@ -62,7 +63,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   const periodo = sp.periodo && periodoValido(sp.periodo) ? sp.periodo : hoy.slice(0, 7);
   const supabase = await createClient();
   const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep] = await Promise.all([
-    supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja, apellido_paterno, apellido_materno, nombres, sexo, extranjero, comuna, jornada_lre, fun, causal_termino, apv_regimen, apv_monto, apv_afp, apv_contrato, apv_forma")
+    supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja, apellido_paterno, apellido_materno, nombres, sexo, extranjero, comuna, jornada_lre, fun, causal_termino, apv_regimen, apv_monto, apv_afp, apv_contrato, apv_forma, tramo_af, cargas_simples, cargas_maternales, cargas_invalidez")
       .eq("company_id", company.id).order("activo", { ascending: false }).order("nombre"),
     supabase.from("rem_liquidaciones").select("id, trabajador_id, version, estado, detalle, novedades, total_imponible, liquido, costo_empresa, creado, aprobado_at, motivo_anulacion")
       .eq("company_id", company.id).eq("periodo", periodo).order("version", { ascending: false }),
@@ -181,6 +182,28 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
                             <Campo id={`b-${t.id}`} name="bonos" label="Bonos imponibles ($)" def={String(liq?.novedades.bonos_imponibles ?? 0)} />
                             <Campo id={`a-${t.id}`} name="anticipos" label="Anticipos ($)" def={String(liq?.novedades.anticipos ?? 0)} />
                             <Campo id={`o-${t.id}`} name="otros" label="Otros descuentos ($)" def={String(liq?.novedades.otros_descuentos ?? 0)} />
+                            <Campo id={`l-${t.id}`} name="dias_licencia" label="Días con licencia médica" def={String(liq?.novedades.dias_licencia ?? 0)} />
+                            <div className="field">
+                              <label htmlFor={`lt-${t.id}`}>Tipo de licencia</label>
+                              <select id={`lt-${t.id}`} name="licencia_tipo" className="input" defaultValue={liq?.novedades.licencia?.tipo ?? "comun"}>
+                                <option value="comun">Enfermedad o accidente común</option>
+                                <option value="laboral">Accidente del trabajo o enfermedad profesional</option>
+                              </select>
+                            </div>
+                            <div className="field">
+                              <label htmlFor={`ld-${t.id}`}>Licencia desde</label>
+                              <input id={`ld-${t.id}`} name="licencia_desde" type="date" className="input" defaultValue={liq?.novedades.licencia?.desde ?? ""} />
+                            </div>
+                            <div className="field">
+                              <label htmlFor={`lh-${t.id}`}>Licencia hasta</label>
+                              <input id={`lh-${t.id}`} name="licencia_hasta" type="date" className="input" defaultValue={liq?.novedades.licencia?.hasta ?? ""} />
+                              <span className="hint">Fecha de término de la licencia, aunque pase al mes siguiente.</span>
+                            </div>
+                            <div className="field">
+                              <label htmlFor={`lr-${t.id}`}>Renta imponible del mes anterior a la licencia ($)</label>
+                              <input id={`lr-${t.id}`} name="rima" className="input" inputMode="numeric" defaultValue={liq?.novedades.rima ? String(liq.novedades.rima) : ""} />
+                              <span className="hint">Si la dejas vacía, se toma de la liquidación aprobada de ese mes.</span>
+                            </div>
                             <div className="field"><label>&nbsp;</label><SubmitButton className="btn-inline btn-sm" pendingText="Calculando…">Calcular</SubmitButton></div>
                           </form>
                         </details>
@@ -458,6 +481,30 @@ function FichaForm({ empresa, periodo, t }: { empresa: string; periodo: string; 
           <option value="2">Indirecta</option>
         </select>
         <span className="hint">Según el mandato que firmó el trabajador con la AFP.</span>
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-taf`}>Tramo de asignación familiar</label>
+        <select id={`${p}-taf`} name="tramo_af" className="input" defaultValue={t?.tramo_af ?? ""}>
+          <option value="">Sin cargas</option>
+          <option value="A">Tramo A</option>
+          <option value="B">Tramo B</option>
+          <option value="C">Tramo C</option>
+          <option value="D">Tramo D (sin pago)</option>
+        </select>
+        <span className="hint">El de la resolución del IPS o de la CCAF, según el ingreso promedio del trabajador.</span>
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-cs`}>Cargas simples</label>
+        <input id={`${p}-cs`} name="cargas_simples" className="input" inputMode="numeric" defaultValue={String(t?.cargas_simples ?? 0)} />
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-cm`}>Cargas maternales</label>
+        <input id={`${p}-cm`} name="cargas_maternales" className="input" inputMode="numeric" defaultValue={String(t?.cargas_maternales ?? 0)} />
+      </div>
+      <div className="field">
+        <label htmlFor={`${p}-ci`}>Cargas por invalidez</label>
+        <input id={`${p}-ci`} name="cargas_invalidez" className="input" inputMode="numeric" defaultValue={String(t?.cargas_invalidez ?? 0)} />
+        <span className="hint">Estas cuentan doble.</span>
       </div>
       <div className="field"><label>&nbsp;</label><SubmitButton variant={t ? "ghost" : undefined} className="btn-inline btn-sm" pendingText="Guardando…">{t ? "Guardar cambios" : "Agregar"}</SubmitButton></div>
     </form>

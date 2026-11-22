@@ -52,7 +52,7 @@ export default async function ParametrosRemPage({ searchParams }: { searchParams
       </header>
 
       <Callout kind="warn" title="Antes de aprobar">
-        Compara cada valor con la fuente oficial del mes (indicadores de Previred, valores del SII y comunicados de la Superintendencia de Pensiones). Desde agosto de 2026 el aporte del empleador de la Ley 21.735 se informa en partes: SIS (campo 29), capitalización individual (va con la cotización AFP), expectativa de vida (campo 94) y rentabilidad protegida (campo 95). Confirma también qué tope imponible rige en el mes y la distribución vigente del 7% entre Fonasa y la CCAF.
+        Compara cada valor con la fuente oficial del mes (indicadores de Previred, valores del SII y comunicados de la Superintendencia de Pensiones). Desde agosto de 2026 el aporte del empleador de la Ley 21.735 se informa en partes: SIS (campo 29), capitalización individual (va con la cotización AFP), expectativa de vida (campo 94) y rentabilidad protegida (campo 95). Confirma también qué tope imponible rige en el mes y la distribución vigente del 7% entre Fonasa y la CCAF. Los montos de la asignación familiar por tramo salen de la circular de la Superintendencia de Seguridad Social que los reajusta.
       </Callout>
 
       {puedeAprobar || role === "ai_agent" ? (
@@ -74,6 +74,15 @@ export default async function ParametrosRemPage({ searchParams }: { searchParams
               <label htmlFor="rp-ccaf">Parte del 7% de Fonasa que va a la CCAF (%)</label>
               <input id="rp-ccaf" name="ccaf_salud" className="input" inputMode="decimal" defaultValue={base?.ccaf_salud != null ? String(base.ccaf_salud).replace(".", ",") : ""} />
             </div>
+            {(["A", "B", "C"] as const).map((tr) => {
+              const k = `af_${tr.toLowerCase()}` as "af_a" | "af_b" | "af_c";
+              return (
+                <div className="field" key={k}>
+                  <label htmlFor={`rp-${k}`}>Asignación familiar tramo {tr} · por carga ($)</label>
+                  <input id={`rp-${k}`} name={k} className="input" inputMode="decimal" defaultValue={base?.[k] != null ? String(base[k]) : ""} />
+                </div>
+              );
+            })}
             {AFPS.map((a) => (
               <div className="field" key={a}>
                 <label htmlFor={`rp-afp-${a}`}>AFP {a} · cargo trabajador (%)</label>
@@ -104,7 +113,7 @@ export default async function ParametrosRemPage({ searchParams }: { searchParams
                   <span>
                     <b>{f.periodo} · v{f.version} · {ESTADO[f.estado] ?? f.estado}</b>
                     <small>
-                      {v ? `UF $${num(v.uf)} · UTM $${num(v.utm)} · IMM $${num(v.imm)} · topes ${num(v.tope_afp_uf)} / ${num(v.tope_afc_uf)} UF · SIS ${num(v.sis)}% · CI ${num(v.aporte_ci)}% · EV ${num(v.aporte_ev)}% · RP ${num(v.aporte_rp)}%${v.ccaf_salud != null ? ` · CCAF ${num(v.ccaf_salud)}%` : ""} · AFC ${num(v.afc_indefinido_trab)}/${num(v.afc_indefinido_emp)}/${num(v.afc_plazo_emp)}% · AFP ${Object.entries(v.afp).map(([a, t]) => `${a} ${num(t)}%`).join(", ")}` : "Valores incompletos"}
+                      {v ? `UF $${num(v.uf)} · UTM $${num(v.utm)} · IMM $${num(v.imm)} · topes ${num(v.tope_afp_uf)} / ${num(v.tope_afc_uf)} UF · SIS ${num(v.sis)}% · CI ${num(v.aporte_ci)}% · EV ${num(v.aporte_ev)}% · RP ${num(v.aporte_rp)}%${v.ccaf_salud != null ? ` · CCAF ${num(v.ccaf_salud)}%` : ""}${v.af_a != null ? ` · AF $${num(v.af_a)}/${num(v.af_b ?? 0)}/${num(v.af_c ?? 0)}` : ""} · AFC ${num(v.afc_indefinido_trab)}/${num(v.afc_indefinido_emp)}/${num(v.afc_plazo_emp)}% · AFP ${Object.entries(v.afp).map(([a, t]) => `${a} ${num(t)}%`).join(", ")}` : "Valores incompletos"}
                     </small>
                     <small>Fuente: {f.fuente}{f.observaciones ? ` · ${f.observaciones}` : ""}</small>
                   </span>
