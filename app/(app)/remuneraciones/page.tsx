@@ -4,6 +4,7 @@ import {
   anularLiquidacionAction, aprobarLiquidacionAction, bajaTrabajadorAction, calcularLiquidacionAction, guardarMutualAction, guardarTrabajadorAction,
 } from "@/app/actions/remuneraciones";
 import { Notice } from "@/components/auth-card";
+import { OperandoAviso } from "@/components/operando-aviso";
 import { Callout } from "@/components/disclosure";
 import { SubmitButton } from "@/components/submit-button";
 import { booksCompany } from "@/lib/accounting-server";
@@ -18,6 +19,8 @@ import { type Fin, FiniquitoBloque } from "./finiquito-bloque";
 import { VacacionesBloque } from "./vacaciones-bloque";
 import { ContratoBloque, type DocContrato } from "./contrato-bloque";
 import { CartaBloque } from "./carta-bloque";
+import { RemuneracionesCliente, type DocListo, type Novedad } from "./cliente";
+import { cargarPendientesLaborales } from "@/lib/pendientes-laborales-server";
 
 export const metadata: Metadata = { title: "Remuneraciones" };
 
@@ -42,6 +45,7 @@ const AVISOS: Record<string, string> = {
   finiquito_anulado: "Versión del finiquito anulada con su motivo.",
   contrato: "Contrato enviado a revisión del abogado de ENQORA. Te avisaremos cuando esté aprobado.", anexo: "Anexo enviado a revisión del abogado de ENQORA.", pacto: "Pacto de horas extraordinarias enviado a revisión del abogado de ENQORA.", carta: "Carta de término enviada a revisión del abogado de ENQORA. No la entregues hasta que esté aprobada.",
   contrato_anulado: "Documento anulado con su motivo.",
+  novedades: "Novedades enviadas a ENQORA. El equipo calculará la liquidación con ellas.",
   vacacion: "Registro de vacaciones guardado.", vacacion_anulada: "Registro de vacaciones anulado con su motivo.",
 };
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -72,7 +76,7 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   const hoy = todayCL();
   const periodo = sp.periodo && periodoValido(sp.periodo) ? sp.periodo : hoy.slice(0, 7);
   const supabase = await createClient();
-  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep, { data: fRows }, { data: ultPar }, { data: vRows }, { data: kRows }, { data: emp2 }] = await Promise.all([
+  const [{ data: tRows }, { data: lRows }, { data: par }, { data: emp }, { data: xRows }, prep, { data: fRows }, { data: ultPar }, { data: vRows }, { data: kRows }, { data: emp2 }, { data: nRows }, { data: cRows }] = await Promise.all([
     supabase.from("rem_trabajadores").select("id, rut, nombre, cargo, fecha_ingreso, tipo_contrato, sueldo_base, jornada_horas, afp, salud, isapre, plan_isapre_uf, colacion, movilizacion, gratificacion, activo, fecha_baja, motivo_baja, apellido_paterno, apellido_materno, nombres, sexo, extranjero, comuna, jornada_lre, fun, causal_termino, apv_regimen, apv_monto, apv_afp, apv_contrato, apv_forma, tramo_af, cargas_simples, cargas_maternales, cargas_invalidez")
       .eq("company_id", company.id).order("activo", { ascending: false }).order("nombre"),
     supabase.from("rem_liquidaciones").select("id, trabajador_id, version, estado, detalle, novedades, total_imponible, liquido, costo_empresa, creado, aprobado_at, motivo_anulacion")
@@ -89,7 +93,11 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
     supabase.from("rem_contratos").select("id, trabajador_id, tipo, version, numero_anexo, estado, datos, avisos, observacion, creado")
       .eq("company_id", company.id).order("version", { ascending: false }),
     supabase.from("companies").select("commune").eq("id", company.id).maybeSingle(),
+    supabase.from("rem_novedades_cliente").select("trabajador_id, datos, enviado").eq("company_id", company.id).eq("periodo", periodo),
+    supabase.from("rem_certificados").select("id, trabajador_id, anio, numero").eq("company_id", company.id).eq("estado", "vigente").order("anio", { ascending: false }),
   ]);
+  const novedades = (nRows ?? []) as Novedad[];
+  const novDe = (tid: string) => novedades.find((n) => n.trabajador_id === tid) ?? null;
   const contratos = (kRows ?? []) as DocContrato[];
   const ciudadEmpresa = (emp2 as { commune?: string | null } | null)?.commune ?? "";
   // Datos que la carta de término toma del contrato aprobado (domicilio y representante), si existe.
@@ -129,15 +137,51 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
   const vigente = (tid: string) => liqs.find((l) => l.trabajador_id === tid && l.estado !== "anulada");
   const anuladas = (tid: string) => liqs.filter((l) => l.trabajador_id === tid && l.estado === "anulada");
 
+  // Cliente (miembro de la empresa): vista del servicio. El equipo ENQORA (sin rol en la empresa) opera las herramientas.
+  const operaEquipo = company.role === null;
+  if (!operaEquipo) {
+    const docs: DocListo[] = [
+      ...contratos.filter((k) => k.estado === "aprobado").map((k) => ({ trabajador_id: k.trabajador_id, href: `/remuneraciones/contrato/${k.id}`,
+        titulo: k.tipo === "contrato" ? "Contrato de trabajo" : k.tipo === "anexo" ? `Anexo N° ${k.numero_anexo}` : k.tipo === "pacto_he" ? "Pacto de horas extraordinarias" : "Carta de aviso de término" })),
+      ...finiquitos.filter((f) => f.estado === "aprobado").map((f) => ({ trabajador_id: f.trabajador_id, href: `/remuneraciones/finiquito/${f.id}`, titulo: "Finiquito" })),
+      ...vacaciones.filter((v) => v.tipo === "tomado" && v.estado === "vigente" && v.desde >= `${Number(hoy.slice(0, 4)) - 1}-01-01`)
+        .map((v) => ({ trabajador_id: v.trabajador_id, href: `/remuneraciones/vacaciones/${v.id}`, titulo: `Comprobante de feriado del ${v.desde.split("-").reverse().join("-")}` })),
+      ...((cRows ?? []) as { id: string; trabajador_id: string; anio: number; numero: number }[])
+        .map((c) => ({ trabajador_id: c.trabajador_id, href: `/remuneraciones/certificado/${c.id}`, titulo: `Certificado de sueldos ${c.anio} (N° ${c.numero})` })),
+    ];
+    const pendientes = await cargarPendientesLaborales(company.id);
+    return (
+      <div className="page narrow ps">
+        {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
+        {sp.error ? <Notice kind="error">{messageForCode(sp.error) ?? "No pudimos completar la operación."}</Notice> : null}
+        <header className="hero">
+          <div className="hero-main">
+            <span className="eyebrow">{company.name} · Tu equipo</span>
+            <h1>Remuneraciones</h1>
+            <p className="hero-lead">ENQORA lleva las remuneraciones de tu equipo: tú nos cuentas las novedades del mes y nuestro equipo calcula las liquidaciones, prepara Previred y el Libro de Remuneraciones, y te deja cada documento revisado y listo para firmar.</p>
+          </div>
+        </header>
+        <form method="get" className="upload-row rem-periodo">
+          <label htmlFor="rem-periodo">Mes</label>
+          <input id="rem-periodo" name="periodo" type="month" className="input input-sm" defaultValue={periodo} max={hoy.slice(0, 7)} />
+          <button type="submit" className="btn btn-ghost btn-inline btn-sm">Ver</button>
+        </form>
+        <RemuneracionesCliente periodo={periodo} nombreMes={nombreMes(periodo)} trabajadores={trabajadores} liqs={liqs} novedades={novedades}
+          docs={docs} pendientes={pendientes} archivosListos={prep.listo} />
+      </div>
+    );
+  }
+
   return (
     <div className="page narrow ps">
+      <OperandoAviso empresa={company} />
       {sp.aviso && AVISOS[sp.aviso] ? <Notice kind="ok">{AVISOS[sp.aviso]}</Notice> : null}
       {sp.error ? <Notice kind="error">{sp.detalle ? String(sp.detalle).slice(0, 200) : messageForCode(sp.error) ?? "No pudimos completar la operación."}</Notice> : null}
       <header className="hero">
         <div className="hero-main">
           <span className="eyebrow">{company.name} · Tu equipo</span>
           <h1>Remuneraciones</h1>
-          <p className="hero-lead">Ficha de tus trabajadores y liquidación de sueldo de cada mes. ENQORA calcula con los indicadores oficiales del mes; tú revisas y apruebas.</p>
+          <p className="hero-lead">Servicio de remuneraciones para la empresa: fichas, novedades informadas por el cliente, liquidaciones, archivos del mes y documentos laborales. Lo aprobado queda disponible para el cliente.</p>
         </div>
       </header>
 
@@ -221,29 +265,32 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
                       {parametros && liq?.estado !== "aprobada" ? (
                         <details className="ps-docs" open={!liq}>
                           <summary>{liq ? "Recalcular" : "Calcular liquidación"}</summary>
+                          {novDe(t.id) ? (
+                            <p className="muted-line">La empresa informó novedades el {new Date(novDe(t.id)!.enviado).toLocaleDateString("es-CL", { timeZone: "America/Santiago" })}{novDe(t.id)!.datos.nota ? `: «${String(novDe(t.id)!.datos.nota)}»` : ""}. Están precargadas abajo.</p>
+                          ) : <p className="muted-line">La empresa aún no informa novedades de este mes.</p>}
                           <form action={calcularLiquidacionAction} className="form-grid">
                             <input type="hidden" name="trabajador" value={t.id} />
                             <input type="hidden" name="periodo" value={periodo} />
-                            <Campo id={`d-${t.id}`} name="dias" label="Días trabajados" def={String(liq?.novedades.dias_trabajados ?? 30)} />
-                            <Campo id={`h-${t.id}`} name="horas_extra" label="Horas extra" def={String(liq?.novedades.horas_extra ?? 0)} />
-                            <Campo id={`b-${t.id}`} name="bonos" label="Bonos imponibles ($)" def={String(liq?.novedades.bonos_imponibles ?? 0)} />
-                            <Campo id={`a-${t.id}`} name="anticipos" label="Anticipos ($)" def={String(liq?.novedades.anticipos ?? 0)} />
-                            <Campo id={`o-${t.id}`} name="otros" label="Otros descuentos ($)" def={String(liq?.novedades.otros_descuentos ?? 0)} />
-                            <Campo id={`l-${t.id}`} name="dias_licencia" label="Días con licencia médica" def={String(liq?.novedades.dias_licencia ?? 0)} />
+                            <Campo id={`d-${t.id}`} name="dias" label="Días trabajados" def={String(liq?.novedades.dias_trabajados ?? novDe(t.id)?.datos.dias_trabajados ?? 30)} />
+                            <Campo id={`h-${t.id}`} name="horas_extra" label="Horas extra" def={String(liq?.novedades.horas_extra ?? novDe(t.id)?.datos.horas_extra ?? 0)} />
+                            <Campo id={`b-${t.id}`} name="bonos" label="Bonos imponibles ($)" def={String(liq?.novedades.bonos_imponibles ?? novDe(t.id)?.datos.bonos_imponibles ?? 0)} />
+                            <Campo id={`a-${t.id}`} name="anticipos" label="Anticipos ($)" def={String(liq?.novedades.anticipos ?? novDe(t.id)?.datos.anticipos ?? 0)} />
+                            <Campo id={`o-${t.id}`} name="otros" label="Otros descuentos ($)" def={String(liq?.novedades.otros_descuentos ?? novDe(t.id)?.datos.otros_descuentos ?? 0)} />
+                            <Campo id={`l-${t.id}`} name="dias_licencia" label="Días con licencia médica" def={String(liq?.novedades.dias_licencia ?? novDe(t.id)?.datos.dias_licencia ?? 0)} />
                             <div className="field">
                               <label htmlFor={`lt-${t.id}`}>Tipo de licencia</label>
-                              <select id={`lt-${t.id}`} name="licencia_tipo" className="input" defaultValue={liq?.novedades.licencia?.tipo ?? "comun"}>
+                              <select id={`lt-${t.id}`} name="licencia_tipo" className="input" defaultValue={liq?.novedades.licencia?.tipo ?? (novDe(t.id)?.datos.licencia as { tipo?: string } | null)?.tipo ?? "comun"}>
                                 <option value="comun">Enfermedad o accidente común</option>
                                 <option value="laboral">Accidente del trabajo o enfermedad profesional</option>
                               </select>
                             </div>
                             <div className="field">
                               <label htmlFor={`ld-${t.id}`}>Licencia desde</label>
-                              <input id={`ld-${t.id}`} name="licencia_desde" type="date" className="input" defaultValue={liq?.novedades.licencia?.desde ?? ""} />
+                              <input id={`ld-${t.id}`} name="licencia_desde" type="date" className="input" defaultValue={liq?.novedades.licencia?.desde ?? (novDe(t.id)?.datos.licencia as { desde?: string } | null)?.desde ?? ""} />
                             </div>
                             <div className="field">
                               <label htmlFor={`lh-${t.id}`}>Licencia hasta</label>
-                              <input id={`lh-${t.id}`} name="licencia_hasta" type="date" className="input" defaultValue={liq?.novedades.licencia?.hasta ?? ""} />
+                              <input id={`lh-${t.id}`} name="licencia_hasta" type="date" className="input" defaultValue={liq?.novedades.licencia?.hasta ?? (novDe(t.id)?.datos.licencia as { hasta?: string } | null)?.hasta ?? ""} />
                               <span className="hint">Fecha de término de la licencia, aunque pase al mes siguiente.</span>
                             </div>
                             <div className="field">

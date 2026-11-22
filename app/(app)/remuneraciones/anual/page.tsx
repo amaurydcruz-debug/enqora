@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { emitirCertificadoAction } from "@/app/actions/certificado6";
 import { Notice } from "@/components/auth-card";
+import { OperandoAviso } from "@/components/operando-aviso";
 import { Callout } from "@/components/disclosure";
 import { SubmitButton } from "@/components/submit-button";
 import { booksCompany } from "@/lib/accounting-server";
@@ -43,6 +44,7 @@ export default async function AnualPage({ searchParams }: { searchParams: Promis
 
   return (
     <div className="page ps">
+      <OperandoAviso empresa={company} />
       {sp.error ? <Notice kind="error">{messageForCode(sp.error) ?? "No pudimos completar la operación."}</Notice> : null}
       <header className="hero">
         <div className="hero-main">

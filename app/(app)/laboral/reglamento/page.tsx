@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { generarReglamentoAction } from "@/app/actions/laboral";
 import { Notice } from "@/components/auth-card";
+import { OperandoAviso } from "@/components/operando-aviso";
 import { Callout } from "@/components/disclosure";
 import { SubmitButton } from "@/components/submit-button";
 import { booksCompany } from "@/lib/accounting-server";
@@ -55,6 +56,7 @@ export default async function ReglamentoPage({ searchParams }: { searchParams: P
 
   return (
     <div className="page narrow ps">
+      <OperandoAviso empresa={company} />
       {sp.aviso === "enviado" ? <Notice kind="ok">Reglamento preparado y enviado al equipo legal de ENQORA. Te avisaremos cuando esté aprobado.</Notice> : null}
       {sp.error ? <Notice kind="error">{messageForCode(sp.error) ?? "No pudimos completar la operación."}</Notice> : null}
       {sp.mensaje ? <Notice kind="error">{sp.mensaje}</Notice> : null}
