@@ -31,13 +31,13 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
         </Callout>
       ) : (
         <Callout kind="info" title="Antes de firmar">
-          Imprime dos ejemplares, uno para cada parte. {c.tipo === "contrato" ? "Regístralo en el portal de la Dirección del Trabajo y entrega al trabajador una copia del reglamento interno (si corresponde) y del protocolo de la Ley Karin." : "Actualiza la ficha del trabajador si el anexo cambia su sueldo, jornada o cargo."}
+          Imprime dos ejemplares, uno para cada parte. {c.tipo === "contrato" ? "Regístralo en el portal de la Dirección del Trabajo y entrega al trabajador una copia del reglamento interno (si corresponde) y del protocolo de la Ley Karin." : c.tipo === "anexo" ? "Actualiza la ficha del trabajador si el anexo cambia su sueldo, jornada o cargo." : "Las horas extra trabajadas deben quedar en el registro de asistencia. Para seguir después del plazo, prepara un pacto nuevo."}
         </Callout>
       )}
       <TextoDocumento texto={c.contenido} />
       {aprobado && c.revisado_at ? (
         <p className="muted-line doc-pie">
-          {c.tipo === "contrato" ? "Contrato" : `Anexo N° ${c.numero_anexo}`} · versión {c.version} · revisado y aprobado por un abogado de ENQORA el {new Date(c.revisado_at).toLocaleDateString("es-CL", { timeZone: "America/Santiago" })} · plantilla {c.plantilla}.
+          {c.tipo === "contrato" ? "Contrato" : c.tipo === "anexo" ? `Anexo N° ${c.numero_anexo}` : "Pacto de horas extraordinarias"} · versión {c.version} · revisado y aprobado por un abogado de ENQORA el {new Date(c.revisado_at).toLocaleDateString("es-CL", { timeZone: "America/Santiago" })} · plantilla {c.plantilla}.
         </p>
       ) : null}
     </div>

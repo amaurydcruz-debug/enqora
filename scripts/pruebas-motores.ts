@@ -29,7 +29,7 @@ import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-a
 import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriadoProporcional, plazoPago, textoFiniquito, validarDatosFiniquito, type DatosFiniquito } from "@/lib/finiquito";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
-import { avisosContrato, textoAnexo, textoContrato, validarAnexo, validarContrato, type DatosContrato, type FichaContrato } from "@/lib/plantilla-contrato";
+import { avisosContrato, hastaMaximoPacto, pactoCubreMes, textoAnexo, textoContrato, textoPactoHE, validarAnexo, validarContrato, validarPactoHE, type DatosContrato, type DatosPactoHE, type FichaContrato } from "@/lib/plantilla-contrato";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
 import { generarPolitica, validarPolitica } from "@/lib/plantilla-datos";
@@ -903,6 +903,34 @@ prueba("Contrato de trabajo: estipulaciones del art. 10, avisos de jornada, ingr
   const ta = textoAnexo(an as Exclude<typeof an, string>, f, e, 2);
   assert.ok(ta.includes("Anexo N° 2") && ta.includes("$650.000") && ta.includes("1 de enero de 2027") && ta.includes("art. 11"));
   assert.equal(typeof validarAnexo({ ciudad: "Santiago", fecha: "2026-12-01", materia: "x", vigencia: "2027-01-01", texto: "corto", representante: "Juan Soto" }), "string");
+});
+
+prueba("Pacto de horas extraordinarias: tres meses, 2 horas diarias, necesidad temporal, cobertura del mes y aviso en la liquidación", () => {
+  assert.equal(hastaMaximoPacto("2026-12-01"), "2027-02-28");
+  assert.equal(hastaMaximoPacto("2026-11-30"), "2027-02-27"); // 30-11 + 3 meses = 28-02; un día antes
+  const base = { ciudad: "Santiago", fecha: "2026-11-25", desde: "2026-12-01", hasta: "2027-02-28", horas_dia: "2", motivo: "Inventario anual y ventas de fin de año",
+    compensacion: "pago", representante: "Juan Soto" };
+  const d = validarPactoHE(base, "2026-01-01") as DatosPactoHE;
+  assert.equal(typeof d, "object");
+  assert.equal(typeof validarPactoHE({ ...base, hasta: "2027-03-01" }, "2026-01-01"), "string");
+  assert.equal(typeof validarPactoHE({ ...base, horas_dia: "3" }, "2026-01-01"), "string");
+  assert.equal(typeof validarPactoHE({ ...base, motivo: "porque sí" }, "2026-01-01"), "string");
+  assert.equal(typeof validarPactoHE(base, "2027-01-01"), "string"); // antes del ingreso
+  const f: FichaContrato = { nombre: "Ana Pérez", rut: "12345678-5", cargo: null, fecha_ingreso: "2026-01-01", tipo_contrato: "indefinido",
+    sueldo_base: 600000, jornada_horas: 42, colacion: 0, movilizacion: 0, gratificacion: "ninguna" };
+  const t = textoPactoHE(d, f, { nombre: "Andes SpA", rut: "76086428-5", domicilio: "" });
+  assert.ok(t.includes("artículo 32") && t.includes("Inventario anual") && t.includes("28 de febrero de 2027") && t.includes("50%"));
+  assert.ok(textoPactoHE({ ...d, compensacion: "feriado" }, f, { nombre: "A", rut: "1-9", domicilio: "" }).includes("cinco días hábiles"));
+  const pactos = [{ desde: "2026-12-01", hasta: "2027-02-28" }];
+  assert.ok(pactoCubreMes(pactos, "2026-12") && pactoCubreMes(pactos, "2027-02"));
+  assert.ok(!pactoCubreMes(pactos, "2026-11") && !pactoCubreMes(pactos, "2027-03"));
+  // Más de 2 horas extra por día trabajado: advertencia del motor.
+  const p: Parametros = { uf: 40000, utm: 72000, imm: 539000, tope_afp_uf: 90, tope_afc_uf: 135.2, afp: { Uno: 10.46 }, sis: 1.5,
+    aporte_ci: 0.1, aporte_ev: 1, aporte_rp: 0.9, afc_indefinido_trab: 0.6, afc_indefinido_emp: 2.4, afc_plazo_emp: 3, salud_legal: 7 };
+  const tr: Trabajador = { id: "t", nombre: "Ana", tipo_contrato: "indefinido", sueldo_base: 600000, jornada_horas: 42, afp: "Uno", salud: "fonasa",
+    plan_isapre_uf: null, colacion: 0, movilizacion: 0, gratificacion: "ninguna" };
+  assert.ok(liquidar(tr, leerNovedades({ dias_trabajados: 10, horas_extra: 21 })!, p, 0.93).advertencias.some((a) => a.includes("2 horas")));
+  assert.ok(!liquidar(tr, leerNovedades({ dias_trabajados: 30, horas_extra: 20 })!, p, 0.93).advertencias.some((a) => a.includes("2 horas")));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

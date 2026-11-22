@@ -138,3 +138,61 @@ export function textoAnexo(d: DatosAnexo, f: FichaContrato, e: EmpresaContrato, 
     `Firma del trabajador (${f.rut}): ______________________________`,
   ].join("\n");
 }
+
+// ---------- Pacto de horas extraordinarias (art. 32; 0086) ----------
+// Solo para necesidades o situaciones temporales; por escrito; vigencia no superior a tres meses, renovable; máximo
+// 2 horas extraordinarias por día; recargo mínimo de 50% o compensación por días adicionales de feriado (hasta 5
+// días hábiles al año, a usar dentro de los seis meses siguientes).
+export type DatosPactoHE = {
+  ciudad: string; fecha: string; desde: string; hasta: string; horas_dia: number; motivo: string; compensacion: "pago" | "feriado"; representante: string;
+};
+// Último día permitido: un día antes de cumplir tres meses desde el inicio.
+export function hastaMaximoPacto(desde: string): string {
+  const d = new Date(`${desde}T00:00:00Z`);
+  const x = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 3, 1));
+  const ultimo = new Date(Date.UTC(x.getUTCFullYear(), x.getUTCMonth() + 1, 0)).getUTCDate();
+  x.setUTCDate(Math.min(d.getUTCDate(), ultimo));
+  x.setUTCDate(x.getUTCDate() - 1);
+  return x.toISOString().slice(0, 10);
+}
+export function validarPactoHE(x: Partial<Record<keyof DatosPactoHE, unknown>>, ingreso: string): DatosPactoHE | string {
+  const d: DatosPactoHE = {
+    ciudad: limpio(x.ciudad, 60), fecha: limpio(x.fecha, 10), desde: limpio(x.desde, 10), hasta: limpio(x.hasta, 10),
+    horas_dia: Math.round(Number(String(x.horas_dia ?? "").replace(",", ".")) * 2) / 2, motivo: limpio(x.motivo, 500),
+    compensacion: x.compensacion === "feriado" ? "feriado" : "pago", representante: limpio(x.representante, 120),
+  };
+  if (d.ciudad.length < 2 || !FECHA.test(d.fecha) || d.representante.length < 5) return "Indica la ciudad, la fecha y el representante legal.";
+  if (!FECHA.test(d.desde) || !FECHA.test(d.hasta) || d.hasta < d.desde || d.desde < ingreso) return "Revisa las fechas del pacto.";
+  if (d.hasta > hastaMaximoPacto(d.desde)) return "El pacto puede durar como máximo tres meses; para seguir, se firma uno nuevo.";
+  if (!(d.horas_dia >= 0.5 && d.horas_dia <= 2)) return "Las horas extraordinarias no pueden ser más de dos por día.";
+  if (d.motivo.length < 15) return "Describe la necesidad o situación temporal que justifica las horas extraordinarias.";
+  return d;
+}
+export function textoPactoHE(d: DatosPactoHE, f: FichaContrato, e: EmpresaContrato): string {
+  const h = String(d.horas_dia).replace(".", ",");
+  return [
+    "# Pacto de horas extraordinarias", "",
+    `En ${d.ciudad}, a ${largo(d.fecha)}, entre ${e.nombre}, RUT ${e.rut}, representada por ${d.representante}, en adelante «el empleador», y don(ña) ${f.nombre}, RUT ${f.rut}, en adelante «el trabajador», se acuerda el siguiente pacto conforme al artículo 32 del Código del Trabajo:`, "",
+    "## Primero: necesidad temporal",
+    `Las horas extraordinarias se pactan para atender la siguiente necesidad o situación temporal de la empresa: ${d.motivo}.`, "",
+    "## Segundo: vigencia",
+    `Este pacto rige desde el ${largo(d.desde)} hasta el ${largo(d.hasta)}. No supera tres meses y solo puede renovarse por acuerdo escrito de las partes.`, "",
+    "## Tercero: límite",
+    `El trabajador podrá trabajar hasta ${h} hora${d.horas_dia === 1 ? "" : "s"} extraordinaria${d.horas_dia === 1 ? "" : "s"} por día, sin superar el máximo legal de dos horas diarias. Solo se trabajarán cuando el empleador las requiera dentro de este pacto.`, "",
+    "## Cuarto: pago o compensación",
+    d.compensacion === "feriado"
+      ? "Las partes acuerdan que las horas extraordinarias se compensen con días adicionales de feriado, hasta cinco días hábiles al año, que el trabajador usará dentro de los seis meses siguientes. Las horas que excedan esa compensación se pagarán con un recargo de 50% sobre el sueldo convenido para la jornada ordinaria."
+      : "Las horas extraordinarias se pagarán con un recargo de 50% sobre el sueldo convenido para la jornada ordinaria, junto con las remuneraciones del mes en que se trabajen.", "",
+    "## Quinto: registro",
+    "Las horas extraordinarias trabajadas quedarán en el registro de asistencia del empleador.", "",
+    "Firma del empleador: ______________________________", "",
+    `Firma del trabajador (${f.rut}): ______________________________`,
+  ].join("\n");
+}
+// ¿Algún pacto aprobado cubre el mes (AAAA-MM)?
+export function pactoCubreMes(pactos: { desde: string; hasta: string }[], periodo: string): boolean {
+  const ini = `${periodo}-01`;
+  const [y, m] = periodo.split("-").map(Number);
+  const fin = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+  return pactos.some((p) => p.desde <= fin && p.hasta >= ini);
+}

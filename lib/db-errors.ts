@@ -48,6 +48,7 @@ const MESSAGES: Record<string, string> = {
   ENQ_SIN_TASA_AFP: "Los parámetros del mes no traen la tasa de la AFP de este trabajador. Avísale al equipo ENQORA.",
   ENQ_SIN_MONTO_AF: "Los parámetros del mes no traen el monto de la asignación familiar del tramo de este trabajador. Avísale al equipo ENQORA.",
   ENQ_CARGAS_INVALIDAS: "Revisa las cargas familiares: indica el tramo de la resolución del IPS o de la CCAF y un número de cargas válido.",
+  ENQ_PACTO_HE_FECHAS: "Revisa el pacto de horas extraordinarias: dura como máximo tres meses desde su inicio, con hasta 2 horas por día, y debe indicar la necesidad temporal que lo justifica.",
   ENQ_CONTRATO_YA_APROBADO: "Este trabajador ya tiene un contrato aprobado. Para cambiar condiciones usa un anexo; si el contrato tiene un error, anúlalo con su motivo.",
   ENQ_CONTRATO_DATOS: "Revisa los datos del contrato: ciudad y fecha, datos del trabajador, representante legal, funciones, lugar, distribución de la jornada, plazo y día de pago.",
   ENQ_VACACION_FECHAS: "Revisa las fechas de las vacaciones: deben estar dentro del contrato e incluir al menos un día hábil (lunes a viernes, sin festivos).",

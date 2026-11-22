@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dbCode } from "@/lib/db-errors";
+import { pactoCubreMes } from "@/lib/plantilla-contrato";
 import { CAUSALES, CCAFS, ISAPRES, JORNADAS_LRE } from "@/lib/rem-archivos";
 import {
   AFPS, CLAVES_PARAMETROS, faltaMontoAF, leerNovedades, leerParametros, liquidar, mesAnterior, MOTOR_REM, MUTUALES, normalizarRut, periodoValido, type Trabajador,
@@ -133,6 +134,13 @@ export async function calcularLiquidacionAction(form: FormData): Promise<void> {
     cargas_invalidez: Number(trab.cargas_invalidez ?? 0) };
   if (faltaMontoAF(ficha, p!)) error(periodo, null, "ENQ_SIN_MONTO_AF");
   const liq = liquidar(ficha, nov!, p!, Number((emp as { tasa_mutual: number }).tasa_mutual));
+  // Horas extra sin pacto escrito vigente (art. 32): se pagan igual, pero es infracción. Queda como advertencia.
+  if (nov!.horas_extra > 0) {
+    const { data: pk } = await supabase.from("rem_contratos").select("datos").eq("trabajador_id", id).eq("tipo", "pacto_he").eq("estado", "aprobado");
+    const pactos = ((pk ?? []) as { datos: { desde?: string; hasta?: string } }[]).map((x) => ({ desde: String(x.datos?.desde ?? ""), hasta: String(x.datos?.hasta ?? "") }));
+    if (!pactoCubreMes(pactos, periodo))
+      liq.advertencias.push("Hay horas extra sin un pacto de horas extraordinarias aprobado que cubra este mes (art. 32). Se pagan igual, pero trabajarlas sin pacto escrito es infracción: prepáralo en «Contrato y anexos».");
+  }
   const { error: e } = await supabase.rpc("rem_guardar_liquidacion", {
     p_trabajador: id, p_periodo: periodo, p_parametros: (par as { id: string }).id, p_motor: MOTOR_REM, p_novedades: nov,
     p_detalle: liq, p_imponible: liq.total_imponible, p_liquido: liq.liquido, p_costo: liq.costo_empresa,

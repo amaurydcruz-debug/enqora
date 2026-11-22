@@ -131,6 +131,8 @@ export function liquidar(t: Trabajador, n: Novedades, p: Parametros, tasaMutual:
       nota: "La paga el empleador y la descuenta al pagar las cotizaciones (Previred)." });
   }
   if (tieneCargas(t) && t.tramo_af === "D") adv.push("Tramo D: las cargas quedan informadas, pero no corresponde pagar asignación familiar.");
+  // Máximo legal de 2 horas extraordinarias por día trabajado (art. 31).
+  if (n.horas_extra > 2 * dias) adv.push("Las horas extra superan 2 por cada día trabajado: el máximo legal es de 2 horas extraordinarias diarias.");
   const diasLic = Math.min(30 - dias, Math.max(0, Math.round(n.dias_licencia ?? 0)));
   if ((n.dias_licencia ?? 0) > diasLic) adv.push("Los días trabajados más los días de licencia superan 30: se ajustaron los días de licencia.");
 

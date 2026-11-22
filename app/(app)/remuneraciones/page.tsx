@@ -39,7 +39,7 @@ const AVISOS: Record<string, string> = {
   aprobada: "Liquidación aprobada.", anulada: "Liquidación anulada con su motivo.",
   finiquito: "Finiquito calculado y enviado a revisión del equipo ENQORA. Te avisaremos cuando esté aprobado.",
   finiquito_anulado: "Versión del finiquito anulada con su motivo.",
-  contrato: "Contrato enviado a revisión del abogado de ENQORA. Te avisaremos cuando esté aprobado.", anexo: "Anexo enviado a revisión del abogado de ENQORA.",
+  contrato: "Contrato enviado a revisión del abogado de ENQORA. Te avisaremos cuando esté aprobado.", anexo: "Anexo enviado a revisión del abogado de ENQORA.", pacto: "Pacto de horas extraordinarias enviado a revisión del abogado de ENQORA.",
   contrato_anulado: "Documento anulado con su motivo.",
   vacacion: "Registro de vacaciones guardado.", vacacion_anulada: "Registro de vacaciones anulado con su motivo.",
 };
