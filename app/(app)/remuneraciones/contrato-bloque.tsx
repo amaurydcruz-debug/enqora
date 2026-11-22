@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { anularContratoAction, guardarAnexoAction, guardarContratoAction } from "@/app/actions/contratos";
+import { anularContratoAction, guardarAnexoAction, guardarContratoAction, guardarPactoAction } from "@/app/actions/contratos";
 import { SubmitButton } from "@/components/submit-button";
-import { TIPOS_ANEXO, type DatosContrato } from "@/lib/plantilla-contrato";
+import { hastaMaximoPacto, TIPOS_ANEXO, type DatosContrato } from "@/lib/plantilla-contrato";
 
 export type DocContrato = {
-  id: string; trabajador_id: string; tipo: "contrato" | "anexo"; version: number; numero_anexo: number | null;
+  id: string; trabajador_id: string; tipo: "contrato" | "anexo" | "pacto_he"; version: number; numero_anexo: number | null;
   estado: "en_revision" | "observado" | "aprobado" | "anulado"; datos: Partial<DatosContrato> & Record<string, unknown>; avisos: string[];
   observacion: string | null; creado: string;
 };
@@ -29,18 +29,22 @@ export function ContratoBloque({ t, docs, hoy, ciudad }: {
   const contratos = docs.filter((d) => d.tipo === "contrato");
   const vivo = contratos.find((d) => d.estado !== "anulado") ?? null;
   const anexos = docs.filter((d) => d.tipo === "anexo" && d.estado !== "anulado");
+  const pactos = docs.filter((d) => d.tipo === "pacto_he" && d.estado !== "anulado");
+  const fecha = (x: unknown) => String(x ?? "").split("-").reverse().join("-");
+  const etiqueta = (d: DocContrato) => d.tipo === "contrato" ? "Contrato de trabajo" : d.tipo === "anexo" ? `Anexo N° ${d.numero_anexo}`
+    : `Pacto de horas extra del ${fecha(d.datos.desde)} al ${fecha(d.datos.hasta)}`;
   const base = (vivo ?? contratos[0])?.datos ?? {};
   const v = (k: keyof DatosContrato, def = "") => String(base[k] ?? def);
   const p = `ct-${t.id}`;
   const resumen = vivo ? `contrato ${ESTADO[vivo.estado]}` : "sin contrato en ENQORA";
   return (
     <details className="ps-docs">
-      <summary>Contrato y anexos · {resumen}{anexos.length ? ` · ${anexos.length} anexo(s)` : ""}</summary>
+      <summary>Contrato y anexos · {resumen}{anexos.length ? ` · ${anexos.length} anexo(s)` : ""}{pactos.some((x) => x.estado === "aprobado" && String(x.datos.hasta) >= hoy) ? " · pacto de horas extra vigente" : ""}</summary>
       <div className="rem-fin">
-        {[...(vivo ? [vivo] : []), ...anexos].map((d) => (
+        {[...(vivo ? [vivo] : []), ...anexos, ...pactos].map((d) => (
           <div key={d.id} className="rem-ct-doc">
             <p>
-              <b>{d.tipo === "contrato" ? "Contrato de trabajo" : `Anexo N° ${d.numero_anexo}`} · v{d.version} · {ESTADO[d.estado]}</b>
+              <b>{etiqueta(d)} · v{d.version} · {ESTADO[d.estado]}</b>
               {" "}· <Link className="ps-link" href={`/remuneraciones/contrato/${d.id}`}>{d.estado === "aprobado" ? "ver e imprimir" : "ver borrador"}</Link>
             </p>
             {d.avisos?.length ? <ul className="rem-adv">{d.avisos.map((a) => <li key={a}>{a}</li>)}</ul> : null}
@@ -127,6 +131,45 @@ export function ContratoBloque({ t, docs, hoy, ciudad }: {
               <span className="hint">Si cambia el sueldo, la jornada o el cargo, actualiza también la ficha para que las liquidaciones lo reflejen.</span>
             </div>
             <div className="field"><label>&nbsp;</label><SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="Preparando…">Enviar anexo a revisión</SubmitButton></div>
+          </form>
+        </details>
+        <details className="ps-docs">
+          <summary>Preparar pacto de horas extraordinarias</summary>
+          <p className="muted-line">Solo para necesidades temporales de la empresa, por escrito y por un máximo de tres meses (se renueva con un pacto nuevo). Hasta 2 horas extra por día. Sin pacto, las horas se pagan igual, pero es infracción (art. 32).</p>
+          <form action={guardarPactoAction} className="form-grid">
+            <input type="hidden" name="trabajador" value={t.id} />
+            <Campo id={`${p}-pc`} name="ciudad" label="Ciudad" def={v("ciudad", ciudad)} />
+            <Campo id={`${p}-pf`} name="fecha" label="Fecha del pacto" type="date" def={hoy} />
+            <Campo id={`${p}-pd`} name="desde" label="Rige desde" type="date" def={hoy} />
+            <Campo id={`${p}-ph`} name="hasta" label="Hasta" type="date" def={hastaMaximoPacto(hoy)} hint="Máximo un día antes de cumplir tres meses." />
+            <div className="field">
+              <label htmlFor={`${p}-pn`}>Horas extra por día (máximo)</label>
+              <select id={`${p}-pn`} name="horas_dia" className="input" defaultValue="2">
+                {["0.5", "1", "1.5", "2"].map((h) => <option key={h} value={h}>{h.replace(".", ",")}</option>)}
+              </select>
+            </div>
+            <div className="field">
+              <label htmlFor={`${p}-pk`}>Pago o compensación</label>
+              <select id={`${p}-pk`} name="compensacion" className="input" defaultValue="pago">
+                <option value="pago">Pago con recargo de 50%</option>
+                <option value="feriado">Días adicionales de feriado (hasta 5 al año)</option>
+              </select>
+            </div>
+            <Campo id={`${p}-pr`} name="representante" label="Representante legal" def={v("representante")} />
+            {pactos.some((x) => x.estado === "observado") ? (
+              <div className="field">
+                <label htmlFor={`${p}-pw`}>Reemplaza al pacto observado</label>
+                <select id={`${p}-pw`} name="reemplaza" className="input" defaultValue="">
+                  <option value="">No, es un pacto nuevo</option>
+                  {pactos.filter((x) => x.estado === "observado").map((x) => <option key={x.id} value={x.id}>{etiqueta(x)}</option>)}
+                </select>
+              </div>
+            ) : null}
+            <div className="field field-wide">
+              <label htmlFor={`${p}-pm`}>Necesidad o situación temporal</label>
+              <textarea id={`${p}-pm`} name="motivo" className="input" rows={2} required minLength={15} maxLength={500} placeholder="Ej.: inventario anual y aumento de ventas de fin de año." />
+            </div>
+            <div className="field"><label>&nbsp;</label><SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="Preparando…">Enviar pacto a revisión</SubmitButton></div>
           </form>
         </details>
       </div>

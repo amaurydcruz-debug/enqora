@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dbCode } from "@/lib/db-errors";
 import {
-  avisosContrato, PLANTILLA_CONTRATO_VERSION, textoAnexo, textoContrato, validarAnexo, validarContrato, type FichaContrato,
+  avisosContrato, PLANTILLA_CONTRATO_VERSION, textoAnexo, textoContrato, textoPactoHE, validarAnexo, validarContrato, validarPactoHE, type FichaContrato,
 } from "@/lib/plantilla-contrato";
 import { createClient } from "@/lib/supabase/server";
 
@@ -78,6 +78,23 @@ export async function guardarAnexoAction(form: FormData): Promise<void> {
   });
   if (error) volver(id, `error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}`);
   volver(id, "aviso=anexo");
+}
+
+export async function guardarPactoAction(form: FormData): Promise<void> {
+  const id = txt(form, "trabajador");
+  const reemplaza = txt(form, "reemplaza");
+  if (!UUID.test(id) || (reemplaza && !UUID.test(reemplaza))) volver(id, "error=ENQ_DATOS_INVALIDOS");
+  const ctx = await contexto(id);
+  if (!ctx) volver(id, "error=ENQ_DATOS_INVALIDOS");
+  const d = validarPactoHE({ ciudad: txt(form, "ciudad"), fecha: txt(form, "fecha"), desde: txt(form, "desde"), hasta: txt(form, "hasta"),
+    horas_dia: txt(form, "horas_dia"), motivo: txt(form, "motivo"), compensacion: txt(form, "compensacion"), representante: txt(form, "representante") }, ctx.ficha.fecha_ingreso);
+  if (typeof d === "string") volver(id, "error=ENQ_PACTO_HE_FECHAS");
+  const { error } = await ctx.supabase.rpc("rem_contrato_guardar", {
+    p_trabajador: id, p_tipo: "pacto_he", p_plantilla: PLANTILLA_CONTRATO_VERSION, p_datos: d,
+    p_contenido: textoPactoHE(d, ctx.ficha, ctx.empresa), p_avisos: [], p_reemplaza: reemplaza || null,
+  });
+  if (error) volver(id, `error=${dbCode(error) ?? "ENQ_DATOS_INVALIDOS"}`);
+  volver(id, "aviso=pacto");
 }
 
 export async function anularContratoAction(form: FormData): Promise<void> {
