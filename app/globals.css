@@ -3889,3 +3889,30 @@ fieldset.mini-form legend { padding: 0 6px; }
   .doc-texto, .doc-texto h1, .doc-texto h2 { color: #111 !important; }
   .doc-texto h2 { break-after: avoid; }
 }
+
+/* Inicio: oportunidades para la empresa */
+.op { display: grid; gap: 14px; border-color: rgba(229, 199, 131, 0.35); }
+.op-empresa h2 { margin: 2px 0 4px; font-size: 1.2rem; }
+.op-aviso { margin: 0; padding: 12px 14px; border-radius: 12px; background: var(--gold-soft); border: 1px solid rgba(229, 199, 131, 0.4); color: var(--text-2); }
+.op-aviso b { color: var(--gold-bright); display: block; margin-bottom: 2px; }
+.op-tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+@media (max-width: 520px) { .op-tarjetas { grid-template-columns: repeat(2, minmax(0, 1fr)); } .op-tarjeta { padding: 12px; } }
+.op-tarjeta { position: relative; display: grid; align-content: start; gap: 4px; text-align: left; padding: 14px; border-radius: 14px; cursor: pointer;
+  background: rgba(5, 9, 20, 0.45); border: 1px solid var(--hairline-strong); color: var(--text); transition: transform 0.15s, border-color 0.15s; }
+.op-tarjeta:hover, .op-tarjeta:focus-visible { transform: translateY(-2px); border-color: var(--gold); }
+.op-tarjeta.is-abierta { border-color: var(--gold-bright); box-shadow: 0 0 0 1px var(--gold-bright) inset; }
+.op-tarjeta b { font-size: 0.95rem; padding-right: 26px; line-height: 1.25; }
+.op-tarjeta small { color: var(--text-3); font-size: 0.8rem; }
+.op-n { position: absolute; top: 10px; right: 10px; min-width: 22px; height: 22px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--gold); color: #0b1425; font-size: 0.75rem; font-weight: 700; }
+.op-plazo { justify-self: start; margin-top: 4px; font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); }
+.op-panel { display: grid; gap: 8px; }
+.op-item { border-radius: 12px; border: 1px solid var(--hairline); background: rgba(5, 9, 20, 0.35); }
+.op-item.is-abierto { border-color: var(--hairline-strong); }
+.op-item-cab { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; background: none; border: 0; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.op-item-cab span { color: var(--gold-bright); font-size: 1.2rem; }
+.op-item-cuerpo { padding: 0 14px 14px; color: var(--text-2); }
+.op-item-cuerpo p { margin: 0 0 8px; }
+.op-item-cuerpo ul { margin: 0 0 12px; padding-left: 18px; }
+.op-item-pie { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.op-nota { margin: 0; font-size: 0.78rem; }

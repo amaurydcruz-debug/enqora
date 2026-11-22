@@ -14,6 +14,9 @@ import { nombreLinea } from "@/lib/lineas";
 import { SubirDocumentos } from "@/components/subir-documentos";
 import { Tramites, type Tramite } from "./tramites";
 import { TuMesCard } from "./tu-mes";
+import { OportunidadesEmpresa } from "./oportunidades";
+import { extrasPara, OPORTUNIDADES_AL, oportunidadesPara } from "@/lib/oportunidades";
+import { REGIMES } from "@/lib/company-constants";
 import { PreguntasCard, type PreguntaCliente } from "./preguntas";
 import { Calendario } from "../empresa-al-dia/calendario";
 import { vencimientos } from "@/lib/calendario-cumplimiento";
@@ -97,6 +100,12 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
       : Promise.resolve({ data: null }),
   ]);
   const diag = (diagRes.data ?? null) as { version: number; puntaje: number; creado: string; perfil?: unknown; resultado: { frentes?: { frente: string; nombre: string; semaforo: string; pendientes: number }[] } } | null;
+  // Oportunidades (beneficios vigentes según el perfil de la empresa).
+  const { count: nTrab } = active ? await supabase.from("rem_trabajadores").select("id", { count: "exact", head: true }).eq("company_id", active.id).eq("activo", true) : { count: 0 };
+  const perfilDiag = diag && perfilValido(diag.perfil) ? perfilValido(diag.perfil)! : null;
+  const ctxOp = active ? { regimen: (active as { tax_regime?: string | null }).tax_regime ?? null, tipo: perfilDiag?.tipo ?? null,
+    trabajadores: Math.max(nTrab ?? 0, perfilDiag?.trabajadores ?? 0), diagnostico: diag?.puntaje ?? null, hoy: todayCL() } : null;
+  const oportunidades = ctxOp ? [...oportunidadesPara(ctxOp), ...extrasPara(ctxOp)] : [];
   const preguntas = ((pregRes.data ?? []) as PreguntaCliente[]);
   const mes = (mesRes.data && typeof mesRes.data === "object" && (mesRes.data as TuMes).lleva ? mesRes.data : null) as TuMes | null;
   const puedeAprobar = !!active && ["owner", "admin"].includes(active.role);
@@ -158,6 +167,11 @@ export default async function PanelPage({ searchParams }: { searchParams: Promis
         </section>
       ) : null}
 
+      {active && ctxOp ? (
+        <OportunidadesEmpresa al={OPORTUNIDADES_AL} items={oportunidades}
+          empresa={{ nombre: active.trade_name || active.legal_name, rut: active.rut, giro: (active as { activity?: string | null }).activity ?? null,
+            regimen: ctxOp.regimen ? REGIMES[ctxOp.regimen as keyof typeof REGIMES] ?? null : null, trabajadores: ctxOp.trabajadores }} />
+      ) : null}
       {preguntas.length ? <PreguntasCard preguntas={preguntas} /> : null}
       {active ? (
         <section className="ps-card" aria-labelledby="ead-p">
