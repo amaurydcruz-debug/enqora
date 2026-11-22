@@ -30,6 +30,7 @@ import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriado
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
+import { avisosCarta, mesAnteriorDespido, montosCarta, textoCarta, validarCarta, type DatosCarta } from "@/lib/plantilla-carta-termino";
 import { avisosContrato, hastaMaximoPacto, pactoCubreMes, textoAnexo, textoContrato, textoPactoHE, validarAnexo, validarContrato, validarPactoHE, type DatosContrato, type DatosPactoHE, type FichaContrato } from "@/lib/plantilla-contrato";
 import { archivoLre, archivoPrevired, encabezadoLre, esParcial, faltantesArchivo, type FilaArchivo } from "@/lib/rem-archivos";
 import { generarDocumento, recordatorios, validarDatos } from "@/lib/plantillas-laborales";
@@ -957,6 +958,35 @@ prueba("Reglamento interno: contenidos del art. 154 y del D.S. 44, avisos por do
     descanso: "d".repeat(300), dia_pago: "e".repeat(300), forma_pago: "f".repeat(300), mutual: "g".repeat(300) }) as DatosRIOHS;
   const bytes = Buffer.byteLength(JSON.stringify({ ...largo, avisos: avisosRIOHS({ ...largo, trabajadores: 250 }, false) }), "utf8");
   assert.ok(bytes <= 8000, `datos: ${bytes} bytes`);
+});
+
+prueba("Carta de aviso de término: causales, hechos, plazos del art. 162, indemnizaciones del art. 161 y cotizaciones", () => {
+  const base = { ciudad: "Santiago", fecha_carta: "2026-11-30", fecha_termino: "2026-12-31", causal: "18", hechos: "Cierre de la sucursal de Ñuñoa por baja sostenida de ventas durante 2026.",
+    entrega: "personal", domicilio: "Calle Dos 2, Ñuñoa", representante: "Juan Soto", base_indemnizacion: "1000000", uf: "40.000", cotizaciones: "al_dia", detalle_pendientes: "", fuero: "no", licencia: "no" };
+  const d = validarCarta(base, "2020-03-01") as DatosCarta;
+  assert.equal(typeof d, "object");
+  assert.equal(d.uf, 40000);
+  const m = montosCarta(d, "2020-03-01");
+  assert.equal(m.anos, 7); assert.equal(m.ias, 7000000); assert.equal(m.aviso, 0); assert.ok(m.aviso_dado); // 31 días de anticipación
+  const sinAviso = montosCarta({ ...d, fecha_carta: "2026-12-15" }, "2020-03-01");
+  assert.equal(sinAviso.aviso, 1000000);
+  const t = textoCarta(d, { nombre: "Ana Pérez", rut: "12345678-5", cargo: "Vendedora" }, { nombre: "Andes SpA", rut: "76086428-5", domicilio: "" }, m);
+  for (const x of ["Art. 161 inc. 1", "Cierre de la sucursal", "$7.000.000", "30 días de anticipación", "noviembre de 2026", "comprobantes", "Inspección del Trabajo", "Recibí copia"])
+    assert.ok(t.includes(x), x);
+  assert.equal(mesAnteriorDespido("2027-01-10"), "2026-12");
+  assert.equal(typeof validarCarta({ ...base, causal: "4" }, "2020-03-01"), "string"); // renuncia: no lleva carta del empleador
+  assert.equal(typeof validarCarta({ ...base, hechos: "corto" }, "2020-03-01"), "string");
+  assert.equal(typeof validarCarta({ ...base, causal: "19", hechos: "" }, "2020-03-01"), "object"); // desahucio: sin hechos
+  assert.equal(typeof validarCarta({ ...base, fecha_carta: "2027-01-05" }, "2020-03-01"), "string"); // 161: después del término
+  // Art. 160: carta desde la separación y dentro de 3 días hábiles (lunes a sábado, sin festivos).
+  const disc = validarCarta({ ...base, causal: "16", fecha_termino: "2026-12-04", fecha_carta: "2026-12-10" }, "2020-03-01") as DatosCarta;
+  assert.equal(typeof disc, "object");
+  const av = avisosCarta(disc, new Set(["2026-12-08"]), []);
+  assert.ok(av.some((a) => a.includes("3 días hábiles") && a.includes("09-12-2026"))); // 5 y 7 hábiles, 8 festivo, 9 = tercero
+  assert.ok(av.some((a) => a.includes("disciplinaria")));
+  assert.ok(textoCarta(disc, { nombre: "A", rut: "1-9", cargo: null }, { nombre: "E", rut: "2-7", domicilio: "" }, montosCarta(disc, "2020-03-01")).includes("no corresponden indemnizaciones"));
+  const malas = avisosCarta({ ...d, cotizaciones: "pendientes", detalle_pendientes: "octubre", fuero: true, licencia: true, fecha_carta: "2026-12-20" }, new Set(), ["2026-09"]);
+  assert.equal(malas.length, 5); // sustitutiva, cotizaciones, fuero, licencia y mes sin liquidación
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

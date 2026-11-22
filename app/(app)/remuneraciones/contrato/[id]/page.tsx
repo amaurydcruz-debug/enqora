@@ -25,19 +25,19 @@ export default async function ContratoPage({ params }: { params: Promise<{ id: s
         {aprobado ? <PrintButton /> : null}
       </div>
       {!aprobado ? (
-        <Callout kind="warn" title="Borrador: no firmar todavía">
+        <Callout kind="warn" title="Borrador: no firmar ni entregar todavía">
           Este documento aún no está aprobado por un abogado de ENQORA (estado: {c.estado.replace("_", " ")}).{c.observacion ? ` Observación: ${c.observacion}` : ""}
           {c.avisos?.length ? ` Avisos: ${c.avisos.join(" ")}` : ""}
         </Callout>
       ) : (
         <Callout kind="info" title="Antes de firmar">
-          Imprime dos ejemplares, uno para cada parte. {c.tipo === "contrato" ? "Regístralo en el portal de la Dirección del Trabajo y entrega al trabajador una copia del reglamento interno (si corresponde) y del protocolo de la Ley Karin." : c.tipo === "anexo" ? "Actualiza la ficha del trabajador si el anexo cambia su sueldo, jornada o cargo." : "Las horas extra trabajadas deben quedar en el registro de asistencia. Para seguir después del plazo, prepara un pacto nuevo."}
+          Imprime dos ejemplares, uno para cada parte. {c.tipo === "contrato" ? "Regístralo en el portal de la Dirección del Trabajo y entrega al trabajador una copia del reglamento interno (si corresponde) y del protocolo de la Ley Karin." : c.tipo === "anexo" ? "Actualiza la ficha del trabajador si el anexo cambia su sueldo, jornada o cargo." : c.tipo === "pacto_he" ? "Las horas extra trabajadas deben quedar en el registro de asistencia. Para seguir después del plazo, prepara un pacto nuevo." : "Entrégala personalmente (con firma de recepción) o por carta certificada al domicilio del contrato, adjunta los comprobantes de cotizaciones, ingresa la copia en Mi DT («Carta electrónica de aviso de despido») y haz el «Registro de término de contrato». Después, da de baja al trabajador en ENQORA para preparar el finiquito."}
         </Callout>
       )}
       <TextoDocumento texto={c.contenido} />
       {aprobado && c.revisado_at ? (
         <p className="muted-line doc-pie">
-          {c.tipo === "contrato" ? "Contrato" : c.tipo === "anexo" ? `Anexo N° ${c.numero_anexo}` : "Pacto de horas extraordinarias"} · versión {c.version} · revisado y aprobado por un abogado de ENQORA el {new Date(c.revisado_at).toLocaleDateString("es-CL", { timeZone: "America/Santiago" })} · plantilla {c.plantilla}.
+          {c.tipo === "contrato" ? "Contrato" : c.tipo === "anexo" ? `Anexo N° ${c.numero_anexo}` : c.tipo === "pacto_he" ? "Pacto de horas extraordinarias" : "Carta de aviso de término"} · versión {c.version} · revisado y aprobado por un abogado de ENQORA el {new Date(c.revisado_at).toLocaleDateString("es-CL", { timeZone: "America/Santiago" })} · plantilla {c.plantilla}.
         </p>
       ) : null}
     </div>
