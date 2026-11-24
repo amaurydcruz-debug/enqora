@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { buscarNormativa } from "@/lib/conocimiento-server";
 import { llamarHerramienta } from "@/lib/ai/gateway";
 import { interpretarPedido, TIPOS, tipoPorKey, type TipoDocumento } from "@/lib/boveda";
 import { RULES } from "@/lib/knowledge";
@@ -106,13 +107,19 @@ export async function redactorEscribe(supabase: SupabaseClient, doc: Doc) {
       informa += `- ${p.titulo} (${p.institucion ?? "fuente oficial"}, ${p.fuente}): ${p.resumen.slice(0, 300)}\n`;
   }
   const ant = doc.antecedentes ?? {};
+  // Buscador legal (0090): normas verificadas parecidas al pedido. Solo con sesión del equipo; si falla, sigue sin ellas.
+  const busqueda = await Promise.race([
+    buscarNormativa(`${tipo.titulo}. ${doc.proposito ?? doc.titulo}`, 4, supabase),
+    new Promise<null>((res) => setTimeout(() => res(null), 8_000)),
+  ]).catch(() => null);
+  const delBuscador = busqueda && !busqueda.error && busqueda.respaldo ? busqueda.resultados : [];
   const r = await llamarHerramienta({
     modulo: "boveda", datos: "privados", anonimizar: {}, maxTokens: 3500, timeoutMs: 45_000,
     system: [
       "Eres el Redactor de la Bóveda de ENQORA (Chile). Redactas borradores formales en español de Chile para que un abogado o contador los revise.",
       "Usa SOLO los antecedentes entregados. Nunca inventes nombres, RUT, domicilios, fechas, montos, números de resolución, de rol ni de causa.",
       "Donde falte un dato escribe exactamente [COMPLETAR: qué dato falta]. No dejes campos vacíos ni datos ficticios de ejemplo.",
-      "Cita normativa solo de las reglas entregadas (con su artículo y fuente) o de las novedades verificadas de ENQORA Informa. Si no hay norma aplicable entregada, no cites ninguna.",
+      "Cita normativa solo de las reglas entregadas (con su artículo y fuente), de las normas del buscador legal o de las novedades verificadas de ENQORA Informa. Si no hay norma aplicable entregada, no cites ninguna.",
       "No firmes: deja al final un bloque de firma con [COMPLETAR: nombre, RUN y cargo de quien firma]. No agregues fecha de firma inventada.",
       "Formato: markdown simple (# título, ## secciones, párrafos, listas numeradas). Sin HTML. Sin comentarios fuera del documento.",
     ].join("\n"),
@@ -125,6 +132,7 @@ export async function redactorEscribe(supabase: SupabaseClient, doc: Doc) {
       `Antecedentes que este tipo de documento requiere: ${tipo.antecedentes.join("; ")}.`,
       normas.length ? `Reglas vigentes (con fuente):\n${tipo.normas.map((k) => RULES[k] ? `- ${k}: ${RULES[k].regla} [${RULES[k].fuente.articulo ?? ""} · ${RULES[k].fuente.titulo}]` : "").filter(Boolean).join("\n")}` : "Sin reglas específicas entregadas.",
       informa ? `Novedades verificadas de ENQORA Informa:\n${informa}` : "",
+      delBuscador.length ? `Normas del buscador legal de ENQORA (verificadas; úsalas solo si aplican):\n${delBuscador.map((b) => `- ${b.titulo}${b.articulo ? ` [${b.articulo}${b.fuente ? ` · ${b.fuente}` : ""}]` : ""}: ${b.texto.slice(0, 600)}`).join("\n")}` : "",
     ].filter(Boolean).join("\n\n"),
     tool: TOOL_REDACTAR,
     validar: (i) => typeof (i as { cuerpo?: unknown }).cuerpo === "string" && ((i as { cuerpo: string }).cuerpo.length >= 50),

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { modeloVectores, vectoresDisponibles } from "@/lib/ai/embeddings";
+import { hfRecibePrivados } from "@/lib/ai/gateway";
 import { ORIGENES } from "@/lib/conocimiento";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
@@ -56,7 +57,7 @@ export default async function BuscadorPage() {
               <b>Búsqueda por significado</b>
               <small className="muted-line">
                 {vectoresDisponibles()
-                  ? `Modelo ${modeloVectores()} (Hugging Face). ${e.con_vector ?? 0} de ${e.activos ?? 0} fragmentos con vector.`
+                  ? `Modelo ${modeloVectores()} (Hugging Face). ${e.con_vector ?? 0} de ${e.activos ?? 0} fragmentos con vector. ${hfRecibePrivados() === "no" ? "Las preguntas se buscan solo por palabras porque pueden traer datos de clientes: para buscarlas por significado (anonimizadas), agrega hf a ENQORA_IA_ANONIMIZADOS." : "Las preguntas se anonimizan antes de buscarlas por significado."}`
                   : "Sin HF_TOKEN en Vercel: el buscador funciona solo por palabras."}
               </small>
             </span>
