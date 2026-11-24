@@ -112,6 +112,15 @@ export function orden(datos: Datos): Proveedor[] {
 
 const anonimizados = () => lista(process.env.ENQORA_IA_ANONIMIZADOS, "").filter((p) => configurado(p));
 
+// ¿Puede Hugging Face recibir texto privado? Tal cual (ENQORA_IA_PRIVADOS) o solo anonimizado (ENQORA_IA_ANONIMIZADOS).
+// Lo usa el buscador legal para decidir si la pregunta de un caso puede vectorizarse.
+export function hfRecibePrivados(): "tal_cual" | "anonimizado" | "no" {
+  const privados = lista(process.env.ENQORA_IA_PRIVADOS, "anthropic");
+  if (privados.includes("hf") || privados.includes("hf2")) return "tal_cual";
+  const anon = lista(process.env.ENQORA_IA_ANONIMIZADOS, "");
+  return anon.includes("hf") || anon.includes("hf2") ? "anonimizado" : "no";
+}
+
 export function proveedoresDisponibles(): { proveedor: Proveedor; modelo: string; configurado: boolean; privados: boolean; anonimizados: boolean; vision: string }[] {
   const privados = lista(process.env.ENQORA_IA_PRIVADOS, "anthropic");
   const anon = lista(process.env.ENQORA_IA_ANONIMIZADOS, "");

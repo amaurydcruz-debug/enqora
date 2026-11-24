@@ -6,6 +6,7 @@ import {
   armarFuentes, armarPrompt, HERRAMIENTA_INFORME, informePorReglas, lineaValida, sanear, SISTEMA_INFORME,
   type Entrada, type Paso, type PerfilPublico, type Publicacion, type ServicioCatalogo,
 } from "@/lib/cora/informe-ingreso";
+import { buscarNormativa } from "@/lib/conocimiento-server";
 import { LINEAS } from "@/lib/lineas";
 import { isNaturalPersonRut } from "@/lib/rut";
 import { createClient } from "@/lib/supabase/server";
@@ -42,7 +43,13 @@ export async function generarInformeIngreso(solId: string, token: string | null)
   const perfil = (perfilRes.data && typeof perfilRes.data === "object" ? perfilRes.data : null) as PerfilPublico | null;
   const lecciones = ((Array.isArray(lecRes.data) ? lecRes.data : []) as unknown[]).filter((x): x is string => typeof x === "string");
 
+  // Buscador legal: la pregunta se anonimiza dentro de buscarNormativa. Si tarda o falla, el informe sigue sin él.
+  const busqueda = await Promise.race([
+    buscarNormativa(`${LINEAS[linea]}. ${sol.relato}`.slice(0, 480), 5, supabase, token),
+    new Promise<null>((r) => setTimeout(() => r(null), 8_000)),
+  ]).catch(() => null);
   const entrada: Entrada = {
+    buscador: busqueda && !busqueda.error && busqueda.respaldo ? busqueda.resultados : [],
     relato: sol.relato, analisis: sol.analisis ?? {}, linea, razonSocial: sol.razon_social, perfil: perfil?.razon_social ? perfil : null,
     publicaciones, catalogo, documentosCliente: Array.isArray(sol.documentos) ? sol.documentos : [], lecciones, aviso: contextoAviso(sol.relato),
   };

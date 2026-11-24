@@ -45,6 +45,8 @@ export type Entrada = {
   documentosCliente: string[];
   lecciones: string[];
   aviso: string;
+  // Fragmentos del buscador legal (0090/0091) que se parecen al relato, con su cita. Opcional.
+  buscador?: { titulo: string; articulo: string | null; fuente: string | null; url: string | null; verificado: string | null; texto: string }[];
 };
 
 // Especialista por línea y el área del catálogo (módulo) donde se busca el servicio.
@@ -102,6 +104,10 @@ export function armarFuentes(e: Entrada): FuenteInforme[] {
   }).filter((x) => x.hits >= 3).sort((a, b) => b.hits - a.hits).slice(0, 2);
   for (const { p } of rutas) {
     add({ tipo: "ruta", titulo: `Ruta ENQORA: ${p.caso}`, verificada: KNOWLEDGE_VERSION, texto: `Pasos: ${p.pasos.join(" → ")} Preguntar si falta: ${p.preguntar.join(" / ")} Riesgo: ${p.riesgo}.` });
+  }
+  // Buscador legal: lo que no esté ya entre las normas y rutas de arriba (máximo 4).
+  for (const b of (e.buscador ?? []).filter((b) => !out.some((f) => f.texto.includes(b.texto.slice(0, 80)))).slice(0, 4)) {
+    add({ tipo: "norma", titulo: [b.titulo, b.articulo, b.fuente].filter(Boolean).join(" · ").slice(0, 300), url: b.url ?? undefined, verificada: b.verificado ?? undefined, texto: b.texto.slice(0, 900) });
   }
   if (e.linea === "LAB" || e.linea === "LEG") {
     for (const o of OBLIGACIONES_LABORALES.slice(0, 6)) {

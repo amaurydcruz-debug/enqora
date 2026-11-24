@@ -22,7 +22,7 @@ export function PanelBuscador() {
         <>
           <p role="status" className="muted-line">
             {estado.respaldo
-              ? `Fuentes encontradas (${estado.porSignificado ? "búsqueda por significado y palabras" : "búsqueda solo por palabras: el modelo de vectores no está disponible"}).`
+              ? `Fuentes encontradas (${estado.porSignificado ? "búsqueda por significado y palabras" : "búsqueda solo por palabras"}).`
               : "No tengo fuente suficiente en el conocimiento verificado de ENQORA. No respondas de memoria: deriva a un profesional o pide una misión a ENQORA Informa."}
           </p>
           {estado.resultados.length ? (

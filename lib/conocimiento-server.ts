@@ -1,18 +1,26 @@
 import "server-only";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { anonimizar } from "@/lib/ai/anonimizar";
 import { vectorizar, vectoresDisponibles } from "@/lib/ai/embeddings";
+import { hfRecibePrivados } from "@/lib/ai/gateway";
 import { corpusBase, fragmentosInforma, respaldoSuficiente, type FilaInforma, type Fragmento, type Origen, type Resultado } from "@/lib/conocimiento";
 import { createClient } from "@/lib/supabase/server";
 
-type Supa = Awaited<ReturnType<typeof createClient>>;
+type Supa = SupabaseClient;
 
-// Buscar con la sesión de quien pregunta (solo el equipo ENQORA; lo controla la base). Si el modelo de vectores
-// no responde, busca solo por palabras.
-export async function buscarNormativa(pregunta: string, k = 8, supabase?: Supa): Promise<{ resultados: Resultado[]; respaldo: boolean; porSignificado: boolean; error?: string }> {
+// Buscar con la sesión de quien pregunta (solo el equipo ENQORA) o con el token del servidor (informe de ingreso).
+// La pregunta puede traer datos de un cliente: siempre se anonimiza antes de buscar, y solo se envía al modelo de
+// vectores (Hugging Face) si está autorizado para datos privados o anonimizados. Si no, busca solo por palabras.
+export async function buscarNormativa(pregunta: string, k = 8, supabase?: Supa, token?: string | null): Promise<{ resultados: Resultado[]; respaldo: boolean; porSignificado: boolean; error?: string }> {
   const sb = supabase ?? (await createClient());
-  const q = pregunta.trim().slice(0, 500);
-  const { vectores } = vectoresDisponibles() ? await vectorizar([q]) : { vectores: [null] };
+  const q = anonimizar(pregunta.trim().slice(0, 500)).texto.replace(/\[[A-Z]+_\d+\]/g, " ").replace(/\s+/g, " ").trim().slice(0, 500);
+  if (q.length < 3) return { resultados: [], respaldo: false, porSignificado: false };
+  const puedeVectorizar = vectoresDisponibles() && hfRecibePrivados() !== "no";
+  const { vectores } = puedeVectorizar ? await vectorizar([q]) : { vectores: [null] };
   const vector = vectores[0];
-  const { data, error } = await sb.rpc("conocimiento_buscar", { p_texto: q, p_vector: vector, p_k: k });
+  const { data, error } = await sb.rpc("conocimiento_buscar", token
+    ? { p_texto: q, p_vector: vector, p_k: k, p_token: token }
+    : { p_texto: q, p_vector: vector, p_k: k });
   if (error) return { resultados: [], respaldo: false, porSignificado: false, error: error.message };
   const resultados = (data as Resultado[] | null) ?? [];
   return { resultados, respaldo: respaldoSuficiente(resultados), porSignificado: !!vector };
