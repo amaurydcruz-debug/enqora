@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
   }
   const empresa = url.searchParams.get("empresa") ?? "";
   const destino = url.searchParams.get("destino") ?? "/remuneraciones";
-  const ok = (DESTINOS_OPERAR as readonly string[]).includes(destino) ? destino : "/remuneraciones";
+  // Además de los destinos de servicio, el cierre contable de un mes (lo usa la sala de pruebas, 0095).
+  const ok = (DESTINOS_OPERAR as readonly string[]).includes(destino) || /^\/contabilidad(\/\d{4}-(0[1-9]|1[0-2]))?$/.test(destino) ? destino : "/remuneraciones";
   if (!/^[0-9a-f-]{36}$/i.test(empresa) || !(await booksCompany(empresa))) return NextResponse.redirect(new URL("/mando/remuneraciones?error=ENQ_SIN_PERMISO", url));
   const supabase = await createClient();
   await supabase.rpc("log_operacion_empresa", { p_company: empresa }).then(() => undefined, () => undefined);
