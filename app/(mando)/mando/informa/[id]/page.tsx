@@ -21,6 +21,7 @@ type U = {
 type V = { version: number; title: string; summary: string; motivo: string | null; created_at: string };
 
 const AVISOS: Record<string, string> = { ficha_guardada: "Ficha guardada.", revision_profesional: "Revisión profesional registrada.", reverificada: "Fecha de revisión actualizada: la publicación sigue vigente según la fuente." };
+const PUBLICAR = ["publicado", "actualizado", "rectificado"];
 const SIGUIENTES: Record<string, { etapa: string; texto: string }[]> = {
   detectado: [{ etapa: "en_investigacion", texto: "Tomar para investigar" }, { etapa: "verificado", texto: "Marcar verificado en la fuente" }],
   en_investigacion: [{ etapa: "pendiente_contraste", texto: "Pasar a contraste" }, { etapa: "verificado", texto: "Marcar verificado en la fuente" }],
@@ -48,6 +49,7 @@ export default async function FichaInformaPage({ params, searchParams }: { param
   const u = data as U;
   const versiones = (vers ?? []) as V[];
   const publicada = ["publicado", "actualizado", "rectificado"].includes(u.etapa);
+  const faltaRevision = u.requiere_revision && !u.revision_prof_at;
   const avisoEtapa = sp.aviso?.startsWith("etapa_") ? `Etapa: ${ETAPAS[sp.aviso.slice(6)]?.texto ?? sp.aviso.slice(6)}.` : null;
 
   return (
@@ -133,11 +135,15 @@ export default async function FichaInformaPage({ params, searchParams }: { param
 
           <div className="panel-actions">
             <SubmitButton variant="ghost" className="btn-inline" pendingText="…">Guardar ficha</SubmitButton>
-            {(SIGUIENTES[u.etapa] ?? []).map((s) => (
+            {(SIGUIENTES[u.etapa] ?? []).filter((s) => !(faltaRevision && PUBLICAR.includes(s.etapa))).map((s) => (
               <button key={s.etapa} type="submit" name="etapa" value={s.etapa} className="btn btn-gold btn-inline">{s.texto}</button>
             ))}
             {u.etapa !== "archivado" ? <button type="submit" name="etapa" value="archivado" className="btn btn-ghost btn-inline">Archivar</button> : null}
           </div>
+          {faltaRevision && (SIGUIENTES[u.etapa] ?? []).some((s) => PUBLICAR.includes(s.etapa)) ? (
+            <Notice kind="error">Para publicar falta la revisión profesional: es contenido de alto impacto. Un abogado o contador del equipo (o la administración) la registra en «Revisión profesional», arriba; después aparece el botón «Publicar».</Notice>
+          ) : null}
+          <p className="muted-line">Al publicar, los dueños y administradores de las empresas (de los rubros indicados, o de todas si no hay rubros) reciben el aviso en Notificaciones, categoría «Novedades».</p>
           <p className="muted-line">Publicar exige fuente oficial y fecha de consulta; si es de alto impacto (normas tributarias, legales o laborales, o alerta importante/urgente), también la revisión de un abogado o contador del equipo.</p>
         </form>
       ) : (

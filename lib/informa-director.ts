@@ -25,3 +25,22 @@ export async function rondaInforma(supabase: SupabaseClient, service: string, si
   const res = (data ?? {}) as { encontrados?: number; nuevos?: number };
   return { ok: r.ok, departamentos: titulos, encontrados: res.encontrados ?? 0, nuevos: res.nuevos ?? 0, error: r.error };
 }
+
+// Varias rondas seguidas mientras queden investigaciones pedidas en cola y alcance el tiempo (cada ronda toma cerca
+// de un minuto). La primera ronda corre siempre; las siguientes, solo si quedan pedidas.
+export async function rondasInforma(supabase: SupabaseClient, service: string, presupuestoMs: number): Promise<RondaResultado & { rondas: number }> {
+  const t0 = Date.now();
+  const total: RondaResultado & { rondas: number } = { ok: true, departamentos: [], encontrados: 0, nuevos: 0, rondas: 0 };
+  while (true) {
+    const r = await rondaInforma(supabase, service, AbortSignal.timeout(55_000));
+    total.rondas++;
+    total.departamentos.push(...r.departamentos);
+    total.encontrados += r.encontrados;
+    total.nuevos += r.nuevos;
+    if (!r.ok) return { ...total, ok: false, error: r.error };
+    if (Date.now() - t0 + 65_000 > presupuestoMs) break;
+    const { data } = await supabase.rpc("svc_informa_plan", { p_token: service });
+    if (!((data as PlanInforma | null)?.pedidas?.length)) break;
+  }
+  return total;
+}

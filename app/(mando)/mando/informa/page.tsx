@@ -11,7 +11,7 @@ import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = { title: "ENQORA Informa · Centro de mando" };
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 type Tablero = { fuentes: number; fuentes_al_dia: number; misiones_activas: number; misiones_30d: number; fallidas_30d: number; hallazgos_30d: number;
   por_verificar: number; revision_profesional: number; por_publicar: number; publicadas: number; alertas_criticas: number };
@@ -85,10 +85,10 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
         </div>
       </header>
 
-      {sp.aviso && (AVISOS[sp.aviso] || /^(vigilancia|barrido)_\d+$/.test(sp.aviso)) ? (
+      {sp.aviso && (AVISOS[sp.aviso] || /^(vigilancia|barrido)_\d+(_\d+)?$/.test(sp.aviso)) ? (
         <Notice kind="ok">{AVISOS[sp.aviso] ?? (sp.aviso.startsWith("barrido_")
-          ? `Barrido en cola: ${sp.aviso.split("_")[1]} área(s). Cada ronda investiga dos; usa «Ejecutar ronda» para adelantarlas (cerca de un minuto cada una).`
-          : `Ronda terminada: ${sp.aviso.split("_")[1]} hallazgo(s) nuevo(s) por verificar.`)}</Notice>
+          ? `Barrido en cola: ${sp.aviso.split("_")[1]} área(s). La ronda diaria las investiga de a dos hasta vaciar la cola; con «Ejecutar ronda» se adelantan ahora (hasta unos 4 minutos).`
+          : `${Number(sp.aviso.split("_")[2] ?? 1) > 1 ? `${sp.aviso.split("_")[2]} rondas terminadas` : "Ronda terminada"}: ${sp.aviso.split("_")[1]} hallazgo(s) nuevo(s) por verificar. Verifícalos en su fuente y publícalos: al publicar, los clientes reciben el aviso.`)}</Notice>
       ) : null}
       {messageForCode(sp.error) ? <Notice kind="error">{messageForCode(sp.error)}</Notice> : null}
 
@@ -124,7 +124,7 @@ export default async function InformaMandoPage({ searchParams }: { searchParams:
             <SubmitButton variant="ghost" className="btn-inline btn-sm" pendingText="…">Barrido completo: poner en cola las 8 áreas</SubmitButton>
           </form>
         ) : null}
-        <p className="muted-line">«Sin misiones aún» = el área nunca se ha investigado. «terminada · 0 nuevos» = se investigó y no había novedades oficiales en los últimos 45 días. Cada ronda investiga dos departamentos: primero los pedidos por la supervisión y luego los que llevan más tiempo sin revisar. La ronda automática corre lunes, miércoles y viernes (09:00 de Chile en horario de verano); con «Ejecutar ronda» puedes adelantarla.</p>
+        <p className="muted-line">«Sin misiones aún» = el área nunca se ha investigado. «terminada · 0 nuevos» = se investigó y no había novedades oficiales en los últimos 45 días. Cada ronda investiga dos departamentos: primero los pedidos por la supervisión y luego los que llevan más tiempo sin revisar. La ronda automática corre todos los días (09:00 de Chile en horario de verano) y, si hay investigaciones pedidas en cola, sigue hasta vaciarla; con «Ejecutar ronda» puedes adelantarla.</p>
       </section>
 
       <section className="card" id="cola" aria-labelledby="cola-t">

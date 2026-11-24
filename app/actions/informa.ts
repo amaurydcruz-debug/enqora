@@ -86,7 +86,7 @@ export async function reverificarAction(fd: FormData) {
 }
 
 // Barrido completo: deja en cola una misión por cada área sin misión pendiente. El Director IA las toma de a dos
-// por ronda (las automáticas de lunes, miércoles y viernes, o «Ejecutar ronda» para adelantarlas).
+// por ronda; la ronda diaria y «Ejecutar ronda» encadenan rondas hasta vaciar la cola (hasta unos 4 minutos).
 export async function barridoAction() {
   const supabase = await createClient();
   const { data: pendientes } = await supabase.from("info_missions").select("departamento").eq("estado", "planificada");
