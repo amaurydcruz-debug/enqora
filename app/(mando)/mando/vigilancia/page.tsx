@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/server";
 import { WATCH_GROUPS, groupsForThisRun } from "@/lib/watch";
 
 export const metadata: Metadata = { title: "Vigilancia normativa" };
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 type Update = {
   id: string; title: string; summary: string; institution: string | null; kind: string; source_url: string;
@@ -33,7 +33,7 @@ const hoyCL = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santia
 
 function Avisos({ aviso }: { aviso?: string }) {
   if (!aviso) return null;
-  const m = aviso.match(/^vigilancia_(\d+)$/);
+  const m = aviso.match(/^vigilancia_(\d+)(?:_\d+)?$/);
   const n = aviso.match(/^novedad_avisada_(\d+)$/);
   const text = m ? `Vigilancia completada: ${m[1]} novedad${m[1] === "1" ? "" : "es"} nueva${m[1] === "1" ? "" : "s"} por verificar.`
     : n ? `Novedad verificada. Se avisó a ${n[1]} empresa${n[1] === "1" ? "" : "s"} del rubro.`

@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { dbCode } from "@/lib/db-errors";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
-import { rondaInforma } from "@/lib/informa-director";
+import { rondasInforma } from "@/lib/informa-director";
 
 // Acciones de M16: aprendizajes de casos y vigilancia normativa.
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -87,9 +87,10 @@ export async function runWatchAction(fd?: FormData) {
   const service = process.env.ENQORA_SERVICE_TOKEN;
   if (!service) go(destino, { message: "ENQ_CLAVE_SERVICIO" }, "");
   const supabase = await createClient();
-  const r = await rondaInforma(supabase, service as string, AbortSignal.timeout(50_000));
+  // Vacía la cola: rondas seguidas mientras queden investigaciones pedidas (hasta unos 4 minutos).
+  const r = await rondasInforma(supabase, service as string, 240_000);
   revalidatePath("/mando/vigilancia");
   revalidatePath("/mando/informa");
   if (!r.ok) go(destino, { message: "ENQ_VIGILANCIA_FALLIDA" }, "");
-  go(destino, null, `vigilancia_${r.nuevos}`);
+  go(destino, null, `vigilancia_${r.nuevos}_${r.rondas}`);
 }
