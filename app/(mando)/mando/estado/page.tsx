@@ -171,6 +171,8 @@ export default async function SystemStatusPage() {
     { label: "Auditoría independiente de agentes", ok: !has("ANTHROPIC_API_KEY") || has("OPENAI_API_KEY"), required: has("ANTHROPIC_API_KEY"),
       help: "Con agentes activos, agrega OPENAI_API_KEY: sin auditoría, las propuestas se revisan solo por personas." },
     { label: "Modelos abiertos (Hugging Face)", ok: has("HF_TOKEN", "HF_MODEL"), help: "Opcional: agrega HF_TOKEN y HF_MODEL para que el AI Gateway tenga un proveedor alternativo. Evalúalo en Laboratorio de IA." },
+    { label: "Segundo cerebro abierto", ok: has("HF_TOKEN", "HF_MODEL_2"), help: "Opcional: agrega HF_MODEL_2 (p. ej. openai/gpt-oss-20b) para cruzar lecturas con un modelo de otra familia." },
+    { label: "Lectura de fotos con modelo abierto", ok: has("HF_TOKEN", "HF_MODEL_VISION"), help: "Opcional: agrega HF_MODEL_VISION (un modelo Qwen3-VL) y autoriza «hf» en ENQORA_IA_PRIVADOS solo si aceptas que vea fotos de clientes." },
   ];
   const business: Check[] = [
     { label: "Administradores activos", ok: (s?.administradores_activos ?? 0) >= 2, help: `Hay ${n(s?.administradores_activos)}. Se recomiendan al menos 2 para la aprobación de cuatro ojos y respaldo.` },

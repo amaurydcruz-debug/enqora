@@ -6,7 +6,7 @@ import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 
 export type EstadoLaboratorio = { ok: true; resultado: ResultadoEvaluacion } | { ok: false; error: string } | null;
 
-const PROVEEDORES: Proveedor[] = ["anthropic", "hf", "openai"];
+const PROVEEDORES: Proveedor[] = ["anthropic", "hf", "hf2", "openai"];
 const MODOS: Modo[] = ["solo_modelo", "con_conocimiento"];
 
 // Laboratorio ENQORA BRAIN: evalúa un proveedor con el banco de pruebas (datos ficticios, respuestas del motor contable).

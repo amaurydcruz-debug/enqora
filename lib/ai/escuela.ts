@@ -384,7 +384,7 @@ async function resolverMision(m: Mision, proveedor: Proveedor, tribunalProv: Pro
 
 export function tribunalConfigurado(proveedorAlumnos: Proveedor): { proveedor: Proveedor; independencia: string } {
   const pedido = (process.env.ENQORA_ESCUELA_TRIBUNAL ?? "").trim().toLowerCase() as Proveedor;
-  if (pedido && pedido !== proveedorAlumnos && (["anthropic", "hf", "openai"] as string[]).includes(pedido) && configurado(pedido)) {
+  if (pedido && pedido !== proveedorAlumnos && (["anthropic", "hf", "hf2", "openai"] as string[]).includes(pedido) && configurado(pedido)) {
     return { proveedor: pedido, independencia: `Escuela ${VERSION_ESCUELA} · proveedor distinto al de los alumnos` };
   }
   return { proveedor: proveedorAlumnos, independencia: `Escuela ${VERSION_ESCUELA} · mismo proveedor, contexto separado y propuestas anónimas` };

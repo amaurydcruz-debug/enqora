@@ -2,6 +2,8 @@
 // validación, y una lectura por reglas para lo dictado o escrito cuando la IA no está disponible.
 // Funciones puras, sin red.
 
+import { DOCUMENTO_GASTO_DTE, receptorEsEmpresa, type Dte } from "@/lib/dte";
+
 export const CATEGORIAS_GASTO: Record<string, string> = {
   mercaderia: "Mercadería para vender", insumos: "Insumos y materiales", arriendo: "Arriendo", servicios_basicos: "Luz, agua, gas, internet",
   transporte: "Transporte y fletes", combustible: "Combustible", alimentacion: "Alimentación", honorarios: "Honorarios",
@@ -103,5 +105,43 @@ export function gastoDesdeTexto(texto: string, hoy: string): Gasto | null {
   return {
     fecha, monto, iva: null, descripcion: texto.trim().slice(0, 300), categoria, documento, proveedor: null, folio: null, confianza: "baja",
     dudas: ["Lectura automática simple: revisa los datos antes de guardar."],
+  };
+}
+
+// Doble lectura (dos modelos distintos): si coinciden en monto y fecha, se mantiene la primera; si no, se deja la
+// primera pero con confianza baja y la diferencia anotada para que la persona la revise.
+export function cruzarLecturas(a: Gasto, b: Gasto): Gasto {
+  const dudas = [...a.dudas];
+  const fmt = (n: number) => n.toLocaleString("es-CL");
+  if (a.monto !== b.monto) dudas.unshift(`Dos lectores independientes leyeron montos distintos (${fmt(a.monto)} y ${fmt(b.monto)}): confirma el total.`);
+  if (a.fecha !== b.fecha) dudas.unshift(`Dos lectores independientes leyeron fechas distintas (${a.fecha} y ${b.fecha}).`);
+  if ((a.iva ?? 0) !== (b.iva ?? 0)) dudas.push("El IVA leído no coincide entre los dos lectores.");
+  const coinciden = dudas.length === a.dudas.length;
+  return {
+    ...a, dudas: (coinciden ? [...a.dudas, "Dos lectores independientes coinciden en monto y fecha."] : dudas).slice(0, 6),
+    confianza: coinciden ? a.confianza : "baja",
+  };
+}
+
+// Gasto desde un DTE en XML (factura o boleta electrónica). Solo documentos de compra; las notas y guías no.
+export function gastoDesdeDte(d: Dte, rutEmpresa: string | null, hoy: string): { gasto: Gasto } | { error: string } {
+  const documento = DOCUMENTO_GASTO_DTE[d.tipo];
+  if (!documento) return { error: `${d.tipoNombre}: no se registra como gasto aquí. Tu contador la ve en el Registro de Compras.` };
+  if (d.total <= 0) return { error: "El documento tiene total cero." };
+  const graves = d.revisiones.filter((r) => !r.ok && r.grave);
+  if (graves.length) return { error: `El XML no pasó la verificación: ${graves.map((r) => r.texto).join(" ")}` };
+  const dudas = d.revisiones.filter((r) => !r.ok).map((r) => r.texto);
+  const esEmpresa = receptorEsEmpresa(d, rutEmpresa);
+  if (esEmpresa === false) dudas.unshift("El documento no está emitido a nombre de tu empresa: no da crédito de IVA a tu empresa.");
+  const descripcion = d.items.map((i) => i.nombre).filter(Boolean).slice(0, 3).join(", ") || d.tipoNombre;
+  return {
+    gasto: {
+      fecha: d.fecha <= hoy ? d.fecha : hoy, monto: Math.round(d.total),
+      iva: documento === "factura" && d.iva && d.iva < d.total && esEmpresa !== false ? Math.round(d.iva) : null,
+      descripcion: descripcion.slice(0, 300), documento,
+      categoria: PALABRAS_CATEGORIA.find(([re]) => re.test(sinTildes(`${descripcion} ${d.emisor.razon} ${d.emisor.giro ?? ""}`)))?.[1] ?? "otros",
+      proveedor: d.emisor.razon || null, folio: String(d.folio).slice(0, 30),
+      confianza: dudas.length ? "media" : "alta", dudas: dudas.slice(0, 5),
+    },
   };
 }
