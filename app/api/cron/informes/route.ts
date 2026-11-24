@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { cronAutorizado } from "@/lib/interno";
 import { generarInformeIngreso } from "@/lib/informe-ingreso";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,7 +15,7 @@ const BUDGET_MS = 230_000;
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const service = process.env.ENQORA_SERVICE_TOKEN;
-  if (!secret || !service || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!secret || !service || !cronAutorizado(request.headers.get("authorization"))) {
     return NextResponse.json({ ok: false, detalle: "Falta CRON_SECRET o ENQORA_SERVICE_TOKEN" }, { status: 401 });
   }
   const t0 = Date.now();

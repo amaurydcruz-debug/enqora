@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { cronAutorizado } from "@/lib/interno";
 import { flushDeliveries } from "@/lib/notify-delivery";
 import { createClient } from "@/lib/supabase/server";
 import { diasHasta, tocaAvisar, vencimientos } from "@/lib/calendario-cumplimiento";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const service = process.env.ENQORA_SERVICE_TOKEN;
-  if (!secret || !service || request.headers.get("authorization") !== `Bearer ${secret}`) {
+  if (!secret || !service || !cronAutorizado(request.headers.get("authorization"))) {
     return NextResponse.json({ ok: false }, { status: 401 });
   }
   const supabase = await createClient();

@@ -1,3 +1,4 @@
+import { cronAutorizado } from "@/lib/interno";
 import { after, NextResponse, type NextRequest } from "next/server";
 import { ejecutarInvestigacion } from "@/lib/cora/web/investigador";
 import { createClient } from "@/lib/supabase/server";
@@ -12,7 +13,7 @@ export const maxDuration = 300;
 export async function POST(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
   const service = process.env.ENQORA_SERVICE_TOKEN;
-  if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ ok: false }, { status: 401 });
+  if (!secret || !cronAutorizado(request.headers.get("authorization"))) return NextResponse.json({ ok: false }, { status: 401 });
   const { run } = (await request.json().catch(() => ({}))) as { run?: string };
   if (!service || !run || !/^[0-9a-f-]{36}$/.test(run)) return NextResponse.json({ ok: false }, { status: 400 });
   const supabase = await createClient();

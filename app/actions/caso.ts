@@ -1,5 +1,6 @@
 "use server";
 
+import { origenInterno } from "@/lib/interno";
 import { createHash } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { cookies, headers } from "next/headers";
@@ -87,7 +88,7 @@ export async function enviarCasoAction(_prev: CasoState, form: FormData): Promis
   }
   // Acuse de recibo por el canal elegido (si el correo o WhatsApp están conectados). No bloquea la respuesta.
   const hh = await headers();
-  const origen = `${hh.get("x-forwarded-proto") ?? "https"}://${hh.get("x-forwarded-host") ?? hh.get("host") ?? ""}`;
+  const origen = origenInterno(hh);
   after(async () => {
     const e = await acuseSolicitud(canal, contacto, nombre).catch((x) => (x instanceof Error ? x.message : "error"));
     if (e) console.warn("[ENQORA Caso] acuse no enviado:", e);
