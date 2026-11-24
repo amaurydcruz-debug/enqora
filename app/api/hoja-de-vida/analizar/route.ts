@@ -11,6 +11,9 @@ export const maxDuration = 60;
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: NextRequest) {
+  // Solo desde la propia aplicación (protección CSRF además de la cookie SameSite), como las rutas de agentes.
+  const origin = request.headers.get("origin");
+  if (!origin || origin !== request.nextUrl.origin) return NextResponse.json({ error: "Solicitud no permitida." }, { status: 403 });
   const service = process.env.ENQORA_SERVICE_TOKEN;
   if (!service) return NextResponse.json({ error: "Falta configurar ENQORA_SERVICE_TOKEN en Vercel." }, { status: 503 });
   const user = await currentUser();

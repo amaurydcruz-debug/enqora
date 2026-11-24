@@ -45,3 +45,31 @@ drop function if exists public.register_login, public.log_security_event, public
 drop function if exists private.current_session_id();
 drop table if exists public.security_events, public.known_devices cascade;
 ```
+
+## Auditoría de seguridad (2026-11-24)
+
+Revisión con evidencia sobre las 92 migraciones aplicadas en una base de prueba y sobre el código de la aplicación.
+
+**Base de datos — en orden:** todas las tablas de `public` tienen seguridad por fila; `anon` no tiene permisos
+directos sobre ninguna tabla; todas las funciones `security definer` fijan `search_path`; las 43 funciones de servicio
+que `anon` puede llamar verifican el token al inicio (`daily_run` lo hace a través de `billing_run`); las búsquedas
+públicas por RUT rechazan personas naturales; las funciones de administración usan `require_admin`. Las tablas con
+seguridad por fila y sin políticas (`inapi_marcas`, `public_companies`, `public_company_*`, `public_lookups`,
+`notification_deliveries`) son intencionales: solo se leen por funciones con permisos verificados.
+
+**Corregido:**
+- 0092: 35 funciones de `private` ejecutables por `PUBLIC`/`anon` (no invocables desde la API porque `anon` no usa ese
+  esquema) quedan solo para `authenticated` y `service_role`.
+- `Permissions-Policy` bloqueaba el micrófono incluso para ENQORA (`microphone=()`): el dictado de gastos y la voz de
+  CORA no podían escuchar. Ahora `microphone=(self)`.
+- `form-action` admite Flow (redirección al pago después de enviar el formulario).
+- Rutas cron: `CRON_SECRET` se compara en tiempo constante (`lib/interno.ts`).
+- Llamadas internas con `CRON_SECRET`: en producción van a la dirección fija del proyecto (`VERCEL_PROJECT_PRODUCTION_URL`),
+  no a la cabecera `Host` de la petición.
+- `/api/hoja-de-vida/analizar` verifica el origen, como las rutas de agentes.
+- Buscador legal: la pregunta se anonimiza y solo se envía a Hugging Face si está autorizado (PR #177).
+
+**Sin hallazgos:** secretos en el repositorio (solo `.env.example`), HTML inyectado (solo `markdownSeguro`),
+confirmación de pagos (se consulta el estado a Flow servidor a servidor).
+
+**Repetir en producción:** `pegar_en_supabase_auditoria_seguridad.sql` (solo lectura) devuelve OK o REVISAR por cada punto.

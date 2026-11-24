@@ -1,5 +1,6 @@
 "use server";
 
+import { origenInterno } from "@/lib/interno";
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
@@ -58,14 +59,13 @@ export async function syncPublicDataAction() {
   const secret = process.env.CRON_SECRET;
   if (!secret || !process.env.ENQORA_SERVICE_TOKEN) redirect("/mando/datos-publicos?error=sin_configurar");
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
+  const base = origenInterno(h);
   let estado = "error";
   let detalle = "";
-  if (!host) detalle = "No se pudo determinar la dirección del sitio.";
+  if (!base) detalle = "No se pudo determinar la dirección del sitio.";
   else {
     try {
-      const res = await fetch(`${proto}://${host}/api/cron/nomina?origen=manual`, {
+      const res = await fetch(`${base}/api/cron/nomina?origen=manual`, {
         headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(55_000),
       });
       const data = (await res.json().catch(() => null)) as { estado?: string; detalle?: string; filas?: number } | null;

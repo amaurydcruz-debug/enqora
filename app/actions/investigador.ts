@@ -1,5 +1,6 @@
 "use server";
 
+import { origenInterno } from "@/lib/interno";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import type { PublicCompany } from "@/app/actions/public";
@@ -28,10 +29,9 @@ export async function iniciarInvestigacionAction(fd: FormData) {
   if (error || !run) redirect("/mando/investigador?error=registro");
 
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
+  const base = origenInterno(h);
   try {
-    await fetch(`${proto}://${host}/api/cora/investigador`, {
+    await fetch(`${base}/api/cora/investigador`, {
       method: "POST", cache: "no-store", signal: AbortSignal.timeout(8_000),
       headers: { "content-type": "application/json", cookie: h.get("cookie") ?? "" },
       body: JSON.stringify({ run: run.id }),
@@ -79,13 +79,12 @@ export async function sincronizarRegistroAction() {
   if ((await myStaffRole()) !== "enqora_admin") redirect("/mando");
   const secret = process.env.CRON_SECRET;
   const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
+  const base = origenInterno(h);
   let msg = "";
   if (!secret || !process.env.ENQORA_SERVICE_TOKEN) msg = "Falta CRON_SECRET o ENQORA_SERVICE_TOKEN en Vercel.";
   else {
     try {
-      const res = await fetch(`${proto}://${host}/api/cron/registro`, { headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(55_000) });
+      const res = await fetch(`${base}/api/cron/registro`, { headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(55_000) });
       const d = (await res.json().catch(() => null)) as { estado?: string; detalle?: string; filas?: number } | null;
       msg = d?.estado === "error" ? d.detalle ?? "Error" : d?.estado === "al_dia" ? "Todos los archivos están cargados." : `${d?.filas?.toLocaleString("es-CL") ?? 0} filas en este tramo; la carga sigue sola.`;
     } catch (e) {

@@ -1,5 +1,6 @@
 "use server";
 
+import { origenInterno } from "@/lib/interno";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
@@ -12,7 +13,7 @@ export async function cargarMarcasAhoraAction(): Promise<void> {
   const secret = process.env.CRON_SECRET;
   if (!secret) redirect("/mando/marcas-inapi?aviso=sin_secreto");
   const h = await headers();
-  const origin = `${h.get("x-forwarded-proto") ?? "https"}://${h.get("x-forwarded-host") ?? h.get("host") ?? ""}`;
+  const origin = origenInterno(h);
   // No se espera el resultado completo: la carga sigue encadenada en el servidor.
   await fetch(`${origin}/api/cron/marcas`, { headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(8_000) }).catch(() => undefined);
   redirect("/mando/marcas-inapi?aviso=iniciada");

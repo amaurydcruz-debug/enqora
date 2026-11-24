@@ -1,5 +1,6 @@
 "use server";
 
+import { origenInterno } from "@/lib/interno";
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -105,15 +106,14 @@ async function estratega(prompt: string, tool: { name: string; description: stri
 async function lanzarRobot(supabase: Awaited<ReturnType<typeof createClient>>, rut: string, razon: string | null, h: Headers): Promise<string> {
   const service = process.env.ENQORA_SERVICE_TOKEN;
   const secret = process.env.CRON_SECRET;
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  if (!service || !secret || !host) return "ninguna";
+  const base = origenInterno(h);
+  if (!service || !secret || !base) return "ninguna";
   const { data, error } = await supabase.rpc("svc_research_enqueue", { p_token: service, p_rut: rut, p_razon: razon });
   if (error || !data) return "ninguna";
   const r = data as { estado: string; id?: string };
   if (r.estado === "nueva" && r.id) {
-    const proto = h.get("x-forwarded-proto") ?? "https";
     after(async () => {
-      await fetch(`${proto}://${host}/api/cron/investigador`, {
+      await fetch(`${base}/api/cron/investigador`, {
         method: "POST", headers: { authorization: `Bearer ${secret}`, "content-type": "application/json" },
         body: JSON.stringify({ run: r.id }), cache: "no-store", signal: AbortSignal.timeout(15_000),
       }).catch(() => undefined);

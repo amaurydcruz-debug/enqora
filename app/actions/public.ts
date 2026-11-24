@@ -1,5 +1,6 @@
 "use server";
 
+import { origenInterno } from "@/lib/interno";
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { after } from "next/server";
@@ -97,15 +98,14 @@ async function lookup(fd: FormData): Promise<LookupState> {
 function wakeConnector(h: Headers) {
   const secret = process.env.CRON_SECRET;
   const service = process.env.ENQORA_SERVICE_TOKEN;
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  if (!secret || !service || !host) return;
-  const proto = h.get("x-forwarded-proto") ?? "https";
+  const base = origenInterno(h);
+  if (!secret || !service || !base) return;
   after(async () => {
     try {
       const supabase = await createClient();
       const { data: claimed } = await supabase.rpc("svc_claim_sync_trigger", { p_token: service, p_minutes: 10 });
       if (claimed !== true) return;
-      await fetch(`${proto}://${host}/api/cron/nomina?origen=portada`, {
+      await fetch(`${base}/api/cron/nomina?origen=portada`, {
         headers: { authorization: `Bearer ${secret}` }, cache: "no-store", signal: AbortSignal.timeout(12_000),
       }).catch(() => undefined);
     } catch {
