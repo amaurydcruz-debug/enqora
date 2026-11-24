@@ -32,6 +32,11 @@ import { decodificarXml, leerDte } from "@/lib/dte";
 import { cruzarLecturas, gastoDesdeDte, type Gasto } from "@/lib/gastos";
 import { corpusBase, fragmentosInforma, respaldoSuficiente, trocear, type Resultado } from "@/lib/conocimiento";
 import { alertasGastos, proyeccionGasto, umbralAtipico, type GastoAlerta } from "@/lib/alertas-gastos";
+import { calculateAFP as emissoAFP } from "./terceros/emisso-payroll/rules/afp";
+import { calculateHealth as emissoSalud } from "./terceros/emisso-payroll/rules/health";
+import { calculateUnemployment as emissoAFC } from "./terceros/emisso-payroll/rules/unemployment";
+import { calculateGratification as emissoGrat } from "./terceros/emisso-payroll/rules/gratification";
+import { calculateIncomeTax as emissoImpuesto } from "./terceros/emisso-payroll/rules/income-tax";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
@@ -1157,6 +1162,67 @@ prueba("Alertas de gastos: duplicados, atípicos (mediana y MAD), sin documento,
   const p = proyeccionGasto(hist, "2026-11-01");
   assert.equal(p?.monto, 15000); // últimos 3 meses: 14000, 15000, 16000
   assert.equal(proyeccionGasto(hist.slice(0, 2), "2026-11-01"), null);
+});
+
+
+// Segunda opinión independiente: el motor de remuneraciones de ENQORA contra emisso-payroll (MIT, copia en
+// scripts/terceros). Mismos parámetros de prueba; el tope AFP se alinea a 81,6 UF, que emisso trae fijo.
+prueba("Remuneraciones: segunda opinión con emisso-payroll (MIT) en 48 trabajadores ficticios", () => {
+  const UF = 39_500, UTM = 69_000, IMM = 539_000;
+  const comision: Record<string, number> = { Habitat: 1.27, Modelo: 0.58, Uno: 0.49, Provida: 1.45 };
+  const p: Parametros = { uf: UF, utm: UTM, imm: IMM, tope_afp_uf: 81.6, tope_afc_uf: 122.6,
+    afp: Object.fromEntries(Object.entries(comision).map(([k, v]) => [k, 10 + v])), sis: 1.54, aporte_ci: 0.1, aporte_ev: 0.9, aporte_rp: 0,
+    afc_indefinido_trab: 0.6, afc_indefinido_emp: 2.4, afc_plazo_emp: 3, salud_legal: 7 };
+  const tasasEmisso = Object.fromEntries(Object.entries(comision).map(([k, v]) => [k.toLowerCase(), { commissionRate: v, sisRate: 1.54 }]));
+  const tablaEmisso = [[0, 13.5, 0, 0], [13.5, 30, 4, 0.54], [30, 50, 8, 1.74], [50, 70, 13.5, 4.49], [70, 90, 23, 11.14], [90, 120, 30.4, 17.8], [120, 310, 35.5, 23.92], [310, null, 40, 37.87]]
+    .map(([from, to, rate, deduction]) => ({ from: from as number, to: to as number | null, rate: rate as number, deduction: deduction as number }));
+  const n = leerNovedades({})!;
+  let casos = 0;
+  for (const sueldo of [539_000, 650_000, 900_000, 1_250_000, 1_800_000, 2_400_000])
+    for (const afp of Object.keys(comision))
+      for (const gratificacion of ["art50", "ninguna"] as const) {
+        const t: Trabajador = { id: "x", nombre: "Ficticio", tipo_contrato: "indefinido", sueldo_base: sueldo, jornada_horas: 42, afp, salud: "fonasa",
+          plan_isapre_uf: null, colacion: 0, movilizacion: 0, gratificacion };
+        const nuestro = liquidar(t, n, p, 0.93);
+        const grat = emissoGrat(sueldo, gratificacion === "art50" ? "legal" : "none", 0, IMM);
+        const imp = sueldo + grat;
+        const afpE = emissoAFP(imp, afp.toLowerCase(), tasasEmisso, UF);
+        const saludE = emissoSalud(imp, "fonasa", 0, UF);
+        const afcE = emissoAFC(imp, "indefinido").employee;
+        const impuestoE = emissoImpuesto(imp - afpE - saludE - afcE, tablaEmisso, UTM);
+        const id = `${sueldo} ${afp} ${gratificacion}`;
+        assert.equal(nuestro.montos.gratificacion, grat, `gratificación ${id}`);
+        assert.equal(nuestro.total_imponible, imp, `imponible ${id}`);
+        assert.equal(nuestro.montos.afp, afpE, `AFP ${id}`);
+        assert.equal(nuestro.montos.salud_legal, saludE, `salud ${id}`);
+        assert.equal(nuestro.montos.afc_trab, afcE, `AFC ${id}`);
+        // Bajo 120 UTM ambas tablas coinciden; se acepta $1 por redondeo.
+        assert.ok(Math.abs(nuestro.montos.impuesto - impuestoE) <= 1, `impuesto ${id}: ${nuestro.montos.impuesto} vs ${impuestoE}`);
+        assert.ok(Math.abs(nuestro.liquido - (imp - afpE - saludE - afcE - impuestoE)) <= 1, `líquido ${id}`);
+        casos++;
+      }
+  assert.equal(casos, 48);
+
+  // Diferencias conocidas, donde ENQORA sigue la norma y emisso no (se dejan fijas para que nadie «corrija» hacia atrás):
+  const base: Trabajador = { id: "x", nombre: "Ficticio", tipo_contrato: "indefinido", sueldo_base: 900_000, jornada_horas: 42, afp: "Uno", salud: "fonasa",
+    plan_isapre_uf: null, colacion: 0, movilizacion: 0, gratificacion: "art50" };
+  // 1) Plazo fijo y obra: el trabajador no cotiza seguro de cesantía; solo el empleador, 3% (Ley 19.728, art. 5).
+  assert.equal(liquidar({ ...base, tipo_contrato: "plazo_fijo" }, n, p, 0.93).montos.afc_trab, 0);
+  assert.ok(emissoAFC(900_000, "plazo_fijo").employee > 0);
+  // 2) La gratificación del art. 50 se calcula sobre lo devengado en el mes, incluidas horas extra y bonos; emisso usa solo el sueldo base.
+  const conBono = liquidar({ ...base, sueldo_base: 600_000 }, { ...n, bonos_imponibles: 100_000 }, p, 0.93);
+  assert.equal(conBono.montos.gratificacion, Math.min(Math.round(700_000 * 0.25), Math.round((4.75 * IMM) / 12)));
+  assert.equal(emissoGrat(600_000, "legal", 0, IMM), Math.round(600_000 * 0.25) > Math.round((4.75 * IMM) / 12) ? Math.round((4.75 * IMM) / 12) : 150_000);
+  // 3) El 7% de salud tiene el mismo tope imponible que la AFP; emisso lo calcula sin tope.
+  const alto = liquidar({ ...base, sueldo_base: 5_000_000, gratificacion: "ninguna" }, n, p, 0.93);
+  assert.equal(alto.montos.salud_legal, Math.round((Math.round(81.6 * UF) * 7) / 100));
+  assert.ok(emissoSalud(5_000_000, "fonasa", 0, UF) > alto.montos.salud_legal);
+  // 4) Tramos altos del impuesto único (SII, Circular N° 42 de 2026): 120 a 310 UTM, factor 35% y rebaja 23,32 UTM;
+  //    310 UTM y más, 40% y rebaja 38,82 UTM. emisso trae 35,5%/23,92 y 40%/37,87. Bajo 120 UTM ambos coinciden.
+  assert.equal(impuestoUnico(200 * UTM, UTM), Math.round((200 * 0.35 - 23.32) * UTM));
+  assert.equal(impuestoUnico(400 * UTM, UTM), Math.round((400 * 0.40 - 38.82) * UTM));
+  assert.notEqual(emissoImpuesto(200 * UTM, tablaEmisso, UTM), impuestoUnico(200 * UTM, UTM));
+  for (let b = 0; b < 120 * UTM; b += 7_000) assert.ok(Math.abs(impuestoUnico(b, UTM) - emissoImpuesto(b, tablaEmisso, UTM)) <= 1, `base ${b}`);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
