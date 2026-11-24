@@ -216,6 +216,8 @@ export type AgentResult = {
 
 export async function runAgent(
   agent: AgentKey, context: unknown, instruction: string | null, signal: AbortSignal, correction?: string | null,
+  // Fragmentos del buscador legal (0090) para esta consulta, ya con su cita (o el aviso de que no hay respaldo).
+  fuentes?: string | null,
 ): Promise<AgentResult> {
   const key = process.env.ANTHROPIC_API_KEY;
   const model = MODEL();
@@ -233,6 +235,7 @@ export async function runAgent(
     `Fecha de hoy: ${new Date().toISOString().slice(0, 10)}.`,
     `Antecedentes del caso (JSON):\n${JSON.stringify(context)}`,
     instruction ? `Indicación del profesional a cargo: ${instruction}` : "Analiza el caso desde tu especialidad y propone lo que corresponda.",
+    fuentes ?? "",
     correction ? `OBSERVACIONES DE LA AUDITORÍA A TU PROPUESTA ANTERIOR (corrígelas una por una):\n${correction}` : "",
   ].filter(Boolean).join("\n\n");
   const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: userText }];

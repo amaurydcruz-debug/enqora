@@ -112,6 +112,7 @@ export default async function CommandCenterPage({
           <Link href="/mando/datos-publicos" className="btn btn-ghost btn-inline">Datos públicos</Link>
           <Link href="/mando/aprendizajes" className="btn btn-ghost btn-inline">Aprendizajes y rutas</Link>
           <Link href="/mando/vigilancia" className="btn btn-ghost btn-inline">Vigilancia normativa</Link>
+          <Link href="/mando/buscador" className="btn btn-ghost btn-inline">Buscador legal</Link>
           {supervisor ? <Link href="/mando/cobros" className="btn btn-ghost btn-inline">Cobros y pagos</Link> : null}
           {supervisor ? <Link href="/mando/estado" className="btn btn-ghost btn-inline">Estado del sistema</Link> : null}
           {supervisor ? <Link href="/mando/agentes" className="btn btn-ghost btn-inline">Operación de agentes</Link> : null}

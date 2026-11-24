@@ -30,6 +30,7 @@ import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriado
 import { anonimizar as anonimizarIA, restaurar, resumenAnonimizado } from "@/lib/ai/anonimizar";
 import { decodificarXml, leerDte } from "@/lib/dte";
 import { cruzarLecturas, gastoDesdeDte, type Gasto } from "@/lib/gastos";
+import { corpusBase, fragmentosInforma, respaldoSuficiente, trocear, type Resultado } from "@/lib/conocimiento";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
@@ -1099,6 +1100,36 @@ prueba("Doble lectura: coincide → mantiene; difiere → confianza baja y difer
   assert.equal(distinto.confianza, "baja");
   assert.ok(distinto.dudas[0].includes("15.990") && distinto.dudas[0].includes("19.590"));
   assert.equal(distinto.monto, 15990);
+});
+
+
+prueba("Buscador legal: corpus válido para la base (claves únicas, textos, citas) y criterio de respaldo", () => {
+  const c = corpusBase();
+  assert.ok(c.length >= 30, `corpus ${c.length}`);
+  assert.equal(new Set(c.map((f) => f.clave)).size, c.length);
+  for (const f of c) {
+    assert.match(f.clave, /^[a-z_]+:[A-Za-z0-9_.:-]{1,120}$/, f.clave);
+    assert.ok(f.titulo.length >= 3 && f.titulo.length <= 300, f.clave);
+    assert.ok(f.texto.length >= 10 && f.texto.length <= 6000, f.clave);
+    assert.ok(!f.url || /^https:\/\/\S+$/.test(f.url), f.clave);
+    assert.match(f.huella, /^[0-9a-f]{64}$/);
+  }
+  assert.ok(c.some((f) => f.origen === "regla" && f.articulo === "Art. 97 N°2 CT"));
+  assert.ok(c.some((f) => f.origen === "obligacion_laboral" && f.clave === "obligacion_laboral:karin"));
+  // Misma entrada, misma huella (no se recalcula lo que no cambió).
+  assert.equal(corpusBase()[0].huella, c[0].huella);
+  const largo = "Primera frase del texto. ".repeat(200);
+  const partes = trocear(largo);
+  assert.ok(partes.length > 1 && partes.every((p) => p.length <= 1800));
+  const inf = fragmentosInforma([{ id: "0b6c7d2e-1111-4222-8333-944455556666", title: "Nueva circular del SII", summary: "Resumen verificado de la circular.", impact: null,
+    institution: "SII", source_url: "https://www.sii.cl/c.pdf", departamento: "tributario", vigente_desde: "2026-12-01", fecha_consulta: "2026-11-20", published_on: "2026-11-19", kind: "circular" }]);
+  assert.equal(inf[0].clave, "informa:0b6c7d2e-1111-4222-8333-944455556666");
+  const r = (x: Partial<Resultado>): Resultado => ({ clave: "regla:x", origen: "regla", titulo: "t", articulo: null, fuente: null, url: null, vigencia: null, verificado: null, departamento: null, texto: "t", coincidencia: "palabras", puntaje: 0.01, similitud: null, relajada: false, ...x });
+  assert.equal(respaldoSuficiente([]), false);
+  assert.equal(respaldoSuficiente([r({})]), true);
+  assert.equal(respaldoSuficiente([r({ relajada: true })]), false);
+  assert.equal(respaldoSuficiente([r({ coincidencia: "significado", similitud: 0.41 })]), false);
+  assert.equal(respaldoSuficiente([r({ coincidencia: "significado", similitud: 0.71 })]), true);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

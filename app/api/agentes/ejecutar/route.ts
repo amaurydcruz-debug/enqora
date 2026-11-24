@@ -4,6 +4,7 @@ import { agentsEnabled, runAgent } from "@/lib/agents";
 import { auditEnabled } from "@/lib/audit";
 import { AGENTS, type AgentKey } from "@/lib/mirror";
 import { dbMessage } from "@/lib/db-errors";
+import { contextoParaAgente, buscarNormativa } from "@/lib/conocimiento-server";
 import { createClient } from "@/lib/supabase/server";
 
 // Ejecuta un agente IA sobre un caso (lo pide una persona del equipo con sesión y segundo factor).
@@ -48,7 +49,15 @@ export async function POST(request: NextRequest) {
   }
   const { run, context } = started as { run: string; context: unknown };
 
-  const result = await runAgent(agent, context, instruction || null, AbortSignal.timeout(52_000), correction);
+  // Buscador legal: normas y rutas verificadas que se parecen al caso, con su cita. Si falla, el agente sigue sin ellas.
+  const caso = (context as { caso?: { titulo?: string; servicio?: string; descripcion?: string } } | null)?.caso;
+  const consulta = [instruction, caso?.titulo, caso?.servicio, caso?.descripcion].filter(Boolean).join(". ").slice(0, 480);
+  const busqueda = consulta.length >= 3
+    ? await Promise.race([buscarNormativa(consulta, 6, supabase), new Promise<null>((r) => setTimeout(() => r(null), 8_000))]).catch(() => null)
+    : null;
+  const fuentes = busqueda && !busqueda.error ? contextoParaAgente(busqueda.respaldo ? busqueda.resultados : []) : null;
+
+  const result = await runAgent(agent, context, instruction || null, AbortSignal.timeout(48_000), correction, fuentes);
   const { data: count, error: finishError } = await supabase.rpc("finish_agent_run", {
     p_run: run,
     p_ok: result.ok,

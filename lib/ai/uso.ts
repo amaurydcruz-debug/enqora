@@ -9,7 +9,7 @@ import { supabaseEnv } from "@/lib/supabase/env";
 
 export type ModuloIA =
   | "consulta_estrategica" | "caso_publico" | "carpeta_tributaria" | "asesor_precios"
-  | "vigilancia_normativa" | "agentes_casos" | "laboratorio" | "escuela" | "boveda" | "informe_ingreso" | "gastos";
+  | "vigilancia_normativa" | "agentes_casos" | "laboratorio" | "escuela" | "boveda" | "informe_ingreso" | "gastos" | "buscador_legal";
 
 export const MODULOS_IA: Record<string, string> = {
   consulta_estrategica: "Consulta Estratégica (pública)",
@@ -23,6 +23,7 @@ export const MODULOS_IA: Record<string, string> = {
   boveda: "Bóveda de archivos (Archivero y Redactor)",
   informe_ingreso: "Informe de ingreso de solicitudes",
   gastos: "Registrar gasto (foto y voz)",
+  buscador_legal: "Buscador legal (vectores BGE-M3)",
 };
 
 export type RegistroIA = {
