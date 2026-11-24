@@ -16,7 +16,7 @@ export async function archiveroInterpreta(texto: string): Promise<{ tipo: TipoDo
   const proposito = texto.trim().slice(0, 500);
   if (porReglas.key !== "otro") return { tipo: porReglas, titulo: porReglas.titulo, proposito };
   const r = await llamarHerramienta({
-    modulo: "boveda", datos: "privados", maxTokens: 400, timeoutMs: 20_000,
+    modulo: "boveda", datos: "privados", anonimizar: {}, maxTokens: 400, timeoutMs: 20_000,
     system: "Eres el Archivero de ENQORA (Chile). Clasificas pedidos de documentos en el catálogo. Responde solo con la herramienta.",
     prompt: `Pedido: """${proposito}"""\nCatálogo:\n${TIPOS.map((t) => `- ${t.key}: ${t.titulo}`).join("\n")}`,
     tool: { name: "clasificar", description: "Clasifica el pedido.", input_schema: { type: "object", properties: {
@@ -107,7 +107,7 @@ export async function redactorEscribe(supabase: SupabaseClient, doc: Doc) {
   }
   const ant = doc.antecedentes ?? {};
   const r = await llamarHerramienta({
-    modulo: "boveda", datos: "privados", maxTokens: 3500, timeoutMs: 45_000,
+    modulo: "boveda", datos: "privados", anonimizar: {}, maxTokens: 3500, timeoutMs: 45_000,
     system: [
       "Eres el Redactor de la Bóveda de ENQORA (Chile). Redactas borradores formales en español de Chile para que un abogado o contador los revise.",
       "Usa SOLO los antecedentes entregados. Nunca inventes nombres, RUT, domicilios, fechas, montos, números de resolución, de rol ni de causa.",
