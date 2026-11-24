@@ -31,6 +31,7 @@ import { anonimizar as anonimizarIA, restaurar, resumenAnonimizado } from "@/lib
 import { decodificarXml, leerDte } from "@/lib/dte";
 import { cruzarLecturas, gastoDesdeDte, type Gasto } from "@/lib/gastos";
 import { corpusBase, fragmentosInforma, respaldoSuficiente, trocear, type Resultado } from "@/lib/conocimiento";
+import { alertasGastos, proyeccionGasto, umbralAtipico, type GastoAlerta } from "@/lib/alertas-gastos";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
@@ -1130,6 +1131,32 @@ prueba("Buscador legal: corpus válido para la base (claves únicas, textos, cit
   assert.equal(respaldoSuficiente([r({ relajada: true })]), false);
   assert.equal(respaldoSuficiente([r({ coincidencia: "significado", similitud: 0.41 })]), false);
   assert.equal(respaldoSuficiente([r({ coincidencia: "significado", similitud: 0.71 })]), true);
+});
+
+
+prueba("Alertas de gastos: duplicados, atípicos (mediana y MAD), sin documento, factura sin IVA y proyección", () => {
+  const g = (id: string, x: Partial<GastoAlerta>): GastoAlerta => ({ id, fecha: "2026-11-05", period: "2026-11-01", monto: 15000, iva: null, categoria: "combustible", documento: "boleta", proveedor: "Copec", folio: null, descripcion: "Bencina", estado: "registrado", ...x });
+  const hist = [10, 9, 8, 7, 6, 5].map((m, i) => g(`h${i}`, { period: `2026-${String(m).padStart(2, "0")}-01`, fecha: `2026-${String(m).padStart(2, "0")}-10`, monto: 14000 + i * 1000 }));
+  const mes = [
+    g("a", { folio: "120" }), g("b", { folio: "120", fecha: "2026-11-06" }), // mismo folio y comercio
+    g("c", { monto: 98000, fecha: "2026-11-20" }), // atípico para combustible
+    g("d", { documento: "sin_documento", monto: 60000, categoria: "otros", proveedor: null, descripcion: "Arreglo" }),
+    g("e", { documento: "factura", categoria: "insumos", proveedor: "Ferretería", monto: 11900 }),
+    g("f", { folio: "120", estado: "descartado" }),
+  ];
+  const a = alertasGastos(mes, hist, { combustible: "Combustible" });
+  const de = (id: string) => a.filter((x) => x.id === id).map((x) => x.tipo);
+  assert.deepEqual(de("a"), []);
+  assert.deepEqual(de("b"), ["duplicado"]);
+  assert.deepEqual(de("c"), ["atipico"]);
+  assert.ok(a.find((x) => x.id === "c")?.texto.includes("Combustible"));
+  assert.deepEqual(de("d"), ["sin_documento"]);
+  assert.deepEqual(de("e"), ["factura_sin_iva"]);
+  assert.deepEqual(de("f"), []);
+  assert.equal(umbralAtipico([1, 2, 3, 4]), null); // con menos de 5 datos no se juzga
+  const p = proyeccionGasto(hist, "2026-11-01");
+  assert.equal(p?.monto, 15000); // últimos 3 meses: 14000, 15000, 16000
+  assert.equal(proyeccionGasto(hist.slice(0, 2), "2026-11-01"), null);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

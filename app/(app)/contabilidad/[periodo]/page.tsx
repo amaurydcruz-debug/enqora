@@ -7,6 +7,7 @@ import { anularPreguntaAction, aplicarPreguntaAction } from "@/app/actions/conci
 import { Conciliador } from "./conciliador";
 import { PosImporter } from "./pos-importer";
 import { CATEGORIAS_GASTO, DOCUMENTOS_GASTO } from "@/lib/gastos";
+import { alertasGastos, proyeccionGasto, type GastoAlerta } from "@/lib/alertas-gastos";
 import { notFound } from "next/navigation";
 import {
   clearBankAction,
@@ -127,9 +128,18 @@ export default async function PeriodPage({
   const pos = (posData ?? null) as { dias: number; total: number; ventas: number; efectivo: number; debito: number; credito: number; transferencia: number; otros: number; sistemas: string | null; rcv: number; diferencia: number; diferencia_pct: number | null } | null;
   const cruce = alertaCruce(Number(pos?.total ?? 0), Number(pos?.rcv ?? 0));
   // Gastos registrados por el cliente con foto, voz o texto (0067).
-  const { data: gRows } = await supabase.from("gastos").select("id, fecha, monto, descripcion, categoria, documento, proveedor, uso, estado, nota")
-    .eq("company_id", company.id).eq("period", period).order("fecha").limit(1000);
-  const gastos = (gRows ?? []) as { id: string; fecha: string; monto: number; descripcion: string; categoria: string; documento: string; proveedor: string | null; uso: string; estado: string; nota: string | null }[];
+  const desdeHist = new Date(`${period}T12:00:00Z`);
+  desdeHist.setUTCMonth(desdeHist.getUTCMonth() - 6);
+  const [{ data: gRows }, { data: hRows }] = await Promise.all([
+    supabase.from("gastos").select("id, fecha, period, monto, iva, descripcion, categoria, documento, proveedor, folio, uso, estado, nota")
+      .eq("company_id", company.id).eq("period", period).order("fecha").limit(1000),
+    supabase.from("gastos").select("id, fecha, period, monto, iva, descripcion, categoria, documento, proveedor, folio, estado")
+      .eq("company_id", company.id).gte("period", desdeHist.toISOString().slice(0, 10)).lt("period", period).limit(3000),
+  ]);
+  const gastos = (gRows ?? []) as (GastoAlerta & { uso: string; nota: string | null })[];
+  // Alertas antes del cierre (duplicados, atípicos, sin documento, facturas sin IVA) y proyección del mes siguiente.
+  const alertas = alertasGastos(gastos, (hRows ?? []) as GastoAlerta[], CATEGORIAS_GASTO);
+  const proyeccion = proyeccionGasto((hRows ?? []) as GastoAlerta[], period);
   const docs = (dRows ?? []) as AccDocument[];
   const moves = (mRows ?? []) as BankMovement[];
   const recs = ((rRows ?? []) as Reconciliation[]).filter((r) => moves.some((m) => m.id === r.movement_id));
@@ -422,7 +432,7 @@ export default async function PeriodPage({
     {
       id: "gastos",
       title: "Gastos del cliente (foto, voz o texto)",
-      description: gastos.length ? `${gastos.filter((g) => g.estado === "registrado").length} por revisar de ${gastos.length}` : "Sin gastos registrados",
+      description: gastos.length ? `${gastos.filter((g) => g.estado === "registrado").length} por revisar de ${gastos.length}${alertas.length ? ` · ${alertas.length} alerta${alertas.length === 1 ? "" : "s"}` : ""}` : "Sin gastos registrados",
       emblem: <Emblem name="contabilidad" size="sm" />,
       content: (
         <div className="catalog-body">
@@ -431,7 +441,9 @@ export default async function PeriodPage({
             <ul className="ps-filas">
               {gastos.map((g) => (
                 <li key={g.id} className={g.estado === "descartado" ? "is-descartado" : ""}>
-                  <span><b>{g.descripcion}</b><small>{g.fecha} · {CATEGORIAS_GASTO[g.categoria] ?? g.categoria} · {DOCUMENTOS_GASTO[g.documento] ?? g.documento}{g.proveedor ? ` · ${g.proveedor}` : ""} · {g.uso === "personal" ? "personal" : g.uso === "negocio" ? "negocio" : "por clasificar"}{g.estado !== "registrado" ? ` · ${g.estado}` : ""}{g.nota ? ` · ${g.nota}` : ""}</small></span>
+                  <span><b>{g.descripcion}</b>{alertas.filter((a) => a.id === g.id).map((a) => (
+                    <small key={a.tipo} className={`status status-${a.nivel === "atencion" ? "risk" : "warn"}`} style={{ display: "inline-block", margin: ".15rem .35rem .15rem 0" }}>{a.texto}</small>
+                  ))}<small>{g.fecha} · {CATEGORIAS_GASTO[g.categoria] ?? g.categoria} · {DOCUMENTOS_GASTO[g.documento] ?? g.documento}{g.proveedor ? ` · ${g.proveedor}` : ""} · {g.uso === "personal" ? "personal" : g.uso === "negocio" ? "negocio" : "por clasificar"}{g.estado !== "registrado" ? ` · ${g.estado}` : ""}{g.nota ? ` · ${g.nota}` : ""}</small></span>
                   <b className="mono">{clp(Number(g.monto))}</b>
                   {g.estado === "registrado" && reviewer && staffRole !== "ai_agent" ? (
                     <form action={gastoRevisarAction} className="upload-row">
@@ -446,6 +458,11 @@ export default async function PeriodPage({
               ))}
             </ul>
           ) : <p className="muted-line">El cliente registra gastos en «Registrar gasto» con la foto de la boleta o por voz.</p>}
+          {proyeccion ? (
+            <p className="muted-line">
+              Escenario del próximo mes: si se mantiene lo habitual, los gastos registrados rondarían {clp(proyeccion.monto)} (mediana de los últimos {proyeccion.meses} meses). Es una referencia para conversar con el cliente, no una recomendación.
+            </p>
+          ) : null}
         </div>
       ),
     },

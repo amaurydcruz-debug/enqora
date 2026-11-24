@@ -48,7 +48,7 @@ export async function generarInformeIngreso(solId: string, token: string | null)
   };
   const fuentes = armarFuentes(entrada);
   const ia = await llamarHerramienta({
-    system: SISTEMA_INFORME, prompt: armarPrompt(entrada, fuentes), tool: HERRAMIENTA_INFORME, datos: "privados",
+    system: SISTEMA_INFORME, prompt: armarPrompt(entrada, fuentes), tool: HERRAMIENTA_INFORME, datos: "privados", anonimizar: {},
     modulo: "informe_ingreso", maxTokens: 3000, timeoutMs: 50_000, validar: (x) => !!sanear(x, entrada, fuentes),
   });
   const limpio = ia.input ? sanear(ia.input, entrada, fuentes) : null;
