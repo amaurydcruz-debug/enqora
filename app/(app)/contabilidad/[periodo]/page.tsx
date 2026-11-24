@@ -138,7 +138,7 @@ export default async function PeriodPage({
   ]);
   const gastos = (gRows ?? []) as (GastoAlerta & { uso: string; nota: string | null })[];
   // Alertas antes del cierre (duplicados, atípicos, sin documento, facturas sin IVA) y proyección del mes siguiente.
-  const alertas = alertasGastos(gastos, (hRows ?? []) as GastoAlerta[], CATEGORIAS_GASTO);
+  const alertasG = alertasGastos(gastos, (hRows ?? []) as GastoAlerta[], CATEGORIAS_GASTO);
   const proyeccion = proyeccionGasto((hRows ?? []) as GastoAlerta[], period);
   const docs = (dRows ?? []) as AccDocument[];
   const moves = (mRows ?? []) as BankMovement[];
@@ -432,7 +432,7 @@ export default async function PeriodPage({
     {
       id: "gastos",
       title: "Gastos del cliente (foto, voz o texto)",
-      description: gastos.length ? `${gastos.filter((g) => g.estado === "registrado").length} por revisar de ${gastos.length}${alertas.length ? ` · ${alertas.length} alerta${alertas.length === 1 ? "" : "s"}` : ""}` : "Sin gastos registrados",
+      description: gastos.length ? `${gastos.filter((g) => g.estado === "registrado").length} por revisar de ${gastos.length}${alertasG.length ? ` · ${alertasG.length} alerta${alertasG.length === 1 ? "" : "s"}` : ""}` : "Sin gastos registrados",
       emblem: <Emblem name="contabilidad" size="sm" />,
       content: (
         <div className="catalog-body">
@@ -441,7 +441,7 @@ export default async function PeriodPage({
             <ul className="ps-filas">
               {gastos.map((g) => (
                 <li key={g.id} className={g.estado === "descartado" ? "is-descartado" : ""}>
-                  <span><b>{g.descripcion}</b>{alertas.filter((a) => a.id === g.id).map((a) => (
+                  <span><b>{g.descripcion}</b>{alertasG.filter((a) => a.id === g.id).map((a) => (
                     <small key={a.tipo} className={`status status-${a.nivel === "atencion" ? "risk" : "warn"}`} style={{ display: "inline-block", margin: ".15rem .35rem .15rem 0" }}>{a.texto}</small>
                   ))}<small>{g.fecha} · {CATEGORIAS_GASTO[g.categoria] ?? g.categoria} · {DOCUMENTOS_GASTO[g.documento] ?? g.documento}{g.proveedor ? ` · ${g.proveedor}` : ""} · {g.uso === "personal" ? "personal" : g.uso === "negocio" ? "negocio" : "por clasificar"}{g.estado !== "registrado" ? ` · ${g.estado}` : ""}{g.nota ? ` · ${g.nota}` : ""}</small></span>
                   <b className="mono">{clp(Number(g.monto))}</b>
