@@ -60,6 +60,9 @@ seguridad por fila y sin políticas (`inapi_marcas`, `public_companies`, `public
 **Corregido:**
 - 0092: 35 funciones de `private` ejecutables por `PUBLIC`/`anon` (no invocables desde la API porque `anon` no usa ese
   esquema) quedan solo para `authenticated` y `service_role`.
+- 0093: `case_ratings` y `case_savings` (0033) conservaban los permisos por defecto de Supabase para `anon` y
+  `authenticated` (la seguridad por fila ya los bloqueaba). Quedan solo con lectura para `authenticated`. Lo detectó la
+  auditoría de solo lectura en producción; las bases de prueba sin los permisos por defecto de Supabase no lo muestran.
 - `Permissions-Policy` bloqueaba el micrófono incluso para ENQORA (`microphone=()`): el dictado de gastos y la voz de
   CORA no podían escuchar. Ahora `microphone=(self)`.
 - `form-action` admite Flow (redirección al pago después de enviar el formulario).
