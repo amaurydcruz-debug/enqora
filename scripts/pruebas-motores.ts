@@ -27,6 +27,9 @@ import { lineaDeCategoria, lineaDeFolio, lineaDeModulo } from "@/lib/lineas";
 import { pasoDe } from "@/lib/accounting";
 import { diagnosticar, preguntasPara as preguntasEmpresa } from "@/lib/empresa-al-dia";
 import { antiguedad, anosIndemnizacion, calcularFiniquito, diasCorridos, feriadoProporcional, plazoPago, textoFiniquito, validarDatosFiniquito, type DatosFiniquito } from "@/lib/finiquito";
+import { anonimizar as anonimizarIA, restaurar, resumenAnonimizado } from "@/lib/ai/anonimizar";
+import { decodificarXml, leerDte } from "@/lib/dte";
+import { cruzarLecturas, gastoDesdeDte, type Gasto } from "@/lib/gastos";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
@@ -1023,6 +1026,79 @@ prueba("Pendientes laborales: finiquito, liquidaciones, horas extra sin pacto, L
   // Certificados N° 6 entre enero y marzo.
   const enero = pendientesLaborales({ ...d, hoy: "2027-01-20", liquidaciones: [{ trabajador_id: "1", periodo: "2026-06", estado: "aprobada", horas_extra: 0 }] });
   assert.ok(enero.some((x) => x.clave === "cert6" && x.detalle.includes("1 certificado")));
+});
+
+
+prueba("Anonimizador: oculta RUT, correo, teléfono, tarjeta, cuenta, dirección y nombres, y restaura", () => {
+  const t = "Juan Pérez (12.345.678-5, juan.perez@correo.cl, +56 9 8765 4321) pagó 150.000 con tarjeta 4111 1111 1111 1111 a la cuenta corriente N° 00-123-45678-9; vive en Avenida Los Leones 1234 depto 52. Juan Pérez trabaja en 77123456-9.";
+  const a = anonimizarIA(t, { nombres: ["Juan Pérez"] });
+  for (const v of ["12.345.678-5", "juan.perez@correo.cl", "8765 4321", "4111 1111", "00-123-45678-9", "Los Leones 1234", "Juan Pérez", "77123456-9"]) assert.ok(!a.texto.includes(v), v);
+  assert.ok(a.texto.includes("150.000")); // los montos no se tocan
+  assert.equal(a.texto.match(/\[NOMBRE_1\]/g)?.length, 2); // mismo valor, misma marca
+  assert.ok(a.texto.includes("[RUT_2]"));
+  const salida = { resumen: "Pago de [NOMBRE_1] desde [CUENTA_1]", rut: "[RUT_1]", lista: ["[CORREO_1]"] };
+  assert.deepEqual(restaurar(salida, a.mapa), { resumen: "Pago de Juan Pérez desde 00-123-45678-9", rut: "12.345.678-5", lista: ["juan.perez@correo.cl"] });
+  assert.ok(resumenAnonimizado(a.mapa).includes("rut:2"));
+  assert.equal(anonimizarIA("Compra de bencina por 15.990 el 12-11-2026").mapa.length, 0);
+});
+
+const DTE_XML = `<?xml version="1.0" encoding="ISO-8859-1"?>
+<EnvioDTE xmlns="http://www.sii.cl/SiiDte"><SetDTE><DTE version="1.0"><Documento ID="F33T120">
+<Encabezado><IdDoc><TipoDTE>33</TipoDTE><Folio>120</Folio><FchEmis>2026-11-10</FchEmis></IdDoc>
+<Emisor><RUTEmisor>76086428-5</RUTEmisor><RznSoc>Ferretería &amp; Materiales Ñuble SpA</RznSoc><GiroEmis>Venta de materiales de construcción</GiroEmis></Emisor>
+<Receptor><RUTRecep>77123456-9</RUTRecep><RznSocRecep>Cliente Demo SpA</RznSocRecep></Receptor>
+<Totales><MntNeto>100000</MntNeto><TasaIVA>19</TasaIVA><IVA>19000</IVA><MntTotal>119000</MntTotal></Totales></Encabezado>
+<Detalle><NroLinDet>1</NroLinDet><NmbItem>Cemento 25 kg</NmbItem><MontoItem>100000</MontoItem></Detalle>
+<TED version="1.0"><DD></DD></TED></Documento></DTE></SetDTE></EnvioDTE>`;
+
+prueba("DTE en XML: lee y verifica factura (RUT, IVA, total, timbre) y la convierte en gasto", () => {
+  const bytes = Uint8Array.from(Buffer.from(DTE_XML, "latin1"));
+  const r = leerDte(decodificarXml(bytes));
+  assert.ok("dte" in r);
+  if (!("dte" in r)) return;
+  assert.equal(r.dte.tipo, 33);
+  assert.equal(r.dte.folio, 120);
+  assert.equal(r.dte.emisor.razon, "Ferretería & Materiales Ñuble SpA");
+  assert.equal(r.dte.emisor.rut, "76.086.428-5");
+  assert.ok(r.dte.revisiones.every((x) => x.ok), JSON.stringify(r.dte.revisiones.filter((x) => !x.ok)));
+  const g = gastoDesdeDte(r.dte, "77.123.456-9", "2026-11-24");
+  assert.ok("gasto" in g);
+  if (!("gasto" in g)) return;
+  assert.equal(g.gasto.monto, 119000);
+  assert.equal(g.gasto.iva, 19000);
+  assert.equal(g.gasto.documento, "factura");
+  assert.equal(g.gasto.categoria, "insumos"); // «materiales»
+  assert.equal(g.gasto.confianza, "alta");
+  // A nombre de otra empresa: sin crédito de IVA y con aviso.
+  const otra = gastoDesdeDte(r.dte, "96.790.240-3", "2026-11-24");
+  assert.ok("gasto" in otra && otra.gasto.iva === null && otra.gasto.dudas[0].includes("no está emitido a nombre de tu empresa"));
+});
+
+prueba("DTE en XML: detecta errores (DV, IVA, total) y rechaza notas de crédito y entidades", () => {
+  const malo = leerDte(DTE_XML.replace("76086428-5", "76086428-4").replace("<IVA>19000</IVA>", "<IVA>18000</IVA>"));
+  assert.ok("dte" in malo);
+  if (!("dte" in malo)) return;
+  const fallas = malo.dte.revisiones.filter((x) => !x.ok).map((x) => x.texto).join(" | ");
+  assert.ok(fallas.includes("dígito verificador incorrecto") && fallas.includes("no es el 19%") && fallas.includes("no coincide"));
+  assert.ok("error" in gastoDesdeDte(malo.dte, null, "2026-11-24")); // DV malo es grave: no se registra
+  const nc = leerDte(DTE_XML.replace("<TipoDTE>33</TipoDTE>", "<TipoDTE>61</TipoDTE>"));
+  assert.ok("dte" in nc && "error" in gastoDesdeDte(nc.dte, null, "2026-11-24"));
+  assert.ok("error" in leerDte(`<!DOCTYPE x [<!ENTITY a "b">]>${DTE_XML}`));
+  assert.ok("error" in leerDte("<x>hola</x>"));
+  // Con prefijo de espacio de nombres y en UTF-8.
+  const pref = leerDte(DTE_XML.replace(/<(\/?)(?!\?)/g, "<$1sii:").replace("<sii:?xml", "<?xml"));
+  assert.ok("dte" in pref && pref.dte.total === 119000);
+});
+
+prueba("Doble lectura: coincide → mantiene; difiere → confianza baja y diferencia anotada", () => {
+  const a: Gasto = { fecha: "2026-11-10", monto: 15990, iva: null, descripcion: "Bencina", categoria: "combustible", documento: "boleta", proveedor: "Copec", folio: null, confianza: "alta", dudas: [] };
+  const igual = cruzarLecturas(a, { ...a, descripcion: "Combustible" });
+  assert.equal(igual.confianza, "alta");
+  assert.ok(igual.dudas.some((d) => d.includes("coinciden")));
+  const distinto = cruzarLecturas(a, { ...a, monto: 19590 });
+  assert.equal(distinto.confianza, "baja");
+  assert.ok(distinto.dudas[0].includes("15.990") && distinto.dudas[0].includes("19.590"));
+  assert.equal(distinto.monto, 15990);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

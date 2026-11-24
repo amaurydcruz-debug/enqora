@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { precioDe, proveedoresDisponibles } from "@/lib/ai/gateway";
+import { NOMBRE_PROVEEDOR, precioDe, proveedoresDisponibles, VARIABLES_PROVEEDOR } from "@/lib/ai/gateway";
 import { PERSPECTIVAS, TOTAL_MISIONES, presupuestoMision, tribunalConfigurado, versionConocimiento } from "@/lib/ai/escuela";
 import { decidirEstrategiaAction } from "@/app/actions/escuela";
 import { createClient } from "@/lib/supabase/server";
@@ -16,8 +16,8 @@ export const metadata: Metadata = { title: "Laboratorio ENQORA BRAIN" };
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
-const NOMBRE: Record<string, string> = { anthropic: "Claude (Anthropic)", hf: "Hugging Face · modelos abiertos", openai: "OpenAI" };
-const VARIABLES: Record<string, string> = { anthropic: "ANTHROPIC_API_KEY y ANTHROPIC_MODEL", hf: "HF_TOKEN y HF_MODEL (p. ej., un modelo Qwen del catálogo de Inference Providers)", openai: "OPENAI_API_KEY y OPENAI_CHAT_MODEL" };
+const NOMBRE: Record<string, string> = NOMBRE_PROVEEDOR;
+const VARIABLES: Record<string, string> = VARIABLES_PROVEEDOR;
 
 type Examen = {
   id: string; creado: string; proveedor: string; modelo: string; tribunal_modelo: string; independencia: string; version_conocimiento: string;
@@ -96,7 +96,8 @@ export default async function LaboratorioPage({ searchParams }: { searchParams: 
                 <b>{NOMBRE[p.proveedor]}</b>
                 <small className="muted-line">
                   {p.configurado ? `Modelo: ${p.modelo}` : `Sin configurar: agrega ${VARIABLES[p.proveedor]} en Vercel.`}
-                  {p.configurado ? (p.privados ? " · autorizado para datos privados de clientes" : " · solo datos públicos o ficticios") : ""}
+                  {p.configurado ? (p.privados ? " · autorizado para datos privados de clientes" : p.anonimizados ? " · datos privados solo anonimizados" : " · solo datos públicos o ficticios") : ""}
+                  {p.configurado && p.proveedor === "hf" ? (p.vision ? ` · lee fotos con ${p.vision}` : " · sin modelo de visión (HF_MODEL_VISION)") : ""}
                 </small>
               </span>
               <span className={`status status-${p.configurado ? "ok" : "muted"}`}>{p.configurado ? "Conectado" : "No configurado"}</span>
@@ -106,6 +107,9 @@ export default async function LaboratorioPage({ searchParams }: { searchParams: 
         <p className="muted-line">
           Orden de uso: <code>{orden}</code>. Si el primero falla o su respuesta no pasa la validación, ENQORA prueba con el siguiente.
           Los datos privados de clientes solo van a los proveedores indicados en <code>ENQORA_IA_PRIVADOS</code> (por defecto, solo Claude).
+          Los de <code>ENQORA_IA_ANONIMIZADOS</code> reciben texto privado solo con RUT, correos, teléfonos, cuentas, direcciones y nombres
+          reemplazados por marcas; nunca fotos ni PDF. Si hay más de un proveedor habilitado, los gastos fotografiados o dictados se leen
+          dos veces y, si las lecturas no coinciden, se marcan para revisión.
         </p>
       </section>
 

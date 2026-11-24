@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { guardarGastoAction, leerFotoGastoAction, leerTextoGastoAction, prepararFotoGastoAction } from "@/app/actions/gastos";
+import { guardarGastoAction, leerFotoGastoAction, leerTextoGastoAction, leerXmlGastoAction, prepararFotoGastoAction } from "@/app/actions/gastos";
 import { Notice } from "@/components/auth-card";
 import { prepararImagen } from "@/components/subir-documentos";
 import { AVISO_GASTO, CATEGORIAS_GASTO, DOCUMENTOS_GASTO, type Gasto } from "@/lib/gastos";
@@ -17,6 +17,7 @@ type Borrador = Gasto & { uso: "negocio" | "personal" | "por_confirmar" };
 export function RegistrarGasto({ companyId, hoy }: { companyId: string; hoy: string }) {
   const router = useRouter();
   const camara = useRef<HTMLInputElement>(null);
+  const archivoXml = useRef<HTMLInputElement>(null);
   const voz = useModoVoz();
   const [puedeVoz, setPuedeVoz] = useState(false);
   const [paso, setPaso] = useState<"inicio" | "texto" | "leyendo" | "revisar">("inicio");
@@ -52,6 +53,30 @@ export function RegistrarGasto({ companyId, hoy }: { companyId: string; hoy: str
       setPaso("inicio");
     } finally {
       if (camara.current) camara.current.value = "";
+    }
+  }
+
+  // XML de la factura o boleta electrónica: se lee por reglas y se verifica (RUT, IVA, total, timbre).
+  async function onXml(file: File | undefined) {
+    if (!file) return;
+    setMsg(null); setOrigen("foto"); setPaso("leyendo");
+    try {
+      const tipo = file.type === "application/xml" ? "application/xml" : "text/xml";
+      const prep = await prepararFotoGastoAction(companyId, tipo, file.size);
+      if (prep.error || !prep.path || !prep.token) throw new Error(prep.error ?? "No se pudo preparar el archivo.");
+      const up = await createClient().storage.from("expedientes").uploadToSignedUrl(prep.path, prep.token, file, { contentType: tipo });
+      if (up.error) throw new Error("La subida falló. Revisa tu conexión.");
+      const r = await leerXmlGastoAction(companyId, prep.path);
+      if (r.error || !r.gasto) throw new Error(r.error ?? "No se pudo leer el XML.");
+      setFoto({ path: prep.path, url: "" });
+      setLectura(r.lectura ?? null);
+      setG({ ...r.gasto, uso: "negocio" });
+      setPaso("revisar");
+    } catch (e) {
+      setMsg({ kind: "error", text: e instanceof Error ? e.message : "No se pudo leer el XML." });
+      setPaso("inicio");
+    } finally {
+      if (archivoXml.current) archivoXml.current.value = "";
     }
   }
 
@@ -95,11 +120,13 @@ export function RegistrarGasto({ companyId, hoy }: { companyId: string; hoy: str
   return (
     <div className="gx">
       {msg ? <Notice kind={msg.kind}>{msg.text}</Notice> : null}
+      <input ref={archivoXml} id="gx-xml" type="file" accept=".xml,text/xml,application/xml" className="sr-only" onChange={(e) => void onXml(e.target.files?.[0])} />
       <input ref={camara} id="gx-foto" type="file" accept="image/*,application/pdf" capture="environment" className="sr-only" onChange={(e) => void onFoto(e.target.files?.[0])} />
 
       {paso === "inicio" ? (
         <div className="gx-modos">
           <label htmlFor="gx-foto" className="gx-modo"><span className="gx-ico" aria-hidden="true">📷</span><b>Foto de la boleta</b><small>CORA lee el monto, la fecha y el comercio.</small></label>
+          <label htmlFor="gx-xml" className="gx-modo"><span className="gx-ico" aria-hidden="true">🧾</span><b>XML de la factura</b><small>Lectura exacta y verificada: RUT, IVA y total.</small></label>
           {puedeVoz ? (
             <button type="button" className="gx-modo" onClick={() => void onVoz()}>
               <span className="gx-ico" aria-hidden="true">🎙</span><b>{voz.escuchando ? "Te escucho…" : "Dictar"}</b>

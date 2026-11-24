@@ -13,7 +13,7 @@ export type EstadoEscuela =
   | { ok: false; error: string }
   | null;
 
-const PROVEEDORES: Proveedor[] = ["anthropic", "hf", "openai"];
+const PROVEEDORES: Proveedor[] = ["anthropic", "hf", "hf2", "openai"];
 
 // Escuela Tributaria (piloto): rinde el examen de misiones ficticias y lo compara con el agente individual.
 export async function rendirExamenEscuelaAction(_prev: EstadoEscuela, form: FormData): Promise<EstadoEscuela> {
