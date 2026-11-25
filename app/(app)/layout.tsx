@@ -14,6 +14,8 @@ import { UserMenu } from "@/components/user-menu";
 import { IconAlert, IconBuilding, IconShield } from "@/components/icons";
 import { STAFF_ROLES } from "@/lib/cases";
 import { myStaffRole } from "@/lib/staff";
+import { empresaOperadaId } from "@/lib/operando";
+import { FranjaOperando } from "@/components/operando-aviso";
 import { flushDeliveries } from "@/lib/notify-delivery";
 
 // Área privada. El middleware ya exige sesión con segundo factor (aal2);
@@ -65,12 +67,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   after(() => flushDeliveries(origin));
 
   const companyName = active ? active.trade_name || active.legal_name : null;
+  // Empresa que el equipo está operando (cookie del Centro de Mando): franja visible en todas las pantallas.
+  const operadaId = staffRole ? await empresaOperadaId() : null;
+  let operadaRow: unknown = null;
+  if (operadaId) {
+    const conPrueba = await supabase.from("companies").select("legal_name, trade_name, rut, es_prueba").eq("id", operadaId).maybeSingle();
+    // Sin la migración 0095 la columna es_prueba no existe: se pide sin ella para que la franja aparezca igual.
+    operadaRow = conPrueba.error
+      ? (await supabase.from("companies").select("legal_name, trade_name, rut").eq("id", operadaId).maybeSingle()).data
+      : conPrueba.data;
+  }
+  const operando = operadaRow
+    ? { nombre: (operadaRow as { trade_name: string | null; legal_name: string }).trade_name || (operadaRow as { legal_name: string }).legal_name,
+        rut: (operadaRow as { rut: string }).rut, prueba: !!(operadaRow as { es_prueba?: boolean }).es_prueba }
+    : null;
   const roleLabel = staffRole ? STAFF_ROLES[staffRole] : active ? ROLES[active.role] : "Sin empresa";
   const displayName = (me as { full_name: string | null } | null)?.full_name || user.email || "";
   const initial = (displayName || "?")[0].toUpperCase();
 
   // Navegación simple: lo que el cliente usa siempre. Lo demás (contabilidad, empresas, pagos, detalle) vive en el menú de la cuenta.
   const items: NavItem[] = [
+    // El equipo siempre tiene a mano el camino de vuelta al Centro de Mando.
+    ...(staffRole ? [{ href: "/mando", label: "Centro de Mando", short: "Mando", icon: "mando", group: "equipo" } as NavItem] : []),
     { href: "/panel", label: "Inicio", short: "Inicio", icon: "control", group: "empresa" },
     { href: "/casos", label: "Mis trámites", short: "Trámites", icon: "casos", group: "empresa" },
     { href: "/firmas", label: "Mis firmas", short: "Firmas", icon: "documento", group: "empresa" },
@@ -161,7 +179,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           </div>
         </header>
 
-        <main className="app-main">{children}</main>
+        <main className="app-main">
+          {operando ? <FranjaOperando empresa={operando} /> : null}
+          {children}
+        </main>
       </div>
 
       <AppNav items={items} variant="bottom" />
