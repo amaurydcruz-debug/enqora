@@ -5,6 +5,7 @@ import { auditEnabled } from "@/lib/audit";
 import { AGENTS, type AgentKey } from "@/lib/mirror";
 import { dbMessage } from "@/lib/db-errors";
 import { contextoParaAgente, buscarNormativa } from "@/lib/conocimiento-server";
+import { computadorActivo, computadorDelCaso, copiarDocumentos, guardarComputador, guardarSalidas, habilidadesDelAgente } from "@/lib/computador";
 import { createClient } from "@/lib/supabase/server";
 
 // Ejecuta un agente IA sobre un caso (lo pide una persona del equipo con sesión y segundo factor).
@@ -14,8 +15,10 @@ import { createClient } from "@/lib/supabase/server";
 // Con auditoría configurada (M15), las propuestas quedan «pendientes de auditoría» y el navegador
 // pide la auditoría en una segunda llamada (/api/agentes/auditar). Con «correctionOf», el agente
 // corrige una ejecución observada recibiendo las observaciones del auditor.
+// Computador del enjambre (0096): el agente trabaja en su contenedor Linux del caso, con los documentos del
+// expediente, sus habilidades y lectura de páginas oficiales; lo que crea vuelve al expediente como documento interno.
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fail = (message: string, status = 400) => NextResponse.json({ ok: false, message }, { status });
@@ -57,7 +60,36 @@ export async function POST(request: NextRequest) {
     : null;
   const fuentes = busqueda && !busqueda.error ? contextoParaAgente(busqueda.respaldo ? busqueda.resultados : []) : null;
 
-  const result = await runAgent(agent, context, instruction || null, AbortSignal.timeout(48_000), correction, fuentes);
+  // Computador: contenedor del caso (si sigue vigente), habilidades del agente y documentos nuevos del expediente.
+  const pcOn = computadorActivo();
+  let pc: Parameters<typeof runAgent>[6] = null;
+  let docsPrevios: string[] = [];
+  let docsNuevos: string[] = [];
+  if (pcOn) {
+    try {
+      const [comp, hab] = await Promise.all([computadorDelCaso(supabase, caseId, agent), habilidadesDelAgente(supabase, agent)]);
+      const copia = await copiarDocumentos(supabase, caseId, comp.containerId ? comp.documentos : []);
+      docsPrevios = comp.containerId ? comp.documentos : [];
+      docsNuevos = copia.copiados;
+      pc = { contenedor: comp.containerId, habilidades: hab.lista, nombresHabilidades: hab.nombres, archivos: copia.fileIds };
+    } catch (e) {
+      console.error("[ENQORA agentes] computador", e instanceof Error ? e.message : e);
+      pc = null;
+    }
+  }
+
+  const result = await runAgent(agent, context, instruction || null, AbortSignal.timeout(pc ? 240_000 : 48_000), correction, fuentes, pc);
+
+  // El computador queda guardado para la próxima ejecución; lo que el agente creó pasa al expediente (interno).
+  let entregables: string[] = [];
+  if (result.contenedor?.id) {
+    await guardarComputador(supabase, caseId, agent, result.contenedor.id, result.contenedor.expira,
+      result.contenedor.id === pc?.contenedor ? [...docsPrevios, ...docsNuevos] : docsNuevos);
+  }
+  if (result.archivos?.length) {
+    const { data: caso } = await supabase.from("cases").select("id, company_id").eq("id", caseId).maybeSingle();
+    if (caso) entregables = await guardarSalidas(supabase, caso as { id: string; company_id: string }, agent, result.archivos);
+  }
   const { data: count, error: finishError } = await supabase.rpc("finish_agent_run", {
     p_run: run,
     p_ok: result.ok,
@@ -80,5 +112,5 @@ export async function POST(request: NextRequest) {
     console.error("[ENQORA agentes]", agent, result.error);
     return fail(`El agente no pudo completar el análisis (${result.error ?? "error"}). Intenta nuevamente.`, 502);
   }
-  return NextResponse.json({ ok: true, count, summary: result.summary, run, audit: audit && Number(count) > 0 });
+  return NextResponse.json({ ok: true, count, summary: result.summary, run, audit: audit && Number(count) > 0, entregables, computador: !!result.computador });
 }

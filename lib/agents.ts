@@ -2,6 +2,7 @@ import "server-only";
 import { AGENTS, STAGES, type AgentKey } from "@/lib/mirror";
 import { knowledgeFor } from "@/lib/knowledge";
 import { CALCULATOR_TOOLS, runCalculator } from "@/lib/tax-calc";
+import { archivosCreados } from "@/lib/archivos-creados";
 
 // Agentes IA de ENQORA (M13): llaman a la API de Claude con los antecedentes reales del caso y
 // devuelven PROPUESTAS que una persona del equipo acepta o descarta. Nunca actúan por sí solos,
@@ -11,16 +12,22 @@ import { CALCULATOR_TOOLS, runCalculator } from "@/lib/tax-calc";
 //   ANTHROPIC_API_KEY      clave de la API de Claude (obligatoria para usar agentes)
 //   ANTHROPIC_MODEL        modelo (por defecto claude-sonnet-5-5)
 //   ANTHROPIC_WEB_SEARCH   "off" desactiva la búsqueda web; otro valor = versión de la herramienta
-//                          (por defecto web_search_20250305)
+//                          (por defecto web_search_20260209 con computador; web_search_20250305 sin él)
+//   ENQORA_COMPUTADOR      "off" apaga el computador del enjambre (0096): contenedor Linux con Python y archivos,
+//                          lectura de páginas oficiales y habilidades. Encendido por defecto.
 
 export const agentsEnabled = () => !!process.env.ANTHROPIC_API_KEY;
 
 const API_URL = "https://api.anthropic.com/v1/messages";
 const MODEL = () => process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
-const WEB_SEARCH = () => {
+const COMPUTADOR = () => process.env.ENQORA_COMPUTADOR?.trim() !== "off";
+const WEB_SEARCH = (computador: boolean) => {
   const v = process.env.ANTHROPIC_WEB_SEARCH?.trim();
-  return v === "off" ? null : v || "web_search_20250305";
+  return v === "off" ? null : v || (computador ? "web_search_20260209" : "web_search_20250305");
 };
+// Herramientas del computador: ejecución de código (contenedor sin internet) y lectura de páginas oficiales.
+const CODE_EXECUTION = { type: "code_execution_20260120", name: "code_execution" };
+const WEB_FETCH = (dominios: string[]) => ({ type: "web_fetch_20260209", name: "web_fetch", max_uses: 4, allowed_domains: dominios });
 
 // Fuentes oficiales chilenas a las que se limita la búsqueda web.
 import { OFFICIAL_DOMAINS } from "@/lib/dominios-oficiales";
@@ -35,7 +42,7 @@ const FOCUS: Record<AgentKey, string> = {
   estrategico: "Eres el Agente Estratégico. Ordenas las alternativas posibles, sus riesgos y beneficios, y propones la ruta de trabajo más conveniente para la empresa, por etapas.",
 };
 
-export function systemPrompt(agent: AgentKey, webSearch: boolean) {
+export function systemPrompt(agent: AgentKey, webSearch: boolean, computador?: { habilidades: string[]; archivos: number }) {
   return [
     FOCUS[agent],
     "Trabajas para ENQORA, plataforma chilena de contabilidad, impuestos y ciclo de vida empresarial. Recibes los antecedentes reales de un caso en JSON.",
@@ -47,6 +54,15 @@ export function systemPrompt(agent: AgentKey, webSearch: boolean) {
     webSearch
       ? "- Puedes usar la búsqueda web (limitada a sitios oficiales) para verificar normativa vigente. Úsala con moderación."
       : "- No tienes búsqueda web: indica en 'vigencia' que la norma debe verificarse y no inventes enlaces.",
+    ...(computador ? [
+      "- Tienes un COMPUTADOR propio para este caso: Linux con Python 3 (pandas, openpyxl, pypdf, pdfplumber, matplotlib, python-docx…), terminal y archivos, SIN acceso a internet. Lo que dejes en él se conserva para tus próximas ejecuciones en este mismo caso.",
+      computador.archivos
+        ? `- En tu directorio de trabajo están ${computador.archivos} documento(s) nuevos del expediente. Revísalos antes de concluir.`
+        : "- Si el expediente tiene documentos, ya están en tu directorio de trabajo desde ejecuciones anteriores (o no hay ninguno).",
+      `- Habilidades cargadas: ${computador.habilidades.join(", ")}. Empieza por «enqora-metodo-caso» si está disponible.`,
+      "- Puedes leer páginas de sitios oficiales con la lectura web (mismos dominios que la búsqueda).",
+      "- Los archivos que crees (máximo cinco) quedan en el expediente como borradores internos para el equipo; nómbralos y descríbelos en tu resumen.",
+    ] : []),
     "- Nunca pidas ni sugieras compartir ClaveÚnica, clave tributaria del SII, contraseñas ni claves bancarias. ENQORA actúa ante instituciones solo con mandato verificado.",
     "- No fijes precios ni honorarios; no prometas resultados; no afirmes que algo es ilegal sin fundamento.",
     "- Las preguntas al cliente deben ser concretas y responderse sin conocimientos técnicos.",
@@ -201,7 +217,10 @@ type ApiResponse = {
   model?: string;
   usage?: { input_tokens?: number; output_tokens?: number; server_tool_use?: { web_search_requests?: number } };
   error?: { type?: string; message?: string };
+  container?: { id?: string; expires_at?: string } | null;
 };
+
+export type OpcionesComputador = { contenedor?: string | null; habilidades: { type: string; skill_id: string; version: string }[]; nombresHabilidades: string[]; archivos: string[] };
 
 export type AgentResult = {
   ok: boolean;
@@ -212,24 +231,36 @@ export type AgentResult = {
   outputTokens: number;
   webSearches: number;
   error?: string;
+  contenedor?: { id: string; expira: string | null } | null;
+  archivos?: string[];
+  computador?: boolean;
 };
 
 export async function runAgent(
   agent: AgentKey, context: unknown, instruction: string | null, signal: AbortSignal, correction?: string | null,
   // Fragmentos del buscador legal (0090) para esta consulta, ya con su cita (o el aviso de que no hay respaldo).
   fuentes?: string | null,
+  // Computador del enjambre (0096): contenedor, habilidades y documentos del expediente ya subidos (file_id).
+  pc?: OpcionesComputador | null,
 ): Promise<AgentResult> {
   const key = process.env.ANTHROPIC_API_KEY;
   const model = MODEL();
-  const searchVersion = WEB_SEARCH();
+  let conPc = !!pc && COMPUTADOR();
+  let searchVersion = WEB_SEARCH(conPc);
+  let contenedor: { id: string; expira: string | null } | null = pc?.contenedor ? { id: pc.contenedor, expira: null } : null;
+  const creados: string[] = [];
   const usage = { input: 0, output: 0, searches: 0 };
   const fail = (error: string): AgentResult => ({
     ok: false, summary: "", proposals: [], model, inputTokens: usage.input, outputTokens: usage.output, webSearches: usage.searches, error,
   });
   if (!key) return fail("Falta configurar ANTHROPIC_API_KEY");
 
-  const tools: unknown[] = [RESULT_TOOL, ...CALCULATOR_TOOLS];
-  if (searchVersion) tools.push({ type: searchVersion, name: "web_search", max_uses: 4, allowed_domains: OFFICIAL_DOMAINS });
+  const herramientas = () => {
+    const t: unknown[] = [RESULT_TOOL, ...CALCULATOR_TOOLS];
+    if (searchVersion) t.push({ type: searchVersion, name: "web_search", max_uses: 4, allowed_domains: OFFICIAL_DOMAINS });
+    if (conPc) t.push(CODE_EXECUTION, WEB_FETCH(OFFICIAL_DOMAINS));
+    return t;
+  };
 
   const userText = [
     `Fecha de hoy: ${new Date().toISOString().slice(0, 10)}.`,
@@ -238,20 +269,42 @@ export async function runAgent(
     fuentes ?? "",
     correction ? `OBSERVACIONES DE LA AUDITORÍA A TU PROPUESTA ANTERIOR (corrígelas una por una):\n${correction}` : "",
   ].filter(Boolean).join("\n\n");
-  const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: userText }];
+  const primerMensaje = () => (conPc && pc?.archivos.length
+    ? [{ type: "text", text: userText }, ...pc.archivos.map((id) => ({ type: "container_upload", file_id: id }))]
+    : userText);
+  const messages: { role: "user" | "assistant"; content: unknown }[] = [{ role: "user", content: primerMensaje() }];
 
-  const call = async (toolChoice: unknown) => {
+  const call = async (toolChoice: unknown): Promise<ApiResponse> => {
+    const body: Record<string, unknown> = {
+      model, max_tokens: 8000, tools: herramientas(), tool_choice: toolChoice, messages,
+      system: systemPrompt(agent, !!searchVersion, conPc && pc ? { habilidades: pc.nombresHabilidades, archivos: pc.archivos.length } : undefined),
+    };
+    if (conPc && pc) body.container = { ...(contenedor ? { id: contenedor.id } : {}), skills: pc.habilidades };
     const res = await fetch(API_URL, {
       method: "POST",
       signal,
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: 8000, system: systemPrompt(agent, !!searchVersion), tools, tool_choice: toolChoice, messages }),
+      body: JSON.stringify(body),
     });
     const data = (await res.json().catch(() => ({}))) as ApiResponse;
-    if (!res.ok) throw new Error(`API ${res.status}: ${data.error?.type ?? "error"}`);
+    if (!res.ok) {
+      // Antifrágil: si la API rechaza el computador (contenedor vencido, habilidad o herramienta no disponible),
+      // se repite UNA vez la primera llamada sin computador, como funcionaban los agentes antes.
+      if (conPc && res.status === 400 && messages.length === 1) {
+        console.error("[ENQORA agentes] computador rechazado, se sigue sin él:", data.error?.message?.slice(0, 200));
+        conPc = false;
+        contenedor = null;
+        searchVersion = WEB_SEARCH(false);
+        messages[0] = { role: "user", content: userText };
+        return call(toolChoice);
+      }
+      throw new Error(`API ${res.status}: ${data.error?.type ?? "error"}`);
+    }
     usage.input += data.usage?.input_tokens ?? 0;
     usage.output += data.usage?.output_tokens ?? 0;
     usage.searches += data.usage?.server_tool_use?.web_search_requests ?? 0;
+    if (data.container?.id) contenedor = { id: data.container.id, expira: data.container.expires_at ?? null };
+    creados.push(...archivosCreados(data.content ?? []));
     return data;
   };
   const findResult = (d: ApiResponse) => d.content?.find((b) => b.type === "tool_use" && b.name === RESULT_TOOL.name);
@@ -259,7 +312,7 @@ export async function runAgent(
   try {
     let data = await call({ type: "auto" });
     // Ciclo de trabajo: búsqueda web (pause_turn) y calculadoras deterministas (tool_use).
-    for (let i = 0; i < 8 && !findResult(data); i++) {
+    for (let i = 0; i < (conPc ? 16 : 8) && !findResult(data); i++) {
       if (data.stop_reason === "pause_turn") {
         messages.push({ role: "assistant", content: data.content ?? [] });
         data = await call({ type: "auto" });
@@ -297,6 +350,7 @@ export async function runAgent(
     return {
       ok: true, summary, proposals, model: data.model ?? model,
       inputTokens: usage.input, outputTokens: usage.output, webSearches: usage.searches,
+      contenedor, archivos: [...new Set(creados)], computador: conPc,
     };
   } catch (e) {
     const name = e instanceof Error ? e.name : "";
