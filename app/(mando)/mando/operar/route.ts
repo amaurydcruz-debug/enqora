@@ -11,7 +11,12 @@ export async function GET(req: NextRequest) {
   const rol = await myStaffRole();
   if (!rol || rol === "ai_agent") return NextResponse.redirect(new URL("/panel", url));
   if (url.searchParams.get("salir")) {
-    const r = NextResponse.redirect(new URL("/mando/remuneraciones", url));
+    // Salida registrada (0099) y vuelta al Centro de Mando.
+    const previa = req.cookies.get(OPERANDO_COOKIE)?.value ?? "";
+    if (/^[0-9a-f-]{36}$/i.test(previa)) {
+      await (await createClient()).rpc("log_operacion", { p_company: previa, p_accion: "salir", p_destino: null }).then(() => undefined, () => undefined);
+    }
+    const r = NextResponse.redirect(new URL("/mando", url));
     r.cookies.delete(OPERANDO_COOKIE);
     return r;
   }
@@ -21,7 +26,9 @@ export async function GET(req: NextRequest) {
   const ok = (DESTINOS_OPERAR as readonly string[]).includes(destino) || /^\/contabilidad(\/\d{4}-(0[1-9]|1[0-2]))?$/.test(destino) ? destino : "/remuneraciones";
   if (!/^[0-9a-f-]{36}$/i.test(empresa) || !(await booksCompany(empresa))) return NextResponse.redirect(new URL("/mando/remuneraciones?error=ENQ_SIN_PERMISO", url));
   const supabase = await createClient();
-  await supabase.rpc("log_operacion_empresa", { p_company: empresa }).then(() => undefined, () => undefined);
+  // Entrada registrada con la pantalla de destino (0099); si aún no está aplicada, el registro anterior (0089).
+  const { error: logError } = await supabase.rpc("log_operacion", { p_company: empresa, p_accion: "entrar", p_destino: ok });
+  if (logError) await supabase.rpc("log_operacion_empresa", { p_company: empresa }).then(() => undefined, () => undefined);
   const r = NextResponse.redirect(new URL(ok, url));
   r.cookies.set(OPERANDO_COOKIE, empresa, { httpOnly: true, secure: true, sameSite: "lax", path: "/", maxAge: 10 * 3600 });
   return r;
