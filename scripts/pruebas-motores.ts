@@ -40,8 +40,7 @@ import { calculateIncomeTax as emissoImpuesto } from "./terceros/emisso-payroll/
 import { archivosCreados } from "@/lib/archivos-creados";
 import { HABILIDADES_ANTHROPIC, HABILIDADES_POR_AGENTE } from "@/lib/habilidades";
 import { PAQUETES_HABILIDADES } from "@/lib/habilidades/paquetes";
-import { calcularFiniquito } from "@/lib/finiquito";
-import { runCalculator, verifyCalcs } from "@/lib/tax-calc";
+import { verifyCalcs } from "@/lib/tax-calc";
 import { generar as generarPaquetes } from "./empaquetar-habilidades";
 import { readFileSync } from "node:fs";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
