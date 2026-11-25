@@ -3,6 +3,7 @@ import { SubmitButton } from "@/components/submit-button";
 import { AGENTS, STAGES } from "@/lib/mirror";
 import { AUDIT_STATUS, DECISION_TEXT, OBS_TYPE, VERDICT_LABEL } from "@/lib/audit-labels";
 import { AuditActions } from "./agent-audit-actions";
+import type { EntradaBitacora } from "@/lib/bitacora-computador";
 
 export type AgentRun = {
   id: string;
@@ -126,7 +127,9 @@ const STATUS_BADGE: Record<AgentProposal["status"], [string, string]> = {
   pendiente: ["", ""], aceptada: ["badge-ok", "Aceptada"], descartada: ["badge-muted", "Descartada"], reemplazada: ["badge-muted", "Reemplazada por una versión corregida"],
 };
 
-export function AgentProposals({ caseId, runs, proposals, audits, nameOf, canDecide, supervisor, auditOn }: {
+const TIPO_BITACORA: Record<string, string> = { comando: "Ejecutó", archivo: "Archivo", lectura: "Leyó", busqueda: "Buscó", calculo: "Calculó" };
+
+export function AgentProposals({ caseId, runs, proposals, audits, nameOf, canDecide, supervisor, auditOn, bitacoras = {} }: {
   caseId: string;
   runs: AgentRun[];
   proposals: AgentProposal[];
@@ -135,6 +138,7 @@ export function AgentProposals({ caseId, runs, proposals, audits, nameOf, canDec
   canDecide: boolean;
   supervisor: boolean;
   auditOn: boolean;
+  bitacoras?: Record<string, { entradas: EntradaBitacora[]; archivos: string[] }>;
 }) {
   if (!runs.length) return <p className="muted-line">Aún no se han ejecutado agentes IA en este caso.</p>;
   return (
@@ -168,6 +172,23 @@ export function AgentProposals({ caseId, runs, proposals, audits, nameOf, canDec
             {r.instruction ? <p className="muted-line">Indicación: {r.instruction}</p> : null}
             {r.summary ? <p className="pre">{r.summary}</p> : null}
             {r.status === "fallida" && r.error ? <p className="muted-line">Motivo: {r.error}</p> : null}
+            {bitacoras[r.id] ? (
+              <details className="audit-checks">
+                <summary>
+                  Bitácora del computador ({bitacoras[r.id].entradas.length} acciones
+                  {bitacoras[r.id].archivos.length ? ` · ${bitacoras[r.id].archivos.length} archivo(s) en el expediente` : ""})
+                </summary>
+                <ul>
+                  {bitacoras[r.id].entradas.map((e, i) => (
+                    <li key={i} className={e.ok === false ? "is-bad" : "is-ok"}>
+                      <b>{TIPO_BITACORA[e.tipo] ?? e.tipo}:</b> <code>{e.detalle}</code>
+                      {e.resultado ? <pre className="pre" style={{ whiteSpace: "pre-wrap", margin: ".25rem 0 0" }}>{e.resultado}</pre> : null}
+                    </li>
+                  ))}
+                  {bitacoras[r.id].archivos.map((a) => <li key={a} className="is-ok"><b>Dejó en el expediente (interno):</b> {a}</li>)}
+                </ul>
+              </details>
+            ) : null}
             {audit ? (
               <div className={`audit-box audit-${audit.status === "fallida" ? "fallida" : audit.decision ?? ""}`}>
                 <span className="eyebrow">Auditoría independiente{audit.auditor ? ` · ${audit.auditor}` : ""}</span>

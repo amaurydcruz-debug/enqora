@@ -44,6 +44,7 @@ import { verifyCalcs } from "@/lib/tax-calc";
 import { generar as generarPaquetes } from "./empaquetar-habilidades";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
+import { bitacoraDeBloques } from "@/lib/bitacora-computador";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
@@ -1295,6 +1296,30 @@ prueba("Enjambre: los programas Python de las habilidades compilan (si hay pytho
       assert.equal(r.status, 0, `${ruta}: ${r.stderr}`);
     }
   }
+});
+
+
+prueba("Enjambre: bitácora del computador (comandos con resultado, archivos, lecturas, búsquedas y cálculos)", () => {
+  const b = [
+    { type: "server_tool_use", id: "s1", name: "bash_code_execution", input: { command: "python flujo_caja.py supuestos.json" } },
+    { type: "bash_code_execution_tool_result", tool_use_id: "s1", content: { type: "bash_code_execution_result", stdout: "{\"caja_final\": 20900062}", stderr: "", return_code: 0 } },
+    { type: "server_tool_use", id: "s2", name: "bash_code_execution", input: { command: "python roto.py" } },
+    { type: "bash_code_execution_tool_result", tool_use_id: "s2", content: { type: "bash_code_execution_result", stdout: "", stderr: "Traceback: error", return_code: 1 } },
+    { type: "server_tool_use", id: "s3", name: "text_editor_code_execution", input: { command: "view", path: "/tmp/a.txt" } },
+    { type: "server_tool_use", id: "s4", name: "text_editor_code_execution", input: { command: "create", path: "/tmp/ENQ-flujo-borrador.xlsx" } },
+    { type: "server_tool_use", id: "s5", name: "web_fetch", input: { url: "https://www.bcn.cl/leychile/navegar?idNorma=207436" } },
+    { type: "server_tool_use", id: "s6", name: "web_search", input: { query: "tasa interés art 53 SII 2026" } },
+    { type: "tool_use", id: "t1", name: "calcular_finiquito", input: { causal_lre: 18 } },
+    { type: "text", text: "listo" },
+  ];
+  const e = bitacoraDeBloques(b);
+  assert.deepEqual(e.map((x) => x.tipo), ["comando", "comando", "archivo", "lectura", "busqueda", "calculo"]);
+  assert.equal(e[0].ok, true);
+  assert.ok(e[0].resultado?.includes("20900062"));
+  assert.equal(e[1].ok, false);
+  assert.ok(e[1].resultado?.includes("Traceback"));
+  assert.ok(e[2].detalle.startsWith("Creó"));
+  assert.equal(bitacoraDeBloques(Array.from({ length: 200 }, (_, i) => ({ type: "server_tool_use", id: `x${i}`, name: "web_search", input: { query: "q" } }))).length, 80);
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

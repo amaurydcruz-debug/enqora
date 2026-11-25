@@ -67,6 +67,7 @@ import { UnirPdf } from "./unir-pdf";
 import { eximirPagoAction } from "@/app/actions/cases";
 import { nombreLinea } from "@/lib/lineas";
 import { AgentRunner } from "./agent-runner";
+import type { EntradaBitacora } from "@/lib/bitacora-computador";
 import { AgentProposals, type AgentAudit, type AgentProposal, type AgentRun } from "./agent-proposals";
 import { auditEnabled } from "@/lib/audit";
 import { applyRouteAction } from "@/app/actions/agents";
@@ -316,7 +317,7 @@ export default async function CasePage({
     // Actuaciones ante instituciones (M11). RLS: el cliente ve las de su caso; los mandatos solo el equipo y los administradores.
     { data: actRows }, { data: manRows },
     // Agentes IA (M13). RLS: solo el equipo que trabaja el caso ve ejecuciones y propuestas.
-    { data: runRows }, { data: agentPropRows }, { data: auditRows },
+    { data: runRows }, { data: bitacoraRows }, { data: agentPropRows }, { data: auditRows },
     { data: allStaffRows },
     // Catálogo para cotizar (equipo) y referencias de mercado de los servicios cotizados.
     { data: sv }, { data: tf }, { data: refRows },
@@ -334,6 +335,7 @@ export default async function CasePage({
     worker ? supabase.from("mandates").select("*").eq("company_id", c.company_id).in("status", ["vigente", "pendiente_firma", "en_verificacion"])
       : canDecide0(memberRole) ? supabase.from("mandates").select("*").eq("company_id", c.company_id) : none,
     worker ? supabase.from("agent_runs").select("*").eq("case_id", id).order("created_at", { ascending: false }).limit(10) : none,
+    worker ? supabase.from("agente_bitacoras").select("run_id, entradas, archivos").eq("case_id", id).order("creado", { ascending: false }).limit(10) : none,
     worker ? supabase.from("agent_proposals").select("id, run_id, position, kind, payload, status, audit_verdict, audit_severity, audit_notes, override_note").eq("case_id", id).order("position") : none,
     worker ? supabase.from("agent_audits").select("id, run_id, status, decision, summary, checks, auditor, input_tokens, output_tokens, web_searches, error, created_at").eq("case_id", id).order("created_at", { ascending: false }).limit(30) : none,
     supervisor ? supabase.from("staff_members").select("user_id, role, active").eq("active", true) : none,
@@ -357,6 +359,7 @@ export default async function CasePage({
   const openProposals = proposals.filter((pp) => pp.status === "enviada");
 
   const agentRuns = (runRows ?? []) as AgentRun[];
+  const bitacoras = Object.fromEntries(((bitacoraRows ?? []) as { run_id: string; entradas: EntradaBitacora[]; archivos: string[] }[]).map((b) => [b.run_id, b]));
   const agentProposals = ((agentPropRows ?? []) as AgentProposal[]).filter((p) => agentRuns.some((r) => r.id === p.run_id));
   const pendingAgentProposals = agentProposals.filter((p) => p.status === "pendiente").length;
   const agentAudits = (auditRows ?? []) as AgentAudit[];
@@ -629,7 +632,7 @@ export default async function CasePage({
             <div className="sub-block">
               <h4 className="sub-title">Agentes IA (equipo)</h4>
               {!isClosed ? <AgentRunner caseId={c.id} enabled={agentsEnabled()} auditOn={auditEnabled()} /> : null}
-              <AgentProposals caseId={c.id} runs={agentRuns} proposals={agentProposals} audits={agentAudits} nameOf={nameOf}
+              <AgentProposals caseId={c.id} runs={agentRuns} proposals={agentProposals} audits={agentAudits} nameOf={nameOf} bitacoras={bitacoras}
                 canDecide={!isClosed && staffRole !== "ai_agent"} supervisor={supervisor} auditOn={auditEnabled()} />
             </div>
           ) : null}
