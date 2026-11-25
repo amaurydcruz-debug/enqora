@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { archivosCreados } from "@/lib/archivos-creados";
 import { DESCRIPCION_HABILIDAD, HABILIDADES_ANTHROPIC, HABILIDADES_POR_AGENTE } from "@/lib/habilidades";
 import { PAQUETES_HABILIDADES } from "@/lib/habilidades/paquetes";
 import type { AgentKey } from "@/lib/mirror";
@@ -176,3 +177,82 @@ async function listarHabilidades(): Promise<{ id: string; display_title?: string
 
 export const catalogoHabilidades = () =>
   PAQUETES_HABILIDADES.map((p) => ({ nombre: p.nombre, huella: p.huella, descripcion: DESCRIPCION_HABILIDAD[p.nombre] ?? "", archivos: Object.keys(p.archivos).length }));
+
+// Prueba de punta a punta del computador (Mando → Enjambre): sube un archivo, pide al modelo que lo procese en su
+// contenedor con Python y cree un archivo, y descarga ese archivo. Usa datos ficticios; no toca ningún caso.
+export type PasoPrueba = { paso: string; ok: boolean; detalle: string };
+export async function probarComputador(sb: SupabaseClient, modelo: string): Promise<{ pasos: PasoPrueba[]; ms: number }> {
+  const t0 = Date.now();
+  const pasos: PasoPrueba[] = [];
+  const paso = (p: string, ok: boolean, detalle: string) => { pasos.push({ paso: p, ok, detalle: detalle.slice(0, 400) }); return ok; };
+
+  // Base de datos: migraciones del enjambre.
+  const [e96, e97, e95] = await Promise.all([
+    sb.rpc("enjambre_estado"), sb.from("agente_bitacoras").select("run_id").limit(1), sb.rpc("sala_pruebas_estado"),
+  ]);
+  paso("Base: computador y habilidades (0096)", !e96.error, e96.error ? "Falta aplicar la migración 0096." : "Aplicada.");
+  paso("Base: bitácora (0097)", !e97.error, e97.error ? "Falta aplicar la migración 0097." : "Aplicada.");
+  paso("Base: sala de pruebas (0095)", !e95.error, e95.error ? "Falta aplicar la migración 0095." : "Aplicada.");
+
+  if (!paso("Clave de la API", !!process.env.ANTHROPIC_API_KEY, process.env.ANTHROPIC_API_KEY ? "Configurada en Vercel." : "Falta ANTHROPIC_API_KEY en Vercel.")) return { pasos, ms: Date.now() - t0 };
+
+  // 1) Subir archivo de prueba.
+  const csv = "concepto;monto\nventas;1.250.000\ncompras;830.000\narriendo;300.000\n";
+  const fileId = await subirArchivo(new TextEncoder().encode(csv), "prueba_enqora.csv", "text/csv");
+  if (!paso("Subir archivo al computador (Files API)", !!fileId, fileId ? `Archivo ${fileId}.` : "La API de archivos rechazó la subida.")) return { pasos, ms: Date.now() - t0 };
+
+  // 2) Habilidades disponibles para la prueba (una propia, si ya se subieron, más xlsx de Anthropic).
+  const { data: hab } = await sb.from("agente_habilidades").select("nombre, skill_id").eq("nombre", "enqora-documentos-contables").maybeSingle();
+  const skills: HabilidadContenedor[] = [{ type: "anthropic", skill_id: "xlsx", version: "latest" }];
+  if (hab) skills.unshift({ type: "custom", skill_id: (hab as { skill_id: string }).skill_id, version: "latest" });
+  paso("Habilidades de ENQORA", !!hab, hab ? "enqora-documentos-contables subida; se carga en la prueba." : "Aún no subidas: presiona «Subir o actualizar habilidades». La prueba sigue solo con xlsx.");
+
+  // 3) Ejecutar en el contenedor.
+  const messages: { role: "user" | "assistant"; content: unknown }[] = [{
+    role: "user",
+    content: [
+      { type: "text", text: "Prueba técnica de ENQORA. En tu computador: (1) lee el CSV prueba_enqora.csv (separador ';', montos con punto de miles) con Python; (2) suma la columna monto; (3) crea el archivo resultado_prueba.txt con el texto 'TOTAL=<suma>' sin separadores de miles; (4) responde solo 'listo TOTAL=<suma>'." + (hab ? " (5) Además ejecuta `find /mnt/skills -name inventario.py` y menciona si existe." : "") },
+      { type: "container_upload", file_id: fileId },
+    ],
+  }];
+  let contenedor: string | null = null;
+  let texto = "";
+  const bloques: unknown[] = [];
+  try {
+    for (let i = 0; i < 4; i++) {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", signal: AbortSignal.timeout(120_000),
+        headers: { "content-type": "application/json", ...cabeceras() },
+        body: JSON.stringify({
+          model: modelo, max_tokens: 2000, messages, tools: [{ type: "code_execution_20260120", name: "code_execution" }],
+          container: { ...(contenedor ? { id: contenedor } : {}), skills },
+        }),
+      });
+      const j = (await res.json().catch(() => null)) as { content?: { type: string; text?: string }[]; stop_reason?: string; container?: { id?: string }; error?: { message?: string } } | null;
+      if (!res.ok || !j) { paso("Ejecutar Python en el contenedor", false, `API ${res.status}: ${j?.error?.message ?? "sin detalle"}`); return { pasos, ms: Date.now() - t0 }; }
+      if (j.container?.id) contenedor = j.container.id;
+      bloques.push(...(j.content ?? []));
+      texto += (j.content ?? []).filter((b) => b.type === "text").map((b) => b.text ?? "").join(" ");
+      if (j.stop_reason !== "pause_turn") break;
+      messages.push({ role: "assistant", content: j.content });
+    }
+  } catch (e) {
+    paso("Ejecutar Python en el contenedor", false, e instanceof Error ? e.message : "error de red");
+    return { pasos, ms: Date.now() - t0 };
+  }
+  const suma = 1_250_000 + 830_000 + 300_000;
+  paso("Ejecutar Python en el contenedor", texto.includes(String(suma)), texto.includes(String(suma)) ? `Contenedor ${contenedor}. Respuesta: ${texto.trim().slice(0, 160)}` : `El resultado no trae ${suma}. Respuesta: ${texto.trim().slice(0, 200) || "(vacía)"}`);
+  if (hab) paso("Habilidad visible dentro del computador", /inventario\.py/.test(texto) && !/no existe/i.test(texto), texto.trim().slice(0, 200));
+
+  // 4) Traer el archivo creado.
+  const ids = archivosCreados(bloques);
+  if (!paso("Archivo creado por el agente", ids.length > 0, ids.length ? `${ids.length} archivo(s): ${ids.join(", ")}` : "El modelo no dejó archivos en la respuesta.")) return { pasos, ms: Date.now() - t0 };
+  try {
+    const r = await fetch(`${API}/files/${encodeURIComponent(ids[0])}/content`, { headers: cabeceras({ "anthropic-beta": BETA_FILES }), signal: AbortSignal.timeout(30_000) });
+    const contenido = r.ok ? await r.text() : "";
+    paso("Descargar el archivo creado", r.ok && contenido.includes(`TOTAL=${suma}`), r.ok ? `Contenido: ${contenido.slice(0, 80)}` : `API ${r.status}`);
+  } catch (e) {
+    paso("Descargar el archivo creado", false, e instanceof Error ? e.message : "error");
+  }
+  return { pasos, ms: Date.now() - t0 };
+}

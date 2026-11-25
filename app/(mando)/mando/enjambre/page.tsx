@@ -6,7 +6,7 @@ import { HABILIDADES_ANTHROPIC, HABILIDADES_POR_AGENTE } from "@/lib/habilidades
 import { AGENTS, type AgentKey } from "@/lib/mirror";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
-import { PanelSincronizar } from "./panel";
+import { PanelProbar, PanelSincronizar } from "./panel";
 
 export const metadata: Metadata = { title: "Enjambre: computador y habilidades" };
 export const dynamic = "force-dynamic";
@@ -64,7 +64,13 @@ export default async function EnjambrePage() {
             </span>
           </li>
         </ul>
-        <p className="muted-line">Para probar sin tocar clientes, usa la <Link href="/mando/pruebas">Sala de pruebas</Link>.</p>
+        {isSupervisorRole(role) ? (
+          <>
+            <p className="muted-line">«Probar computador» sube un archivo ficticio, le pide a Claude sumarlo con Python en su contenedor, crear un archivo y lo descarga. Revisa también las migraciones y las habilidades.</p>
+            <PanelProbar />
+          </>
+        ) : null}
+        <p className="muted-line">Para probar con casos completos sin tocar clientes, usa la <Link href="/mando/pruebas">Sala de pruebas</Link>.</p>
       </section>
 
       <section className="card">

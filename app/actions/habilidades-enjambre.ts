@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { computadorActivo, sincronizarHabilidades, type ResultadoSincronizar } from "@/lib/computador";
+import { MODEL } from "@/lib/agents";
+import { computadorActivo, probarComputador, sincronizarHabilidades, type PasoPrueba, type ResultadoSincronizar } from "@/lib/computador";
 import { isSupervisorRole, myStaffRole } from "@/lib/staff";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,5 +19,18 @@ export async function sincronizarHabilidadesAction(_prev: EstadoSincronizar, _fo
   } catch (e) {
     console.error("[ENQORA enjambre]", e instanceof Error ? e.message : e);
     return { ok: false, error: "No se pudieron subir las habilidades. Intenta nuevamente." };
+  }
+}
+
+export type EstadoPrueba = { pasos: PasoPrueba[]; ms: number } | { error: string } | null;
+
+// Prueba de punta a punta del computador del enjambre (supervisión). Datos ficticios; no toca casos.
+export async function probarComputadorAction(_prev: EstadoPrueba, _form: FormData): Promise<EstadoPrueba> {
+  if (!isSupervisorRole(await myStaffRole())) return { error: "Solo supervisión y administración pueden probar el computador." };
+  try {
+    return await probarComputador(await createClient(), MODEL());
+  } catch (e) {
+    console.error("[ENQORA enjambre] prueba", e instanceof Error ? e.message : e);
+    return { error: "La prueba no se pudo completar. Intenta nuevamente." };
   }
 }

@@ -20,7 +20,7 @@ import { bitacoraDeBloques, type EntradaBitacora } from "@/lib/bitacora-computad
 export const agentsEnabled = () => !!process.env.ANTHROPIC_API_KEY;
 
 const API_URL = "https://api.anthropic.com/v1/messages";
-const MODEL = () => process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
+export const MODEL = () => process.env.ANTHROPIC_MODEL?.trim() || "claude-sonnet-5-5";
 const COMPUTADOR = () => process.env.ENQORA_COMPUTADOR?.trim() !== "off";
 const WEB_SEARCH = (computador: boolean) => {
   const v = process.env.ANTHROPIC_WEB_SEARCH?.trim();
