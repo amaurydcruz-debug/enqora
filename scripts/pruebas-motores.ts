@@ -45,6 +45,7 @@ import { generar as generarPaquetes } from "./empaquetar-habilidades";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { bitacoraDeBloques } from "@/lib/bitacora-computador";
+import { ameritaRevision, rutasInsolvencia, senalesInsolvencia, tamanoMipe } from "@/lib/insolvencia";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
@@ -1320,6 +1321,38 @@ prueba("Enjambre: bitácora del computador (comandos con resultado, archivos, le
   assert.ok(e[1].resultado?.includes("Traceback"));
   assert.ok(e[2].detalle.startsWith("Creó"));
   assert.equal(bitacoraDeBloques(Array.from({ length: 200 }, (_, i) => ({ type: "server_tool_use", id: `x${i}`, name: "web_search", input: { query: "q" } }))).length, 80);
+});
+
+
+prueba("Insolvencia: señales en el relato, tamaño mipe (Superir) y rutas orientativas para el abogado", () => {
+  const s1 = senalesInsolvencia("Tengo deudas vencidas con el banco y me llegó una demanda ejecutiva. No puedo pagar.");
+  assert.deepEqual(s1, ["Dice que no puede pagar", "Deudas vencidas o morosidad", "Cobranza judicial"]);
+  assert.ok(ameritaRevision(s1));
+  assert.deepEqual(senalesInsolvencia("Necesito presentar el F29 de octubre y renovar la patente."), []);
+  assert.ok(!ameritaRevision(["Sin dinero o liquidez"])); // una señal débil sola no avisa
+  assert.ok(ameritaRevision(["Embargo"]));
+  assert.equal(tamanoMipe(1800, 4), "micro");
+  assert.equal(tamanoMipe(2400, 9), "micro");
+  assert.equal(tamanoMipe(2400.5, 12), "pequena");
+  assert.equal(tamanoMipe(30_000, 80), "mayor");
+  assert.equal(tamanoMipe(1800, 15), "por_verificar"); // ingresos de micro y trabajadores de pequeña
+  assert.equal(tamanoMipe(null, 4), "por_verificar");
+  const cierre = rutasInsolvencia({ tipo: "empresa", ingresosUF12m: 1800, trabajadores: 4, sigueOperando: false });
+  assert.equal(cierre.find((r) => r.ruta === "Reorganización simplificada")?.estado, "no_aplica");
+  assert.equal(cierre.find((r) => r.ruta === "Liquidación voluntaria simplificada")?.estado, "probable");
+  const viable = rutasInsolvencia({ tipo: "empresa", ingresosUF12m: 9000, trabajadores: 20, sigueOperando: true });
+  assert.equal(viable.find((r) => r.ruta === "Reorganización simplificada")?.estado, "probable");
+  assert.ok(rutasInsolvencia({ tipo: "empresa", ingresosUF12m: 40_000, trabajadores: 120 }).some((r) => r.ruta.includes("ordinaria")));
+  const persona = (deudas: { acreedor: string; montoUF: number; diasVencida: number }[], dem: boolean | null) =>
+    rutasInsolvencia({ tipo: "persona", deudas, notificadaDemandaLiquidacionOEjecutiva: dem })[0].estado;
+  const dos = [{ acreedor: "Banco A", montoUF: 50, diasVencida: 140 }, { acreedor: "Retail B", montoUF: 40, diasVencida: 100 }];
+  assert.equal(persona(dos, false), "probable");
+  assert.equal(persona(dos, true), "no_aplica");
+  assert.equal(persona(dos, null), "por_verificar");
+  assert.equal(persona([{ acreedor: "Banco A", montoUF: 50, diasVencida: 140 }, { acreedor: "banco a", montoUF: 40, diasVencida: 100 }], false), "no_aplica"); // mismo acreedor
+  assert.equal(persona([{ acreedor: "Banco A", montoUF: 30, diasVencida: 140 }, { acreedor: "Retail B", montoUF: 40, diasVencida: 100 }], false), "no_aplica"); // 70 UF
+  assert.equal(persona([{ acreedor: "Banco A", montoUF: 50, diasVencida: 80 }, { acreedor: "Retail B", montoUF: 40, diasVencida: 100 }], false), "no_aplica"); // una con menos de 90 días
+  assert.ok(rutasInsolvencia({ tipo: "persona", deudas: dos })[0].motivos.some((m) => m.includes("gratuito")));
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

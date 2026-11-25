@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Notice } from "@/components/auth-card";
+import { ameritaRevision, senalesInsolvencia } from "@/lib/insolvencia";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import { SubmitButton } from "@/components/submit-button";
 import { clp } from "@/lib/pricing";
@@ -628,6 +629,13 @@ export default async function CasePage({
       content: (
         <>
           <AgentsPanel steps={steps} caseStatus={c.status} />
+          {worker && ameritaRevision(senalesInsolvencia(`${c.title} ${c.description ?? ""}`)) ? (
+            <Notice kind="error">
+              Posible insolvencia (solo equipo): {senalesInsolvencia(`${c.title} ${c.description ?? ""}`).join(" · ")}. Antes de proponer nada al cliente,
+              un abogado evalúa las rutas de la Ley 20.720 (reorganización o liquidación simplificada, renegociación de la persona deudora).
+              Usa el Agente Legal con la indicación «evaluar insolvencia» y revisa <a href="/mando/insolvencia">Mando → Insolvencia</a>.
+            </Notice>
+          ) : null}
           {worker ? (
             <div className="sub-block">
               <h4 className="sub-title">Agentes IA (equipo)</h4>
