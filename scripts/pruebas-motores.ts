@@ -43,6 +43,7 @@ import { PAQUETES_HABILIDADES } from "@/lib/habilidades/paquetes";
 import { verifyCalcs } from "@/lib/tax-calc";
 import { generar as generarPaquetes } from "./empaquetar-habilidades";
 import { readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
@@ -1281,6 +1282,19 @@ prueba("Enjambre: archivos creados en el computador se detectan solo dentro de r
   assert.deepEqual(archivosCreados(bloques).sort(), ["file_A", "file_B"]);
   assert.deepEqual(archivosCreados([]), []);
   void calcularFiniquito;
+});
+
+
+prueba("Enjambre: los programas Python de las habilidades compilan (si hay python3 en esta máquina)", () => {
+  const py = spawnSync("python3", ["--version"]);
+  if (py.status !== 0) return; // en Vercel no hay python: la prueba se omite
+  for (const p of PAQUETES_HABILIDADES) {
+    for (const [ruta, codigo] of Object.entries(p.archivos)) {
+      if (!ruta.endsWith(".py")) continue;
+      const r = spawnSync("python3", ["-c", "import ast,sys; ast.parse(sys.stdin.read())"], { input: codigo });
+      assert.equal(r.status, 0, `${ruta}: ${r.stderr}`);
+    }
+  }
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);
