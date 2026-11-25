@@ -194,6 +194,21 @@ export const RULES: Record<string, Rule> = {
     regla: "Ley 21.719 modifica la Ley 19.628 y crea la Agencia de Protección de Datos Personales; entra en vigencia el 1-12-2026. Exige base de licitud, deber de información, derechos de acceso, rectificación, supresión, oposición y portabilidad, medidas de seguridad y régimen de sanciones.",
     fuente: { titulo: "Ley 21.719", vigencia: "Desde 01-12-2026", url: "https://www.bcn.cl/leychile/navegar?idNorma=1209272" },
   },
+  insolvencia_reorganizacion_simplificada: {
+    tema: "Reorganización simplificada para micro y pequeñas empresas (insolvencia)",
+    regla: "Ley 20.720 modificada por la Ley 21.563 (vigente desde el 11-08-2023): pueden pedirla las empresas deudoras que califiquen como micro (ingresos anuales de 12 meses hasta 2.400 UF y 1 a 9 trabajadores) o pequeña empresa (más de 2.400 y hasta 25.000 UF, y 10 a 49 trabajadores). Es judicial, con patrocinio de abogado y un veedor que supervisa la propuesta de acuerdo con los acreedores (nuevos plazos o modificación de obligaciones). La protección financiera concursal dura 40 días desde su publicación en el Boletín Concursal, prorrogable dos veces por 30 días. Supone que el negocio sigue operando.",
+    fuente: { titulo: "Superir · Reorganización Simplificada", articulo: "Ley 20.720, procedimiento de reorganización simplificada (Ley 21.563)", vigencia: "Desde 11-08-2023", url: "https://www.superir.gob.cl/reorganizacion-simplificada/" },
+  },
+  insolvencia_liquidacion_simplificada: {
+    tema: "Liquidación voluntaria simplificada (cierre ordenado de una mipe o de una persona)",
+    regla: "Ley 20.720, art. 273 y siguientes (Ley 21.563): procedimiento de liquidación voluntaria simplificada para personas deudoras y micro y pequeñas empresas, más ágil que la liquidación ordinaria y pensado para quienes no tienen ingresos suficientes o están en insolvencia profunda. Se entregan los bienes (salvo los excluidos por ley) para pagar a los acreedores. El deudor acredita su calidad con la declaración jurada de la Superir (NCG N° 22). Ocultar bienes o dar antecedentes falsos configura mala fe e impide la extinción de las deudas.",
+    fuente: { titulo: "Ley 20.720 (texto vigente) y Superir · NCG N° 22", articulo: "Art. 273 y ss. Ley 20.720", vigencia: "Desde 11-08-2023", url: "https://www.bcn.cl/leychile/navegar?idLey=20720" },
+  },
+  insolvencia_renegociacion: {
+    tema: "Renegociación de la persona deudora (Superir, gratuita)",
+    regla: "Ley 20.720: la persona deudora puede pedir la renegociación si tiene dos o más obligaciones vencidas por más de 90 días corridos, actualmente exigibles, provenientes de obligaciones diversas, por un total superior a 80 UF, siempre que no haya sido notificada de una demanda de liquidación o de cobro ejecutivo (verificar las condiciones exactas en el texto vigente). Es un procedimiento administrativo y gratuito ante la Superir; desde la Ley 21.563 también pueden usarlo quienes emiten boletas de honorarios. ENQORA no cobra por este trámite: informa y orienta.",
+    fuente: { titulo: "Ley 20.720, Procedimiento Concursal de Renegociación de la Persona Deudora", articulo: "Ley 20.720, Capítulo V, Título 1", vigencia: "Vigente", url: "https://www.bcn.cl/leychile/navegar?idLey=20720" },
+  },
 };
 
 // ---------------------------------------------------------------------
@@ -417,6 +432,23 @@ export const PLAYBOOKS: Playbook[] = [
     normas: ["datos_personales"],
     preguntar: ["¿Qué datos personales guarda y dónde?", "¿Usa proveedores externos (correo, nube, pagos)?"],
     riesgo: "medio",
+  },
+  {
+    id: "insolvencia_mipe",
+    caso: "Empresa o persona que no puede pagar sus deudas ni regularizarse (impuestos, cotizaciones, proveedores, bancos)",
+    senales: ["dice que no puede pagar o no tiene dinero", "deudas vencidas por más de 90 días", "embargos, demandas ejecutivas o cobranza judicial", "protestos o registro de morosos", "quiere cerrar la empresa"],
+    pasos: [
+      "Levantar la deuda completa: acreedor, monto en UF, fecha de vencimiento, garantías y si hay juicios o embargos.",
+      "Calificar al deudor: empresa deudora (micro o pequeña según ingresos de 12 meses y trabajadores) o persona deudora.",
+      "Antes de lo concursal, revisar alternativas: convenio con Tesorería o el SII, repactación con bancos, venta de activos no esenciales.",
+      "Si el negocio es viable con nuevos plazos: evaluar reorganización simplificada (abogado patrocinante y veedor).",
+      "Si no es viable: evaluar liquidación voluntaria simplificada (cierre ordenado), con efectos para socios, avales y trabajadores.",
+      "Persona deudora: evaluar primero la renegociación gratuita de la Superir.",
+      "El abogado decide y aprueba qué se informa al cliente; nunca se pide la ClaveÚnica.",
+    ],
+    normas: ["insolvencia_reorganizacion_simplificada", "insolvencia_liquidacion_simplificada", "insolvencia_renegociacion"],
+    preguntar: ["detalle de deudas con acreedor, monto y fecha de vencimiento", "ingresos de los últimos 12 meses y número de trabajadores", "bienes de la empresa y garantías o avales de los socios", "demandas, embargos o notificaciones recibidas", "si el negocio puede seguir operando con nuevos plazos"],
+    riesgo: "alto",
   },
 ];
 

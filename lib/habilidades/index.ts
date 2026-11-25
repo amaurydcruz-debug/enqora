@@ -5,10 +5,10 @@ import type { AgentKey } from "@/lib/mirror";
 export const HABILIDADES_POR_AGENTE: Record<AgentKey, string[]> = {
   tributario: ["enqora-metodo-caso", "enqora-casos-tributarios", "enqora-documentos-contables", "enqora-investigacion-normativa", "enqora-entregables"],
   contable: ["enqora-metodo-caso", "enqora-cierre-contable", "enqora-documentos-contables", "enqora-casos-tributarios", "enqora-entregables"],
-  legal: ["enqora-metodo-caso", "enqora-laboral-metodo", "enqora-societario", "enqora-investigacion-normativa", "enqora-entregables"],
-  financiero: ["enqora-metodo-caso", "enqora-finanzas-pyme", "enqora-documentos-contables", "enqora-estrategia", "enqora-entregables"],
+  legal: ["enqora-metodo-caso", "enqora-laboral-metodo", "enqora-societario", "enqora-insolvencia", "enqora-investigacion-normativa", "enqora-entregables"],
+  financiero: ["enqora-metodo-caso", "enqora-finanzas-pyme", "enqora-documentos-contables", "enqora-estrategia", "enqora-insolvencia", "enqora-entregables"],
   investigador: ["enqora-metodo-caso", "enqora-investigacion-normativa", "enqora-entregables"],
-  estrategico: ["enqora-metodo-caso", "enqora-estrategia", "enqora-finanzas-pyme", "enqora-casos-tributarios", "enqora-societario", "enqora-entregables"],
+  estrategico: ["enqora-metodo-caso", "enqora-estrategia", "enqora-finanzas-pyme", "enqora-casos-tributarios", "enqora-societario", "enqora-insolvencia", "enqora-entregables"],
 };
 
 // Habilidades de Anthropic (prearmadas) para producir archivos.
@@ -25,4 +25,5 @@ export const DESCRIPCION_HABILIDAD: Record<string, string> = {
   "enqora-societario": "Constitución, modificación, poderes y disolución de sociedades.",
   "enqora-investigacion-normativa": "Verificación de normas en fuentes oficiales y fichas normativas citables.",
   "enqora-estrategia": "Matriz de decisión ponderada con sensibilidad y hoja de ruta por etapas.",
+  "enqora-insolvencia": "Ley 20.720 y Ley 21.563: reorganización y liquidación simplificadas, renegociación de la persona deudora; propuesta para el abogado.",
 };
