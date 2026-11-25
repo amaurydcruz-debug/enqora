@@ -90,6 +90,12 @@ export async function POST(request: NextRequest) {
     const { data: caso } = await supabase.from("cases").select("id, company_id").eq("id", caseId).maybeSingle();
     if (caso) entregables = await guardarSalidas(supabase, caso as { id: string; company_id: string }, agent, result.archivos);
   }
+  // Bitácora del computador (0097): comandos, archivos, lecturas, búsquedas y cálculos de esta ejecución.
+  if (result.bitacora?.length || entregables.length) {
+    await supabase.rpc("agente_bitacora_guardar", {
+      p_run: run, p_entradas: result.bitacora ?? [], p_archivos: entregables, p_contenedor: result.contenedor?.id ?? null,
+    }).then(() => undefined, () => undefined);
+  }
   const { data: count, error: finishError } = await supabase.rpc("finish_agent_run", {
     p_run: run,
     p_ok: result.ok,

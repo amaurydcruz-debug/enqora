@@ -3,6 +3,7 @@ import { AGENTS, STAGES, type AgentKey } from "@/lib/mirror";
 import { knowledgeFor } from "@/lib/knowledge";
 import { CALCULATOR_TOOLS, runCalculator } from "@/lib/tax-calc";
 import { archivosCreados } from "@/lib/archivos-creados";
+import { bitacoraDeBloques, type EntradaBitacora } from "@/lib/bitacora-computador";
 
 // Agentes IA de ENQORA (M13): llaman a la API de Claude con los antecedentes reales del caso y
 // devuelven PROPUESTAS que una persona del equipo acepta o descarta. Nunca actúan por sí solos,
@@ -234,6 +235,7 @@ export type AgentResult = {
   contenedor?: { id: string; expira: string | null } | null;
   archivos?: string[];
   computador?: boolean;
+  bitacora?: EntradaBitacora[];
 };
 
 export async function runAgent(
@@ -249,6 +251,7 @@ export async function runAgent(
   let searchVersion = WEB_SEARCH(conPc);
   let contenedor: { id: string; expira: string | null } | null = pc?.contenedor ? { id: pc.contenedor, expira: null } : null;
   const creados: string[] = [];
+  const bloques: unknown[] = [];
   const usage = { input: 0, output: 0, searches: 0 };
   const fail = (error: string): AgentResult => ({
     ok: false, summary: "", proposals: [], model, inputTokens: usage.input, outputTokens: usage.output, webSearches: usage.searches, error,
@@ -305,6 +308,7 @@ export async function runAgent(
     usage.searches += data.usage?.server_tool_use?.web_search_requests ?? 0;
     if (data.container?.id) contenedor = { id: data.container.id, expira: data.container.expires_at ?? null };
     creados.push(...archivosCreados(data.content ?? []));
+    bloques.push(...(data.content ?? []));
     return data;
   };
   const findResult = (d: ApiResponse) => d.content?.find((b) => b.type === "tool_use" && b.name === RESULT_TOOL.name);
@@ -350,7 +354,7 @@ export async function runAgent(
     return {
       ok: true, summary, proposals, model: data.model ?? model,
       inputTokens: usage.input, outputTokens: usage.output, webSearches: usage.searches,
-      contenedor, archivos: [...new Set(creados)], computador: conPc,
+      contenedor, archivos: [...new Set(creados)], computador: conPc, bitacora: bitacoraDeBloques(bloques),
     };
   } catch (e) {
     const name = e instanceof Error ? e.name : "";
