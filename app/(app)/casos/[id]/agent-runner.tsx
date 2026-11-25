@@ -34,10 +34,11 @@ export function AgentRunner({ caseId, enabled, auditOn = false, defaultAgent = "
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ caseId, agent, instruction }),
       });
-      const data = (await res.json().catch(() => null)) as { ok?: boolean; message?: string; count?: number; run?: string; audit?: boolean } | null;
+      const data = (await res.json().catch(() => null)) as { ok?: boolean; message?: string; count?: number; run?: string; audit?: boolean; entregables?: string[] } | null;
       if (!res.ok || !data?.ok) throw new Error(data?.message ?? "No se pudo ejecutar el agente. Revisa tu sesión e intenta nuevamente.");
       const n = data.count ?? 0;
       let text = n ? `${AGENTS[agent].name} entregó ${n} propuesta${n === 1 ? "" : "s"} para revisar.` : `${AGENTS[agent].name} no encontró propuestas nuevas.`;
+      if (data.entregables?.length) text += ` Dejó ${data.entregables.length} archivo(s) en el expediente como borrador interno: ${data.entregables.join(", ")}.`;
       setInstruction("");
       // Auditoría independiente inmediata (si está configurada).
       if (data.audit && data.run) {
@@ -65,7 +66,7 @@ export function AgentRunner({ caseId, enabled, auditOn = false, defaultAgent = "
         busy === "audit" ? (
           <EnqoraClockLoader mode="ia" label="Auditoría independiente en curso" detail="Un segundo sistema revisa normas, fuentes, cálculos y reglas de ENQORA antes de que la propuesta pueda usarse." />
         ) : (
-          <EnqoraClockLoader mode="ia" label={`${AGENTS[agent].name} trabajando`} detail="Revisando los antecedentes reales del caso, la base normativa y los cálculos. Puede tardar hasta un minuto." />
+          <EnqoraClockLoader mode="ia" label={`${AGENTS[agent].name} trabajando`} detail="Trabaja en su computador con los antecedentes y documentos del caso, la base normativa y los cálculos. Puede tardar algunos minutos." />
         )
       ) : (
         <>

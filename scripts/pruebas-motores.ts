@@ -37,6 +37,12 @@ import { calculateHealth as emissoSalud } from "./terceros/emisso-payroll/rules/
 import { calculateUnemployment as emissoAFC } from "./terceros/emisso-payroll/rules/unemployment";
 import { calculateGratification as emissoGrat } from "./terceros/emisso-payroll/rules/gratification";
 import { calculateIncomeTax as emissoImpuesto } from "./terceros/emisso-payroll/rules/income-tax";
+import { archivosCreados } from "@/lib/archivos-creados";
+import { HABILIDADES_ANTHROPIC, HABILIDADES_POR_AGENTE } from "@/lib/habilidades";
+import { PAQUETES_HABILIDADES } from "@/lib/habilidades/paquetes";
+import { verifyCalcs } from "@/lib/tax-calc";
+import { generar as generarPaquetes } from "./empaquetar-habilidades";
+import { readFileSync } from "node:fs";
 import { anioPorDefecto, leerFactores } from "@/lib/certificado6";
 import { aniversarios, saldoVacaciones, type RegistroVacacion } from "@/lib/vacaciones";
 import { avisosRIOHS, textoRIOHS, validarRIOHS, type DatosRIOHS } from "@/lib/plantilla-riohs";
@@ -1223,6 +1229,58 @@ prueba("Remuneraciones: segunda opinión con emisso-payroll (MIT) en 48 trabajad
   assert.equal(impuestoUnico(400 * UTM, UTM), Math.round((400 * 0.40 - 38.82) * UTM));
   assert.notEqual(emissoImpuesto(200 * UTM, tablaEmisso, UTM), impuestoUnico(200 * UTM, UTM));
   for (let b = 0; b < 120 * UTM; b += 7_000) assert.ok(Math.abs(impuestoUnico(b, UTM) - emissoImpuesto(b, tablaEmisso, UTM)) <= 1, `base ${b}`);
+});
+
+
+prueba("Enjambre: calculadoras de finiquito e impuesto único usan los motores de ENQORA y la auditoría las recalcula", () => {
+  const entradas = { fecha_ingreso: "2023-03-01", fecha_termino: "2026-11-30", causal_lre: 18, ultima_remuneracion: 812_500, aviso_30_dias: false, uf: 39_500 };
+  const r = runCalculator("calcular_finiquito", entradas);
+  assert.ok(r.ok, JSON.stringify(r));
+  if (!r.ok) return;
+  assert.equal(r.resultado.anos_indemnizados, 4); // 3 años y 9 meses: la fracción de 6 meses o más cuenta como año
+  assert.equal(r.resultado.indemnizacion_anos_servicio, 812_500 * 4);
+  assert.equal(r.resultado.indemnizacion_aviso_previo, 812_500);
+  assert.ok(String(r.resultado.plazo_pago).length >= 10);
+  assert.ok(verifyCalcs([{ herramienta: "calcular_finiquito", entradas, resultado: r.resultado }]).every((x) => x.ok));
+  assert.ok(!verifyCalcs([{ herramienta: "calcular_finiquito", entradas, resultado: { ...r.resultado, total: 1 } }])[0].ok);
+  const malo = runCalculator("calcular_finiquito", { fecha_ingreso: "2023-03-01" });
+  assert.ok(!malo.ok && malo.error.includes("causal_lre"));
+  const i = runCalculator("calcular_impuesto_unico", { base_tributable: 200 * 69_000, utm: 69_000 });
+  assert.ok(i.ok && i.resultado.impuesto === Math.round((200 * 0.35 - 23.32) * 69_000));
+});
+
+prueba("Enjambre: habilidades empaquetadas al día, válidas para la API y asignadas a agentes existentes", () => {
+  assert.equal(readFileSync("lib/habilidades/paquetes.ts", "utf8"), generarPaquetes(), "Ejecuta: tsx scripts/empaquetar-habilidades.ts");
+  const nombres = new Set(PAQUETES_HABILIDADES.map((p) => p.nombre));
+  for (const p of PAQUETES_HABILIDADES) {
+    const md = p.archivos[`${p.nombre}/SKILL.md`];
+    assert.ok(md, `${p.nombre} sin SKILL.md`);
+    const fm = /^---\nname: ([^\n]+)\ndescription: ([^\n]+)\n---\n/.exec(md);
+    assert.ok(fm, `${p.nombre}: frontmatter`);
+    assert.equal(fm![1], p.nombre);
+    assert.match(p.nombre, /^[a-z0-9-]{1,64}$/);
+    assert.ok(!/anthropic|claude/.test(p.nombre));
+    assert.ok(fm![2].length <= 1024 && !/[<>]/.test(fm![2]), `${p.nombre}: descripción`);
+    assert.ok(Object.values(p.archivos).join("").length < 30 * 1024 * 1024);
+    assert.ok(Object.keys(p.archivos).every((k) => k.startsWith(`${p.nombre}/`)));
+  }
+  for (const [agente, lista] of Object.entries(HABILIDADES_POR_AGENTE)) {
+    for (const h of lista) assert.ok(nombres.has(h), `${agente}: ${h} no existe`);
+    assert.ok(lista.length + HABILIDADES_ANTHROPIC.length <= 20);
+    assert.ok(lista.includes("enqora-metodo-caso"));
+  }
+});
+
+prueba("Enjambre: archivos creados en el computador se detectan solo dentro de resultados de ejecución de código", () => {
+  const bloques = [
+    { type: "text", text: "listo", file_id: "file_no_cuenta" },
+    { type: "bash_code_execution_tool_result", tool_use_id: "x", content: { type: "bash_code_execution_result", stdout: "", return_code: 0, content: [{ type: "bash_code_execution_output", file_id: "file_A" }] } },
+    { type: "text_editor_code_execution_tool_result", tool_use_id: "y", content: { type: "text_editor_code_execution_create_result", file_id: "file_B" } },
+    { type: "bash_code_execution_tool_result", tool_use_id: "z", content: { type: "bash_code_execution_result", content: [{ file_id: "file_A" }] } },
+  ];
+  assert.deepEqual(archivosCreados(bloques).sort(), ["file_A", "file_B"]);
+  assert.deepEqual(archivosCreados([]), []);
+  void calcularFiniquito;
 });
 
 console.log(`${ok} pruebas correctas${fallos.length ? `, ${fallos.length} fallidas` : ""}.`);

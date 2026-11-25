@@ -114,6 +114,7 @@ export default async function CommandCenterPage({
           <Link href="/mando/vigilancia" className="btn btn-ghost btn-inline">Vigilancia normativa</Link>
           <Link href="/mando/buscador" className="btn btn-ghost btn-inline">Buscador legal</Link>
           <Link href="/mando/pruebas" className="btn btn-ghost btn-inline">Sala de pruebas</Link>
+          <Link href="/mando/enjambre" className="btn btn-ghost btn-inline">Enjambre</Link>
           {supervisor ? <Link href="/mando/cobros" className="btn btn-ghost btn-inline">Cobros y pagos</Link> : null}
           {supervisor ? <Link href="/mando/estado" className="btn btn-ghost btn-inline">Estado del sistema</Link> : null}
           {supervisor ? <Link href="/mando/agentes" className="btn btn-ghost btn-inline">Operación de agentes</Link> : null}
