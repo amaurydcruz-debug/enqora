@@ -28,6 +28,13 @@ export const INSTITUTIONS: Record<string, Institution> = {
   fosis: { key: "fosis", sigla: "FOSIS", nombre: "Fondo de Solidaridad e Inversión Social", competencia: "Programas de emprendimiento para personas en situación de vulnerabilidad.", url: "https://www.fosis.gob.cl" },
   sence: { key: "sence", sigla: "SENCE", nombre: "Servicio Nacional de Capacitación y Empleo", competencia: "Capacitación y franquicia tributaria.", url: "https://sence.gob.cl" },
   prochile: { key: "prochile", sigla: "ProChile", nombre: "ProChile", competencia: "Apoyo a la exportación e internacionalización.", url: "https://www.prochile.gob.cl" },
+  sernameg: { key: "sernameg", sigla: "SernamEG", nombre: "Servicio Nacional de la Mujer y la Equidad de Género", competencia: "Programas para mujeres emprendedoras y trabajadoras (Mujer Emprende, Mujeres Jefas de Hogar).", url: "https://www.sernameg.gob.cl" },
+  prodemu: { key: "prodemu", sigla: "PRODEMU", nombre: "Fundación para la Promoción y Desarrollo de la Mujer", competencia: "Talleres y apoyo a mujeres emprendedoras.", url: "https://www.prodemu.cl" },
+  indap: { key: "indap", sigla: "INDAP", nombre: "Instituto de Desarrollo Agropecuario", competencia: "Créditos y apoyo a pequeños productores agrícolas.", url: "https://www.indap.gob.cl" },
+  cnr: { key: "cnr", sigla: "CNR", nombre: "Comisión Nacional de Riego", competencia: "Fomento al riego y capacitaciones.", url: "https://www.cnr.gob.cl" },
+  dedecon: { key: "dedecon", sigla: "DEDECON", nombre: "Defensoría del Contribuyente", competencia: "Orientación y acompañamiento tributario gratuito; defensa de los derechos de los contribuyentes ante el SII.", url: "https://dedecon.cl" },
+  bancoestado: { key: "bancoestado", sigla: "BancoEstado", nombre: "BancoEstado (administrador de FOGAPE)", competencia: "Administra el Fondo de Garantía para Pequeños y Medianos Empresarios (FOGAPE), supervisado por la CMF.", url: "https://www.bancoestado.cl" },
+  economia: { key: "economia", sigla: "Economía", nombre: "Ministerio de Economía, Fomento y Turismo", competencia: "Chile Emprende: plataforma que reúne la oferta pública de apoyo para emprendedores, mipymes y cooperativas.", url: "https://www.chileemprende.gob.cl" },
 };
 
 export const institution = (k: string) => INSTITUTIONS[k] ?? null;
