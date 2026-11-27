@@ -75,7 +75,7 @@ export const AGENTES: Agente[] = [
   { id: "a14", numero: "14", nombre: "Reputación digital", especialidad: "Presencia web y señales públicas",
     fuentes: ["web_publica"], secciones: ["marketing"], estado: "parcial",
     responsabilidades: ["Hoy: autoevaluación", "Etapa 4: búsqueda web de la empresa con aprobación humana"] },
-  { id: "a15", numero: "15", nombre: "Crecimiento", especialidad: "CORFO, Sercotec, SENCE y compras públicas",
+  { id: "a15", numero: "15", nombre: "Crecimiento", especialidad: "CORFO, Sercotec, FOSIS, SENCE, INDAP, SernamEG, PRODEMU, FOGAPE y compras públicas",
     fuentes: ["beneficios_m16"], secciones: ["crecimiento"], estado: "activo",
     responsabilidades: ["Beneficios con criterios verificables", "Qué falta confirmar para postular"] },
   { id: "a16", numero: "16", nombre: "Tecnología y ciberseguridad", especialidad: "Madurez tecnológica y respaldos",

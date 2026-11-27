@@ -279,7 +279,7 @@ export const FUENTES: Fuente[] = [
     restricciones: "Solo información pública de la empresa; nunca de personas ni cuentas privadas.", frecuencia: "—", estado: "proxima_etapa", verificada: null,
   },
   {
-    id: "beneficios_m16", pais: "CL", organismo: "CORFO · Sercotec · SENCE · SII · ChileCompra · Chile Emprende · ProChile", nombre: "Catálogo de beneficios ENQORA (M16)",
+    id: "beneficios_m16", pais: "CL", organismo: "CORFO · Sercotec · FOSIS · SENCE · SII · ChileCompra · Chile Emprende · Portal de Emprendimiento · SernamEG · PRODEMU · INDAP · CNR · DEDECON · FOGAPE · ProChile", nombre: "Catálogo de beneficios ENQORA (M16)",
     url: "https://www.chileatiende.gob.cl", secciones: ["crecimiento"], nivel: "B",
     metodo: "Catálogo curado y vigilado por el agente de vigilancia normativa", campos: ["programas", "requisitos", "a quién aplican"],
     restricciones: "Las convocatorias, montos y plazos cambian: se verifican antes de postular.", frecuencia: "Revisión periódica", estado: "curada", verificada: "2026-10-27",

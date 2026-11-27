@@ -16,10 +16,10 @@ export const DEPARTAMENTOS: Record<Departamento, { titulo: string; icono: string
     consulta: "Cambios en el Registro de Empresas y Sociedades, constitución y modificación de sociedades, inicio de actividades y obligaciones de funcionamiento de las empresas." },
   marcas: { titulo: "Marcas", icono: "marcas", monitorea: "INAPI y propiedad industrial",
     consulta: "Novedades de INAPI: procedimientos y plazos de registro de marcas, aranceles, clasificación de productos y servicios, resoluciones." },
-  financiero: { titulo: "Financiero y oportunidades", icono: "crecimiento", monitorea: "CORFO, Sercotec, FOSIS y fondos",
-    consulta: "Convocatorias abiertas o próximas de Sercotec, CORFO, FOSIS, SENCE y ProChile para emprendedores y pymes, con requisitos y fechas de postulación." },
+  financiero: { titulo: "Financiero y oportunidades", icono: "crecimiento", monitorea: "CORFO, Sercotec, FOSIS, SENCE, INDAP, PRODEMU, SernamEG y más fondos",
+    consulta: "Convocatorias, fondos, créditos, garantías, capacitaciones y acompañamientos abiertos o próximos para emprendedores y pymes en: Sercotec (sercotec.cl), CORFO (corfo.cl), FOSIS (fosis.gob.cl), SENCE (sence.cl), PRODEMU (prodemu.cl), SernamEG (sernameg.gob.cl: Mujer Emprende, Mujeres Jefas de Hogar), INDAP (indap.gob.cl), Comisión Nacional de Riego (cnr.gob.cl), ProChile (prochile.gob.cl), FOGAPE (garantías estatales; bancoestado.cl, hacienda.cl), Ministerio de Economía y Chile Emprende (economia.gob.cl, chileemprende.gob.cl), Portal de Emprendimiento (miportalemprendimiento.gob.cl), ChileAtiende (chileatiende.gob.cl) y la Defensoría del Contribuyente (dedecon.cl: acompañamiento tributario gratuito). Para cada oportunidad: institución, nombre del programa, a quién va dirigido (tamaño, rubro, región, mujeres, agricultura, exportación), monto o beneficio, fechas de apertura y cierre, requisitos principales, si es gratuita y enlace oficial a las bases. No registres convocatorias ya cerradas." },
   municipal: { titulo: "Municipal y sectorial", icono: "formalizacion", monitorea: "Patentes, permisos y autorizaciones",
-    consulta: "Cambios en patentes municipales, autorizaciones sanitarias de la SEREMI de Salud y permisos sectoriales (SAG, SERNATUR, transporte)." },
+    consulta: "Cambios en patentes municipales, autorizaciones sanitarias de la SEREMI de Salud y permisos sectoriales (SAG, SERNATUR, transporte). También programas municipales de fomento productivo y emprendimiento con postulación abierta (por ejemplo, Municipalidad de Cerro Navia, cerronavia.cl), con fechas y requisitos." },
 };
 export const DEP_KEYS = Object.keys(DEPARTAMENTOS) as Departamento[];
 
